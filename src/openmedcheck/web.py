@@ -14,6 +14,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from openmedcheck.catalog_api import router as catalog_router
 from openmedcheck.check_service import rules_card
 from openmedcheck.config import Config, is_loopback_host
 from openmedcheck.contracts import (
@@ -124,6 +125,8 @@ def create_app(config: Config | None = None) -> FastAPI:
             return await call_next(request)
         except Exception:
             return problem_response(ProblemDetails(title="Internal server error", status=500))
+
+    app.include_router(catalog_router)
 
     @app.get("/", response_class=HTMLResponse)
     async def index(request: Request) -> HTMLResponse:
