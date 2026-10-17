@@ -268,9 +268,10 @@ means deliberately relaxing that:
 | Log severity | JSON line carries `level`, `ts`, `logger`, `event` | Cloud Logging reads `severity` and `timestamp`; add them (or map them in the logging agent) so levels and times show correctly. Keep the allowlist unchanged |
 | Health | `GET /api/model/health` is model health, not process health | Use `GET /` for probes (above) |
 
-At the commit reviewed, `web.py` serves `/`, `/api/drugs`, `/api/presets` and `/api/check/rules`;
-`/api/check` and `/api/model/*` in the Interfaces table are still pending in the task plan, so the
-probe and warm-up statements above follow the design, not shipped code.
+On `dev` at the time of this review `web.py` serves `/`, `/api/drugs`, `/api/presets`,
+`/api/check/rules`, `/api/check` and `/api/model/health`; `POST /api/model/warmup` from the
+Interfaces table is not built yet, so the warm-up mitigation above follows the design, not shipped
+code.
 
 ### Deployment plan (Not implemented in v0.1)
 1. **Prerequisites (human):** create the project, link billing, set a budget with alerts at
