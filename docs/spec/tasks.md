@@ -111,7 +111,7 @@ pytest --cov` pass and CI is green, unless stated otherwise.
     paracetamol → `NO_ISSUE`), AC-008.2 (Sign disabled on `BLOCKED`), AC-008.7 (Sign disabled
     while checking; stale responses dropped after an edit), AC-008.8, keyboard-only and with
     Ollama stopped; a usability review finds no blocking issue.
-- [ ] T-008: Hardening: local exposure, XSS, wording, concurrency
+- [x] T-008: Hardening: local exposure, XSS, wording, concurrency
   - Requirements: NFR-001, NFR-005, NFR-008, REQ-010 (AC-010.2)
   - Depends on: T-007
   - Scope: trusted-host middleware, 16 KB body limit (413), JSON-only (415), no CORS,
