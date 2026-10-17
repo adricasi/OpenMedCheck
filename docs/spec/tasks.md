@@ -141,7 +141,7 @@ pytest --cov` pass and CI is green, unless stated otherwise.
     `pyproject.toml`.
   - Done when: a fresh clone in a temp directory followed step by step serves the UI and
     evaluates presets A, B, C; wording test passes on the README.
-- [ ] T-011: GCP reference architecture and deployment plan finalised (documentation only)
+- [x] T-011: GCP reference architecture and deployment plan finalised (documentation only)
   - Requirements: REQ-013 (AC-013.1 … AC-013.3)
   - Depends on: T-009
   - Scope: review design.md § GCP reference architecture and § Deployment plan against what

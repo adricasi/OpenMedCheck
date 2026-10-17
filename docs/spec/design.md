@@ -310,9 +310,8 @@ means deliberately relaxing that:
 | Health | `GET /api/model/health` is model health, not process health | Do not use it for probes (above) |
 
 On `dev` at the time of this review `web.py` serves `/`, `/api/drugs`, `/api/presets`,
-`/api/check/rules`, `/api/check` and `/api/model/health`; `POST /api/model/warmup` from the
-Interfaces table is not built yet, so the warm-up mitigation above follows the design, not shipped
-code.
+`/api/check/rules`, `/api/check`, `/api/model/health` and `POST /api/model/warmup` (added in
+T-008), so the warm-up mitigation above uses shipped code.
 
 ### Deployment plan (Not implemented in v0.1)
 1. **Prerequisites (human):** create the project, link billing, set a budget with alerts at
