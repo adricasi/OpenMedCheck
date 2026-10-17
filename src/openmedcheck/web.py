@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -15,7 +16,7 @@ from starlette.middleware.base import RequestResponseEndpoint
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from openmedcheck.catalog_api import router as catalog_router
-from openmedcheck.check_service import rules_card
+from openmedcheck.check_service import final_card, rules_card
 from openmedcheck.config import Config, is_loopback_host
 from openmedcheck.contracts import (
     MAX_BODY_BYTES,
@@ -24,6 +25,7 @@ from openmedcheck.contracts import (
     FieldError,
     ProblemDetails,
 )
+from openmedcheck.model_client import ModelClient, OllamaClient
 
 PROBLEM_JSON = "application/problem+json"
 SECURITY_HEADERS = {
@@ -93,8 +95,13 @@ async def _read_check_request(request: Request) -> CheckRequest | JSONResponse:
         )
 
 
-def create_app(config: Config | None = None) -> FastAPI:
+def create_app(config: Config | None = None, model_client: ModelClient | None = None) -> FastAPI:
+    """Build the app; ``model_client`` is injected in tests, else Ollama from ``config``."""
     config = config or Config()
+    if model_client is None:
+        model_client = OllamaClient(
+            config.ollama_url, config.model, deadline_s=config.model_timeout_s
+        )
     app = FastAPI(title="OpenMedCheck", docs_url=None, redoc_url=None, openapi_url=None)
 
     allowed_hosts = ["127.0.0.1", "localhost", "[::1]"]
@@ -138,5 +145,18 @@ def create_app(config: Config | None = None) -> FastAPI:
         if isinstance(parsed, JSONResponse):
             return parsed
         return rules_card(parsed)
+
+    @app.post("/api/check", response_model=DecisionCard)
+    async def check(request: Request) -> Any:
+        parsed = await _read_check_request(request)
+        if isinstance(parsed, JSONResponse):
+            return parsed
+        # The model client blocks (httpx): keep it off the event loop.
+        return await run_in_threadpool(final_card, parsed, model_client)
+
+    @app.get("/api/model/health")
+    async def model_health() -> dict[str, str]:
+        state = await run_in_threadpool(model_client.health)
+        return {"status": state.value, "model": config.model}
 
     return app

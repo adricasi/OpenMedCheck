@@ -7,12 +7,13 @@ import pytest
 from fastapi.testclient import TestClient
 
 from openmedcheck.config import Config
+from openmedcheck.model_client import FakeModelClient
 from openmedcheck.web import create_app
 
 
 @pytest.fixture
 def client() -> TestClient:
-    return TestClient(create_app(Config()), base_url="http://127.0.0.1:8000")
+    return TestClient(create_app(Config(), FakeModelClient([])), base_url="http://127.0.0.1:8000")
 
 
 @pytest.fixture

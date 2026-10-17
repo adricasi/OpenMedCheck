@@ -37,6 +37,7 @@ MAX_RATIONALE_SENTENCES = 2
 OLLAMA_OPTIONS: dict[str, Any] = {"temperature": 0, "num_predict": 400}
 OLLAMA_KEEP_ALIVE = "10m"
 CONNECT_TIMEOUT_S = 2.0
+HEALTH_TIMEOUT_S = 2.0
 
 Clock = Callable[[], float]
 
@@ -48,6 +49,14 @@ class ModelOutcome(StrEnum):
     INVALID = "invalid"
     TIMEOUT = "timeout"
     UNAVAILABLE = "unavailable"
+
+
+class ModelHealth(StrEnum):
+    """AC-011.2 / design: what ``GET /api/model/health`` reports."""
+
+    READY = "ready"  # model is pulled and loaded in memory
+    WARMING = "warming"  # model is pulled but not loaded yet: the first call will be slow
+    UNAVAILABLE = "unavailable"  # server unreachable or model not pulled
 
 
 class ModelTimeout(Exception):  # noqa: N818 - domain name, not an error suffix
@@ -122,6 +131,8 @@ class ModelClient(Protocol):
     """Port used by the check service; never raises for model failures."""
 
     def assess(self, request: ModelRequest) -> ModelResult: ...
+
+    def health(self) -> ModelHealth: ...
 
 
 # --- content validation (AC-003.5) -------------------------------------------------------
@@ -334,6 +345,27 @@ class OllamaClient:
     def close(self) -> None:
         self._http.close()
 
+    def health(self) -> ModelHealth:
+        """Pulled and loaded -> ready; pulled only -> warming; otherwise unavailable."""
+        pulled = self._model_names("/api/tags", "models")
+        if pulled is None or not _has_model(pulled, self._model):
+            return ModelHealth.UNAVAILABLE
+        loaded = self._model_names("/api/ps", "models")
+        if loaded is not None and _has_model(loaded, self._model):
+            return ModelHealth.READY
+        return ModelHealth.WARMING
+
+    def _model_names(self, path: str, key: str) -> list[str] | None:
+        """Names listed by an Ollama listing endpoint, or None if it can't be read."""
+        try:
+            response = self._http.get(path, timeout=httpx.Timeout(HEALTH_TIMEOUT_S))
+            if response.status_code != httpx.codes.OK:
+                return None
+            entries = response.json()[key]
+            return [entry["name"] for entry in entries if isinstance(entry["name"], str)]
+        except (httpx.HTTPError, UnicodeError, ValueError, KeyError, TypeError):
+            return None
+
     def assess(self, request: ModelRequest) -> ModelResult:
         return run_assessment(self._chat, request, deadline_s=self._deadline_s, clock=self._clock)
 
@@ -375,6 +407,10 @@ class OllamaClient:
             "options": OLLAMA_OPTIONS,
             "keep_alive": OLLAMA_KEEP_ALIVE,
         }
+
+
+def _has_model(names: Sequence[str], model: str) -> bool:
+    return model in names or (":" not in model and f"{model}:latest" in names)
 
 
 def _message_content(response: httpx.Response) -> str:
@@ -429,6 +465,10 @@ class FakeModelClient:
     deadline_s: float = DEFAULT_DEADLINE_S
     clock: ManualClock = field(default_factory=ManualClock)
     requests: list[ModelRequest] = field(default_factory=list)
+    health_state: ModelHealth = ModelHealth.READY
+
+    def health(self) -> ModelHealth:
+        return self.health_state
 
     def assess(self, request: ModelRequest) -> ModelResult:
         self.requests.append(request)

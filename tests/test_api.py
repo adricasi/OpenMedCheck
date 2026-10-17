@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from openmedcheck import web
 from openmedcheck.config import Config
 from openmedcheck.contracts import MAX_BODY_BYTES
+from openmedcheck.model_client import FakeModelClient
 
 Payload = Callable[..., dict[str, Any]]
 CARD_KEYS = {
@@ -146,7 +147,9 @@ def test_nfr_002_unexpected_error_returns_500_problem_and_logs_no_patient_data(
 
     monkeypatch.setattr(web, "rules_card", boom)
     local = TestClient(
-        web.create_app(Config()), base_url="http://127.0.0.1:8000", raise_server_exceptions=False
+        web.create_app(Config(), FakeModelClient([])),
+        base_url="http://127.0.0.1:8000",
+        raise_server_exceptions=False,
     )
 
     with caplog.at_level(logging.DEBUG):
@@ -195,7 +198,9 @@ def test_page_and_rules_do_not_use_forbidden_wording(
 
 
 def test_nfr_001_trusted_host_rejects_foreign_host_header(make_payload: Payload) -> None:
-    foreign = TestClient(web.create_app(Config()), base_url="http://evil.example")
+    foreign = TestClient(
+        web.create_app(Config(), FakeModelClient([])), base_url="http://evil.example"
+    )
 
     assert foreign.post("/api/check/rules", json=make_payload()).status_code == 400
 
@@ -217,7 +222,9 @@ def test_ac_011_4_explicitly_allowed_nonlocal_host_is_a_trusted_host(
     make_payload: Payload,
 ) -> None:
     config = Config(host="clinic.internal", allow_nonlocal=True)
-    allowed = TestClient(web.create_app(config), base_url="http://clinic.internal")
+    allowed = TestClient(
+        web.create_app(config, FakeModelClient([])), base_url="http://clinic.internal"
+    )
 
     assert allowed.post("/api/check/rules", json=make_payload()).status_code == 200
 
