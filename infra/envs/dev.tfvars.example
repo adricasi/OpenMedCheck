@@ -1,0 +1,4 @@
+# Copy to dev.tfvars (git-ignored if it contains anything sensitive).
+project_id = "my-project-dev"
+env        = "dev"
+owner      = "me"

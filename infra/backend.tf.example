@@ -1,0 +1,9 @@
+# Remote state in GCS. Copy to backend.tf and set the bucket once it exists.
+# Create the bucket with versioning + uniform bucket-level access, restricted IAM.
+#
+# terraform {
+#   backend "gcs" {
+#     bucket = "<project-id>-tfstate"
+#     prefix = "openmedcheck"
+#   }
+# }

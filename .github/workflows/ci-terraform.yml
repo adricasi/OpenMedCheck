@@ -1,0 +1,68 @@
+name: ci-terraform
+
+on:
+  push:
+    branches: [main]
+    paths: ["infra/**", ".github/workflows/ci-terraform.yml"]
+  pull_request:
+    paths: ["infra/**", ".github/workflows/ci-terraform.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: infra
+
+jobs:
+  static:
+    name: fmt / validate / tflint / checkov
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
+      - name: Format
+        run: terraform fmt -check -recursive
+      - name: Init (no backend)
+        run: terraform init -backend=false -input=false
+      - name: Validate
+        run: terraform validate
+      - uses: terraform-linters/setup-tflint@v6
+      - name: TFLint
+        run: |
+          tflint --init
+          tflint --recursive --format compact
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: infra
+          framework: terraform
+          quiet: true
+
+  # Plan on pull requests with a READ-ONLY identity via Workload Identity Federation.
+  # Enable after creating the pool/provider and the reviewer service account.
+  #
+  # plan:
+  #   if: github.event_name == 'pull_request'
+  #   needs: static
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 20
+  #   permissions:
+  #     contents: read
+  #     id-token: write
+  #   steps:
+  #     - uses: actions/checkout@v7
+  #     - uses: google-github-actions/auth@v3
+  #       with:
+  #         workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+  #         service_account: ${{ vars.GCP_PLAN_SERVICE_ACCOUNT }}
+  #     - uses: hashicorp/setup-terraform@v4
+  #     - run: terraform init -input=false
+  #     - run: terraform plan -input=false -lock=false -var-file=envs/dev.tfvars
