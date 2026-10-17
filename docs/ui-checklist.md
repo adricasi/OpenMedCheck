@@ -39,8 +39,12 @@ implementer.
 ## Alternative flow
 - [x] The alternative order (paracetamol on preset A's context) is re-checked and is `NO_ISSUE`
   (`tests/test_catalog_api.py`, AC-009.1)
-- [ ] A, "Use alternative": the drug, dose, route and frequency fields are replaced, the check
-  reruns automatically, the green card appears, "Sign order" becomes enabled (AC-009.1, AC-009.2)
+- [ ] A, "Use alternative" while the alternative's dose is unreviewed (card shows "Dose: consult
+  SmPC", no route/frequency): only the drug is replaced, dose and frequency are cleared, focus
+  moves to Dose with a prompt, nothing auto-runs; enter a dose and frequency, press "Check
+  order": green card (AC-009.1, AC-009.2; spec decision pending, see report)
+- [ ] Once the dose is specialist-reviewed (route and frequency present): all four order fields
+  are replaced and the check reruns automatically
 
 ## Editing and validation
 - [x] Edited context is evaluated, not the stored preset (`tests/test_catalog_api.py`, AC-007.2)
