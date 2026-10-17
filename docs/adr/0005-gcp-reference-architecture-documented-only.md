@@ -16,7 +16,7 @@ must be credible: least privilege, no public model endpoint, scale to zero, sour
    Google's own Gemma-on-Cloud-Run tutorial, no VM ops, private model. Cons: GPU cold start
    (~19 s time to first token from zero for a 4B model, per Google's GA blog); internal ingress
    from another Cloud Run service needs Private Google Access/DNS set up correctly.
-2. **Same as 1 with min-instances = 1**: no cold start, but always-on GPU cost (about US$1.05 per instance-hour with 4 vCPU and 16 GiB, Q-1 closed with a caveat on
+2. **Same as 1 with min-instances = 1**: no cold start, but always-on GPU cost (about US$1.05 per instance-hour, non-zonal, GPU plus 4 vCPU and 16 GiB, Q-1 closed with a caveat on
    2026-10-17, see design.md).
 3. **Vertex AI endpoint + Private Service Connect**: managed, but an always-on node and no scale
    to zero.
