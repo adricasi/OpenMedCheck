@@ -64,7 +64,7 @@ pytest --cov` pass and CI is green, unless stated otherwise.
     final BLOCKED", "renal flag never cleared", "renal flag ⇒ ≥ WARNING", "shown alternative
     always passes AC-004.6"; tests for AC-004.5 … AC-004.7, AC-004.9 and AC-001.3 pass (incl.
     preset A: no NSAID can be the alternative); combiner has 100% line + branch coverage.
-- [ ] T-005: Model client, prompt, check service, fail-safe and logging
+- [x] T-005: Model client, prompt, check service, fail-safe and logging
   - Requirements: REQ-003 (AC-003.1 … AC-003.3, AC-003.5), REQ-005, REQ-001, AC-004.8,
     NFR-002, NFR-003, NFR-004 (timeout), NFR-007
   - Depends on: T-001, T-004
