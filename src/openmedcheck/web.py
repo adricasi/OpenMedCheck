@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import logging
+import threading
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Request
+from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -13,7 +17,6 @@ from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import RequestResponseEndpoint
-from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from openmedcheck.catalog_api import router as catalog_router
 from openmedcheck.check_service import final_card, rules_card
@@ -25,8 +28,10 @@ from openmedcheck.contracts import (
     FieldError,
     ProblemDetails,
 )
+from openmedcheck.logging_setup import LOGGER_NAME, log_event
 from openmedcheck.model_client import ModelClient, ModelHealth, OllamaClient
 
+LOGGER = logging.getLogger(f"{LOGGER_NAME}.web")
 PROBLEM_JSON = "application/problem+json"
 SECURITY_HEADERS = {
     "Content-Security-Policy": (
@@ -60,6 +65,32 @@ def _field_errors(error: ValidationError) -> list[FieldError]:
     return errors
 
 
+async def _read_limited_body(request: Request) -> bytes | None:
+    """Body bytes, or None once it exceeds the limit; stops reading at the limit (NFR-001).
+
+    Counts streamed chunks so a chunked or Content-Length-less body is never buffered whole.
+    """
+    declared = request.headers.get("content-length", "")
+    if declared.isdigit() and int(declared) > MAX_BODY_BYTES:
+        return None
+    chunks: list[bytes] = []
+    size = 0
+    async for chunk in request.stream():
+        size += len(chunk)
+        if size > MAX_BODY_BYTES:
+            return None
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
+def _request_hostname(host_header: str) -> str:
+    """Host header without its port, lower-cased; keeps the brackets of an IPv6 literal."""
+    host = host_header.strip().lower()
+    if host.startswith("["):
+        return host[: host.find("]") + 1] if "]" in host else host
+    return host.split(":", 1)[0]
+
+
 async def _read_check_request(request: Request) -> CheckRequest | JSONResponse:
     """Parse the body once, at the edge: 415, 413, then 422 with field errors."""
     content_type = request.headers.get("content-type", "").split(";")[0].strip().lower()
@@ -71,10 +102,8 @@ async def _read_check_request(request: Request) -> CheckRequest | JSONResponse:
                 detail="Content-Type must be application/json.",
             )
         )
-    declared = request.headers.get("content-length", "")
-    too_large = declared.isdigit() and int(declared) > MAX_BODY_BYTES
-    body = b"" if too_large else await request.body()
-    if too_large or len(body) > MAX_BODY_BYTES:
+    body = await _read_limited_body(request)
+    if body is None:
         return problem_response(
             ProblemDetails(
                 title="Request body too large",
@@ -98,16 +127,46 @@ async def _read_check_request(request: Request) -> CheckRequest | JSONResponse:
 def create_app(config: Config | None = None, model_client: ModelClient | None = None) -> FastAPI:
     """Build the app; ``model_client`` is injected in tests, else Ollama from ``config``."""
     config = config or Config()
+    injected = model_client
     if model_client is None:
         model_client = OllamaClient(
             config.ollama_url, config.model, deadline_s=config.model_timeout_s
         )
-    app = FastAPI(title="OpenMedCheck", docs_url=None, redoc_url=None, openapi_url=None)
+    owns_client = injected is None
 
-    allowed_hosts = ["127.0.0.1", "localhost", "[::1]"]
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+        try:
+            yield
+        finally:
+            if owns_client and isinstance(model_client, OllamaClient):
+                model_client.close()
+
+    app = FastAPI(
+        title="OpenMedCheck",
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+        lifespan=lifespan,
+    )
+
+    allowed_hosts = {"127.0.0.1", "localhost", "[::1]"}
     if config.allow_nonlocal and not is_loopback_host(config.host):
-        allowed_hosts.append(config.host)
-    app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)
+        allowed_hosts.add(config.host.lower())
+
+    @app.middleware("http")
+    async def _trusted_host(request: Request, call_next: RequestResponseEndpoint) -> Response:
+        # Registered first, so it runs inside the header and error middlewares below and its
+        # rejection is a problem+json response that still carries the security headers.
+        if _request_hostname(request.headers.get("host", "")) not in allowed_hosts:
+            return problem_response(
+                ProblemDetails(
+                    title="Invalid host header",
+                    status=400,
+                    detail="The Host header is not an allowed host.",
+                )
+            )
+        return await call_next(request)
 
     @app.middleware("http")
     async def _security_headers(request: Request, call_next: RequestResponseEndpoint) -> Response:
@@ -162,4 +221,45 @@ def create_app(config: Config | None = None, model_client: ModelClient | None = 
             state = ModelHealth.UNAVAILABLE  # a failing probe means unavailable, not a 500
         return {"status": state.value, "model": config.model}
 
+    warmup = _WarmUp()
+
+    @app.post("/api/model/warmup", status_code=202)
+    async def model_warmup(background: BackgroundTasks) -> dict[str, str]:
+        """Start loading the model without blocking (REQ-014); idempotent, never raises."""
+        try:
+            state = await run_in_threadpool(model_client.health)
+        except Exception:
+            state = ModelHealth.UNAVAILABLE
+        if state is ModelHealth.UNAVAILABLE:
+            return {"status": ModelHealth.UNAVAILABLE.value}
+        if state is ModelHealth.READY:
+            return {"status": ModelHealth.READY.value}
+        if warmup.try_start():
+            background.add_task(run_in_threadpool, warmup.run, model_client)
+        return {"status": ModelHealth.WARMING.value}
+
     return app
+
+
+class _WarmUp:
+    """Single-flight guard so repeated warm-up requests start at most one model load."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._running = False
+
+    def try_start(self) -> bool:
+        with self._lock:
+            if self._running:
+                return False
+            self._running = True
+            return True
+
+    def run(self, client: ModelClient) -> None:
+        try:
+            client.warm_up()
+        except Exception:  # best effort: a failed warm-up only means the first check is slower
+            log_event(LOGGER, "model_warmup_failed", level=logging.WARNING)
+        finally:
+            with self._lock:
+                self._running = False
