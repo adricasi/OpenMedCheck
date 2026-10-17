@@ -54,7 +54,7 @@ pytest --cov` pass and CI is green, unless stated otherwise.
     `NO_ISSUE`, preset B is `WARNING` with the renal flag, preset C is `NO_ISSUE`;
     `docs/clinical-review.md` (rule table + the 3 rules cards + preset A's expected final card
     text) is generated and **sent to the specialist** (before Sat 22:00).
-- [ ] T-004: Escalate-only combiner and alternative re-check
+- [x] T-004: Escalate-only combiner and alternative re-check
   - Requirements: REQ-004 (AC-004.1 … AC-004.9), REQ-001 (AC-001.3), NFR-009
   - Depends on: T-003
   - Scope: `combiner` (pure merge, text-source selection, flag union, `downgrade_rejected`),
