@@ -19,6 +19,10 @@ class Status(StrEnum):
     WARNING = "WARNING"
     BLOCKED = "BLOCKED"
 
+    @property
+    def rank(self) -> int:
+        return _STATUS_ORDER.index(self)
+
 
 class RiskLevel(StrEnum):
     """Risk tier. Order: LOW < MODERATE < HIGH < CRITICAL."""
@@ -27,6 +31,14 @@ class RiskLevel(StrEnum):
     MODERATE = "MODERATE"
     HIGH = "HIGH"
     CRITICAL = "CRITICAL"
+
+    @property
+    def rank(self) -> int:
+        return _RISK_ORDER.index(self)
+
+
+_STATUS_ORDER = (Status.NO_ISSUE, Status.WARNING, Status.BLOCKED)
+_RISK_ORDER = (RiskLevel.LOW, RiskLevel.MODERATE, RiskLevel.HIGH, RiskLevel.CRITICAL)
 
 
 class ConflictType(StrEnum):
@@ -110,6 +122,20 @@ class RulesVerdict(_Strict):
     fired_rules: list[FiredRule]
     renal_adjustment_required: bool = False
     crcl_ml_min: float | None = None
+
+
+class ModelVerdict(_Strict):
+    """The model's validated verdict (design § Data model). Text limits and content checks
+    (AC-003.5) are enforced by the model layer, not here: the combiner must hold for any value.
+    """
+
+    status: Status
+    risk_level: RiskLevel
+    headline: str
+    rationale: str
+    renal_adjustment_required: bool
+    conflict_type: ConflictType | None = None
+    alternative_drug_id: str | None = None
 
 
 class Alternative(_Strict):

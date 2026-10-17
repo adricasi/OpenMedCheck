@@ -403,3 +403,8 @@ SPECIALIST_QUESTIONS: tuple[str, ...] = (
     "Missing renal lab gives WARNING 'renal function unknown' (design choice A-5, not SmPC). "
     "Is a warning right, or should some drugs (e.g. metformin) be stricter?",
 )
+
+RULES_BY_ID: dict[str, RuleEntry] = {
+    rule.rule_id: rule
+    for rule in (ALLERGY_RULE, *CONTEXT_RULES, *RENAL_RULES, *RENAL_UNKNOWN_RULES.values())
+}
