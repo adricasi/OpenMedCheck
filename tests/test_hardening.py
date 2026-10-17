@@ -108,6 +108,7 @@ def test_nfr_001_chunked_oversized_body_is_413_and_reading_stops() -> None:
         "server": ("127.0.0.1", 8000),
     }
 
+    # The hand-built scope and messages are plain dicts, which the strict ASGI types reject.
     asyncio.run(app(scope, receive, send))  # type: ignore[arg-type]
 
     start = next(m for m in sent if m["type"] == "http.response.start")
@@ -203,7 +204,7 @@ def test_nfr_001_only_the_configured_ollama_address_is_ever_contacted(
     with TestClient(web.create_app(config, model), base_url="http://127.0.0.1:8000") as api:
         assert api.get("/").status_code == 200
         assert api.get("/api/model/health").json()["status"] == "unavailable"
-        assert api.post("/api/model/warmup").status_code == 202
+        assert api.post("/api/model/warmup", json={}).status_code == 202
         for preset in (PRESET_A, PRESET_C):
             checked = api.post("/api/check", json=preset_body(preset))
             assert checked.status_code == 200
@@ -353,7 +354,7 @@ def test_nfr_005_two_parallel_checks_return_independent_correct_cards() -> None:
 def test_ac_014_1_warmup_starts_one_load_and_returns_202_warming() -> None:
     fake = FakeModelClient([], health_state=ModelHealth.WARMING)
 
-    response = client_for(fake).post("/api/model/warmup")
+    response = client_for(fake).post("/api/model/warmup", json={})
 
     assert response.status_code == 202
     assert response.json() == {"status": "warming"}
@@ -364,10 +365,43 @@ def test_ac_014_1_warmup_starts_one_load_and_returns_202_warming() -> None:
 def test_ac_014_1_warmup_when_ready_or_unavailable_loads_nothing(state: ModelHealth) -> None:
     fake = FakeModelClient([], health_state=state)
 
-    response = client_for(fake).post("/api/model/warmup")
+    response = client_for(fake).post("/api/model/warmup", json={})
 
     assert (response.status_code, response.json()) == (202, {"status": state.value})
     assert fake.warm_up_calls == 0
+
+
+def test_ac_014_1_warmup_requires_json_content_type() -> None:
+    fake = FakeModelClient([], health_state=ModelHealth.WARMING)
+
+    response = client_for(fake).post("/api/model/warmup", content="x")
+
+    assert response.status_code == 415
+    assert fake.warm_up_calls == 0
+
+
+def test_nfr_001_nonlocal_ipv6_host_is_trusted_when_allowed() -> None:
+    config = Config(host="fd00::1", allow_nonlocal=True)
+    api = TestClient(web.create_app(config, FakeModelClient([])), base_url="http://[fd00::1]:8000")
+
+    assert api.get("/").status_code == 200
+
+
+@pytest.mark.parametrize(
+    "header",
+    [
+        "",
+        "[::1",
+        "evil.example",
+        "127.0.0.1.evil.example",
+        "[::1]evil.example",
+        "[::1].attacker:80",
+    ],
+)
+def test_nfr_001_malformed_or_foreign_host_headers_are_rejected(header: str) -> None:
+    api = client_for(FakeModelClient([]))
+
+    assert api.get("/", headers={"host": header}).status_code == 400
 
 
 def test_ac_014_1_warmup_is_single_flight() -> None:
@@ -379,20 +413,30 @@ def test_ac_014_1_warmup_is_single_flight() -> None:
     assert guard.try_start() is True
 
 
-def test_ac_014_1_warmup_never_raises_even_if_the_load_or_probe_fails() -> None:
-    class BrokenLoad(FakeModelClient):
-        def warm_up(self) -> bool:
-            raise RuntimeError("boom")
+class _BrokenLoad(FakeModelClient):
+    def warm_up(self) -> bool:
+        raise RuntimeError("boom")
 
-    class BrokenProbe(FakeModelClient):
-        def health(self) -> ModelHealth:
-            raise RuntimeError("boom")
 
-    for fake in (BrokenLoad([], health_state=ModelHealth.WARMING), BrokenProbe([])):
-        response = client_for(fake).post("/api/model/warmup")
+class _BrokenProbe(FakeModelClient):
+    def health(self) -> ModelHealth:
+        raise RuntimeError("boom")
 
-        assert response.status_code == 202
-        assert response.json()["status"] in {"warming", "unavailable"}
+
+@pytest.mark.parametrize(
+    ("fake", "expected"),
+    [
+        (_BrokenLoad([], health_state=ModelHealth.WARMING), "warming"),
+        (_BrokenProbe([]), "unavailable"),
+    ],
+)
+def test_ac_014_1_warmup_never_raises_even_if_the_load_or_probe_fails(
+    fake: FakeModelClient, expected: str
+) -> None:
+    response = client_for(fake).post("/api/model/warmup", json={})
+
+    assert response.status_code == 202
+    assert response.json() == {"status": expected}
 
 
 def test_ac_014_1_ollama_warm_up_sends_an_empty_prompt_and_reports_success() -> None:

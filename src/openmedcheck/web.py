@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import threading
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -65,6 +66,20 @@ def _field_errors(error: ValidationError) -> list[FieldError]:
     return errors
 
 
+def _content_type(request: Request) -> str:
+    return request.headers.get("content-type", "").split(";")[0].strip().lower()
+
+
+def _unsupported_media_type() -> JSONResponse:
+    return problem_response(
+        ProblemDetails(
+            title="Unsupported media type",
+            status=415,
+            detail="Content-Type must be application/json.",
+        )
+    )
+
+
 async def _read_limited_body(request: Request) -> bytes | None:
     """Body bytes, or None once it exceeds the limit; stops reading at the limit (NFR-001).
 
@@ -83,25 +98,19 @@ async def _read_limited_body(request: Request) -> bytes | None:
     return b"".join(chunks)
 
 
+_HOST_HEADER = re.compile(r"(?P<host>\[[0-9a-f:.]+\]|[a-z0-9.-]+)(?::\d{1,5})?")
+
+
 def _request_hostname(host_header: str) -> str:
     """Host header without its port, lower-cased; keeps the brackets of an IPv6 literal."""
-    host = host_header.strip().lower()
-    if host.startswith("["):
-        return host[: host.find("]") + 1] if "]" in host else host
-    return host.split(":", 1)[0]
+    match = _HOST_HEADER.fullmatch(host_header.strip().lower())
+    return match.group("host") if match else ""
 
 
 async def _read_check_request(request: Request) -> CheckRequest | JSONResponse:
     """Parse the body once, at the edge: 415, 413, then 422 with field errors."""
-    content_type = request.headers.get("content-type", "").split(";")[0].strip().lower()
-    if content_type != "application/json":
-        return problem_response(
-            ProblemDetails(
-                title="Unsupported media type",
-                status=415,
-                detail="Content-Type must be application/json.",
-            )
-        )
+    if _content_type(request) != "application/json":
+        return _unsupported_media_type()
     body = await _read_limited_body(request)
     if body is None:
         return problem_response(
@@ -152,7 +161,8 @@ def create_app(config: Config | None = None, model_client: ModelClient | None = 
 
     allowed_hosts = {"127.0.0.1", "localhost", "[::1]"}
     if config.allow_nonlocal and not is_loopback_host(config.host):
-        allowed_hosts.add(config.host.lower())
+        host = config.host.lower().strip("[]")
+        allowed_hosts.add(f"[{host}]" if ":" in host else host)
 
     @app.middleware("http")
     async def _trusted_host(request: Request, call_next: RequestResponseEndpoint) -> Response:
@@ -224,8 +234,11 @@ def create_app(config: Config | None = None, model_client: ModelClient | None = 
     warmup = _WarmUp()
 
     @app.post("/api/model/warmup", status_code=202)
-    async def model_warmup(background: BackgroundTasks) -> dict[str, str]:
+    async def model_warmup(request: Request, background: BackgroundTasks) -> Any:
         """Start loading the model without blocking (REQ-014); idempotent, never raises."""
+        # JSON-only: a cross-origin page can't send this without a CORS preflight we never answer.
+        if _content_type(request) != "application/json":
+            return _unsupported_media_type()
         try:
             state = await run_in_threadpool(model_client.health)
         except Exception:
@@ -235,7 +248,7 @@ def create_app(config: Config | None = None, model_client: ModelClient | None = 
         if state is ModelHealth.READY:
             return {"status": ModelHealth.READY.value}
         if warmup.try_start():
-            background.add_task(run_in_threadpool, warmup.run, model_client)
+            background.add_task(warmup.run, model_client)
         return {"status": ModelHealth.WARMING.value}
 
     return app
