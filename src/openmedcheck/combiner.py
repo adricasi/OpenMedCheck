@@ -26,7 +26,13 @@ NO_ISSUE_HEADLINE = "No issue found by these checks"
 NO_ISSUE_RATIONALE = "No rule in the current table conflicts with this order and context."
 # Used only when the renal flag alone lifts a NO_ISSUE verdict to WARNING (AC-004.4).
 RENAL_FLAG_HEADLINE = "Check renal function for this order"
-RENAL_FLAG_RATIONALE = "The model check flagged that renal dose adjustment may be needed."
+RENAL_FLAG_RATIONALE = "Renal dose adjustment may be needed for this order."
+# Last-resort text when a model headline or rationale is blank and the rules have none.
+FALLBACK_HEADLINES = {
+    Status.WARNING: "Review this order before signing",
+    Status.BLOCKED: "Order conflicts with patient context",
+}
+FALLBACK_RATIONALE = "See the model check; the rule table reasons, if any, are listed below."
 
 MAX_HEADLINE_WORDS = 8
 MAX_HEADLINE_CHARS = 60
@@ -75,9 +81,13 @@ def limit_rationale(text: str) -> str:
 
 
 def _deciding_conflict(
-    rules: RulesVerdict, model: ModelVerdict | None, status: Status, renal_flag: bool
+    rules: RulesVerdict, model: ModelVerdict | None, status: Status
 ) -> ConflictType | None:
-    """Conflict type that set the final status: the strongest fired rule's, else the model's."""
+    """Conflict type that set the final status (AC-004.6 a).
+
+    The strongest fired rule's when the rules set it; the model's when the model set it
+    (None means no alternative); RENAL when only the renal-flag floor lifted the status.
+    """
     if rules.status is status and rules.fired_rules:
 
         def strength(rule: FiredRule) -> tuple[int, int]:
@@ -85,9 +95,9 @@ def _deciding_conflict(
             return entry.status.rank, entry.risk_level.rank
 
         return max(rules.fired_rules, key=strength).conflict_type
-    if model is not None and model.conflict_type is not None:
+    if model is not None and model.status is status:
         return model.conflict_type
-    return ConflictType.RENAL if renal_flag else None
+    return ConflictType.RENAL
 
 
 def combine(
@@ -107,25 +117,35 @@ def combine(
     renal_flag = rules.renal_adjustment_required
     downgrade_rejected = False
     if model is not None:
-        downgrade_rejected = (model.status.rank, model.risk_level.rank) < (
-            rules.status.rank,
-            rules.risk_level.rank,
+        # Any lower component counts as a downgrade attempt (AC-004.2); the result still takes
+        # the maximum of each (AC-004.1), so the tier is never below the rules' tier.
+        downgrade_rejected = (
+            model.status.rank < rules.status.rank or model.risk_level.rank < rules.risk_level.rank
         )
         status = max(status, model.status, key=lambda s: s.rank)
         risk_level = max(risk_level, model.risk_level, key=lambda r: r.rank)
         renal_flag = renal_flag or model.renal_adjustment_required
     if renal_flag and status is Status.NO_ISSUE:
         status = Status.WARNING
+    if status is Status.NO_ISSUE:
+        risk_level = RiskLevel.LOW  # a clean card never carries an elevated tier
 
     if status is Status.NO_ISSUE:
         headline, rationale = NO_ISSUE_HEADLINE, NO_ISSUE_RATIONALE
-    elif model is not None and not downgrade_rejected and model.status is status:
+    elif (
+        model is not None
+        and model.status is status
+        and (status.rank > rules.status.rank or model.risk_level.rank >= rules.risk_level.rank)
+    ):
         headline = limit_headline(model.headline) or limit_headline(rules_headline)
         rationale = limit_rationale(model.rationale) or limit_rationale(rules_rationale)
     elif rules.status is status:
         headline, rationale = limit_headline(rules_headline), limit_rationale(rules_rationale)
     else:
         headline, rationale = RENAL_FLAG_HEADLINE, RENAL_FLAG_RATIONALE
+    if status is not Status.NO_ISSUE:
+        headline = headline or FALLBACK_HEADLINES[status]
+        rationale = rationale or FALLBACK_RATIONALE
 
     return CombinedVerdict(
         status=status,
@@ -135,7 +155,7 @@ def combine(
         renal_adjustment_required=renal_flag,
         fired_rules=list(rules.fired_rules),
         crcl_ml_min=rules.crcl_ml_min,
-        conflict_type=_deciding_conflict(rules, model, status, renal_flag),
+        conflict_type=_deciding_conflict(rules, model, status),
         model_raised=status.rank > rules.status.rank,
         downgrade_rejected=downgrade_rejected,
         source=Source.RULES if model is None else Source.RULES_MODEL,

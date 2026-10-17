@@ -353,6 +353,10 @@ def test_property_pipeline_invariants_hold_for_any_model_verdict(
     if card.renal_adjustment_required:
         assert card.status.rank >= Status.WARNING.rank
     assert [r.reason for r in card.fired_rules] == [r.reason for r in rules.fired_rules]  # AC-004.5
+    assert card.headline
+    assert card.rationale
+    assert len(card.headline) <= 60
+    assert len(card.rationale) <= 300
     if card.status is Status.NO_ISSUE:
         assert card.headline == NO_ISSUE_HEADLINE  # AC-004.9
         assert card.alternative is None  # AC-001.3
@@ -361,9 +365,12 @@ def test_property_pipeline_invariants_hold_for_any_model_verdict(
     if alternative is None:
         return
     # AC-004.6 (a): listed for the proposed drug and a conflict type that can have raised it.
-    conflicts = {r.conflict_type for r in rules.fired_rules} | {ConflictType.RENAL}
-    if model is not None and model.conflict_type is not None:
-        conflicts.add(model.conflict_type)
+    if card.status is rules.status:
+        conflicts = {r.conflict_type for r in rules.fired_rules}
+    elif model is not None and model.status is card.status:
+        conflicts = {model.conflict_type} if model.conflict_type else set()
+    else:
+        conflicts = {ConflictType.RENAL}
     allowed = [
         a
         for conflict in conflicts

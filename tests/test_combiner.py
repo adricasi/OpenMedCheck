@@ -9,6 +9,8 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from openmedcheck.combiner import (
+    FALLBACK_HEADLINES,
+    FALLBACK_RATIONALE,
     MAX_HEADLINE_CHARS,
     MAX_RATIONALE_CHARS,
     NO_ISSUE_HEADLINE,
@@ -94,7 +96,10 @@ def test_ac_004_1_final_is_the_stricter_status_and_higher_tier(
     rules = RulesVerdict(status=rules_status, risk_level=rules_tier, fired_rules=[])
     result = run(rules, model_verdict(model_status, model_tier))
     assert result.status.rank >= max(rules_status.rank, model_status.rank)
-    assert result.risk_level.rank == max(rules_tier.rank, model_tier.rank)
+    if result.status is Status.NO_ISSUE:
+        assert result.risk_level is RiskLevel.LOW
+    else:
+        assert result.risk_level.rank == max(rules_tier.rank, model_tier.rank)
 
 
 def test_ac_004_2_less_strict_model_keeps_rules_status_tier_and_text() -> None:
@@ -301,3 +306,35 @@ def test_property_limits_always_hold(text: str) -> None:
     assert len(limit_headline(text).split()) <= 8
     assert len(limit_headline(text)) <= MAX_HEADLINE_CHARS
     assert len(limit_rationale(text)) <= MAX_RATIONALE_CHARS
+
+
+def test_ac_004_2_lower_tier_with_higher_status_is_still_a_logged_downgrade_attempt() -> None:
+    rules = rules_verdict("RENAL_CIPROFLOXACIN_CRCL_30", "RENAL_UNKNOWN_CRCL", flag=True)
+    result = run(rules, model_verdict(Status.BLOCKED, RiskLevel.LOW, headline="Model says no"))
+    assert result.downgrade_rejected
+    assert result.status is Status.BLOCKED
+    assert result.risk_level is RiskLevel.MODERATE
+    assert result.headline == "Model says no"
+
+
+def test_blank_model_text_without_rules_text_gets_a_fixed_fallback() -> None:
+    model = model_verdict(Status.BLOCKED, headline="  ", rationale="")
+    result = combine(NO_RULES, "", "", model)
+    assert result.headline == FALLBACK_HEADLINES[Status.BLOCKED]
+    assert result.rationale == FALLBACK_RATIONALE
+
+
+def test_a_clean_card_never_carries_an_elevated_tier() -> None:
+    assert run(NO_RULES, model_verdict(Status.NO_ISSUE, RiskLevel.HIGH)).risk_level is RiskLevel.LOW
+
+
+def test_deciding_conflict_ignores_the_models_when_only_the_renal_floor_raised_the_status() -> None:
+    model = model_verdict(Status.NO_ISSUE, flag=True, conflict_type=ConflictType.ALLERGY)
+    assert run(NO_RULES, model).conflict_type is ConflictType.RENAL
+
+
+def test_deciding_conflict_is_unknown_when_the_model_raised_without_one_despite_renal_rules() -> (
+    None
+):
+    model = model_verdict(Status.BLOCKED, flag=True, conflict_type=None)
+    assert run(RENAL_WARNING, model).conflict_type is None

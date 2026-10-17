@@ -70,7 +70,7 @@ def combined_card(
         alternative=alternative,
         source=combined.source,
         model_note=None,
-        request_id=request_id or uuid.uuid4().hex,
+        request_id=uuid.uuid4().hex if request_id is None else request_id,
     )
     return card, combined.downgrade_rejected
 
