@@ -6,7 +6,7 @@ outcome counts, first-try validity, invalid-reason codes, status/conflict distri
 latency. All patients are synthetic presets; no patient context or model text is printed or
 stored. Needs a local Ollama with the model tag.
 
-    uv run python scripts/eval_model.py --calls 40 --warmup 3
+    uv run python scripts/eval_model.py --calls 60 --warmup 3
 
 The script reads the raw text of each attempt in memory (never printed) to recover the
 first-try invalid reason and which drug ID tripped the AC-003.5 check; this uses two private
