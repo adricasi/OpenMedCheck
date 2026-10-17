@@ -2,7 +2,6 @@
 
 REQ-003 (AC-003.1 to AC-003.3, AC-003.5), REQ-005, NFR-003, NFR-004. This module never
 logs patient context or model text; callers get an outcome code and a short reason code.
-``ModelVerdict`` lives here until the coordinator moves it to ``contracts`` (design.md).
 """
 
 from __future__ import annotations
@@ -17,14 +16,13 @@ from enum import StrEnum
 from typing import Any, Protocol
 
 import httpx
-from pydantic import BaseModel, ConfigDict, ValidationError, field_validator, model_validator
+from pydantic import ValidationError, field_validator, model_validator
 
 from openmedcheck import prompt
 from openmedcheck.contracts import (
-    ConflictType,
+    ModelVerdict,
     Order,
     PatientContext,
-    RiskLevel,
     RulesVerdict,
     Status,
 )
@@ -68,18 +66,8 @@ class InvalidModelOutput(ValueError):  # noqa: N818 - domain name, not an error 
         self.reason = reason
 
 
-class ModelVerdict(BaseModel):
-    """Validated model output (design.md "Data model"). Limits per AC-001.2."""
-
-    model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
-
-    status: Status
-    risk_level: RiskLevel
-    headline: str
-    rationale: str
-    renal_adjustment_required: bool
-    conflict_type: ConflictType | None
-    alternative_drug_id: str | None
+class ModelOutput(ModelVerdict):
+    """``ModelVerdict`` plus the model-output limits of AC-001.2 (parsed from the model only)."""
 
     @field_validator("headline")
     @classmethod
@@ -102,7 +90,7 @@ class ModelVerdict(BaseModel):
         return value
 
     @model_validator(mode="after")
-    def _conflict_type_when_escalating(self) -> ModelVerdict:
+    def _conflict_type_when_escalating(self) -> ModelOutput:
         if self.status is not Status.NO_ISSUE and self.conflict_type is None:
             raise ValueError("conflict_type required unless NO_ISSUE")
         return self
@@ -229,7 +217,7 @@ def _schema_reason(loc: tuple[int | str, ...], error_type: str) -> str:
     if not loc:
         return f"schema:root:{error_type}"
     field_name = str(loc[0])
-    if field_name in ModelVerdict.model_fields:
+    if field_name in ModelOutput.model_fields:
         return f"schema:{field_name}:{error_type}"
     return f"schema:extra:{error_type}" if error_type == "extra_forbidden" else "schema:root"
 
@@ -242,7 +230,7 @@ def parse_model_output(raw: str, request: ModelRequest) -> ModelVerdict:
     if len(raw) > MAX_RAW_CHARS:
         raise InvalidModelOutput("too_long")
     try:
-        verdict = ModelVerdict.model_validate_json(raw, strict=True)
+        verdict = ModelOutput.model_validate_json(raw, strict=True)
     except ValidationError as exc:
         first = exc.errors(include_input=False, include_url=False)[0]
         raise InvalidModelOutput(_schema_reason(first["loc"], first["type"])) from None

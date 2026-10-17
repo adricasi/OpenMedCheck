@@ -10,6 +10,7 @@ from typing import Any
 import httpx
 import pytest
 
+from openmedcheck.contracts import ModelVerdict
 from openmedcheck.model_client import (
     FakeDelay,
     FakeModelClient,
@@ -18,7 +19,6 @@ from openmedcheck.model_client import (
     ModelOutcome,
     ModelTimeout,
     ModelUnavailable,
-    ModelVerdict,
     OllamaClient,
     content_violation,
     parse_model_output,
