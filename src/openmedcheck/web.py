@@ -25,7 +25,7 @@ from openmedcheck.contracts import (
     FieldError,
     ProblemDetails,
 )
-from openmedcheck.model_client import ModelClient, OllamaClient
+from openmedcheck.model_client import ModelClient, ModelHealth, OllamaClient
 
 PROBLEM_JSON = "application/problem+json"
 SECURITY_HEADERS = {
@@ -156,7 +156,10 @@ def create_app(config: Config | None = None, model_client: ModelClient | None = 
 
     @app.get("/api/model/health")
     async def model_health() -> dict[str, str]:
-        state = await run_in_threadpool(model_client.health)
+        try:
+            state = await run_in_threadpool(model_client.health)
+        except Exception:
+            state = ModelHealth.UNAVAILABLE  # a failing probe means unavailable, not a 500
         return {"status": state.value, "model": config.model}
 
     return app

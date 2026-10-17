@@ -327,3 +327,24 @@ def test_nfr_002_log_lines_hold_no_context_or_model_text() -> None:
     assert len(output.splitlines()) == 3
     for forbidden in (NOTE_MARKER, model_marker, "SYN-A", "Dolor", "Adiro"):
         assert forbidden not in output
+
+
+def test_ac_003_5_model_text_naming_a_rejected_alternative_is_not_shown() -> None:
+    context = coded_a().context.model_copy(update={"allergies": ["paracetamol"]})
+    request = CheckRequest(context=context, order=PRESET_A.request.order)
+    text = "Use paracetamol for pain instead."
+
+    card, _ = run(request, verdict_json(rationale=text))
+
+    assert card.status is Status.BLOCKED
+    assert card.alternative is None  # Layer 1 rejects paracetamol for this patient
+    assert "paracetamol" not in (card.headline + card.rationale).lower()
+    assert card.source is Source.RULES_MODEL
+
+
+def test_ac_004_9_no_issue_from_both_layers_uses_the_fixed_text() -> None:
+    card, _ = run(PRESET_C.request, NO_ISSUE_JSON)
+
+    assert card.status is Status.NO_ISSUE
+    assert card.headline == "No issue found by these checks"
+    assert "No conflict found" not in card.headline + card.rationale

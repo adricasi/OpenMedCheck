@@ -29,6 +29,7 @@ from openmedcheck.model_client import (
     ModelOutcome,
     ModelRequest,
     ModelResult,
+    content_violation,
 )
 
 LOGGER = logging.getLogger(f"{LOGGER_NAME}.check")
@@ -112,6 +113,20 @@ def _allowed_alternatives(drug_id: str) -> tuple[str, ...]:
     return tuple(found)
 
 
+def _names_unshown_drug(model: ModelVerdict, card: DecisionCard, request: CheckRequest) -> bool:
+    """True if the model text names its alternative although the card does not show it."""
+    pick = model.alternative_drug_id
+    if pick is None or (card.alternative is not None and card.alternative.drug_id == pick):
+        return False
+    shown = [request.order.drug_id]
+    if card.alternative is not None:
+        shown.append(card.alternative.drug_id)
+    return any(
+        content_violation(text, allowed_drug_ids=shown, drug_list=rule_table.DRUG_IDS) is not None
+        for text in (model.headline, model.rationale)
+    )
+
+
 def _assess(client: ModelClient, model_request: ModelRequest) -> ModelResult:
     try:
         return client.assess(model_request)
@@ -154,6 +169,15 @@ def final_card(
         verdict=rules_verdict,
         model_note=None if model is not None else MODEL_UNAVAILABLE_NOTE,
     )
+    if model is not None and _names_unshown_drug(model, card, request):
+        # The model's text recommends a drug the card does not offer (the Layer 1 re-check
+        # rejected it): keep its escalation but use the rules/fallback text (AC-003.5).
+        card, downgrade_rejected = combined_card(
+            request,
+            model.model_copy(update={"headline": "", "rationale": ""}),
+            card.request_id,
+            verdict=rules_verdict,
+        )
     log_event(
         LOGGER,
         CHECK_EVENT,

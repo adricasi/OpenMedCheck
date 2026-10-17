@@ -149,3 +149,14 @@ def test_ac_011_2_ollama_health_unavailable_when_model_missing_or_server_down() 
     assert ollama_health(other, other) is ModelHealth.UNAVAILABLE
     assert ollama_health(httpx.ConnectError("down"), {}) is ModelHealth.UNAVAILABLE
     assert ollama_health({"unexpected": 1}, {}) is ModelHealth.UNAVAILABLE
+
+
+def test_ac_011_2_a_failing_health_probe_reports_unavailable() -> None:
+    class BrokenProbe(FakeModelClient):
+        def health(self) -> ModelHealth:
+            raise RuntimeError("probe failed")
+
+    response = client_for(BrokenProbe([])).get("/api/model/health")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "unavailable"
