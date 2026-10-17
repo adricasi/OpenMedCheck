@@ -13,6 +13,10 @@
   --ok-bg: #e6f4ea;
 }
 
+html {
+  scroll-padding-top: 4rem;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -22,6 +26,7 @@
 }
 
 body {
+  overflow-wrap: anywhere;
   margin: 0;
   font-family: system-ui, sans-serif;
   line-height: 1.45;
@@ -90,10 +95,6 @@ body {
     align-items: start;
   }
 
-  .result {
-    position: sticky;
-    top: 3.5rem;
-  }
 }
 
 .presets {

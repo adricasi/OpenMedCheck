@@ -18,6 +18,10 @@ const STATUS_VIEW = {
   WARNING: { cls: "status-warning", icon: "⚠", label: "Warning" },
   NO_ISSUE: { cls: "status-ok", icon: "✔", label: "No issue found by these checks" },
 };
+const CONDITION_LABELS = {
+  ACS: "acute coronary syndrome",
+  ACTIVE_GI_BLEED: "active gastrointestinal bleed",
+};
 const NO_MODEL_NOTE = "Model check unavailable — rules only";
 const HEALTH_POLL_MS = 3000;
 const HEALTH_POLL_MAX = 40;
@@ -75,8 +79,9 @@ function showHealth(health) {
   return "unavailable";
 }
 
-async function refreshHealth() {
+async function refreshHealth(resetPolls = false) {
   window.clearTimeout(healthTimer);
+  if (resetPolls) healthPolls = 0;
   let outcome = "unavailable";
   try {
     const response = await fetch("/api/model/health");
@@ -87,7 +92,7 @@ async function refreshHealth() {
   }
   healthPolls += 1;
   if (outcome === "warming" && healthPolls < HEALTH_POLL_MAX) {
-    healthTimer = window.setTimeout(refreshHealth, HEALTH_POLL_MS);
+    healthTimer = window.setTimeout(() => refreshHealth(), HEALTH_POLL_MS);
   }
 }
 
@@ -141,8 +146,9 @@ function fillForm(request) {
     chronic_medications: context.chronic_medications,
     allergies: context.allergies,
   };
-  $("ro-conditions").textContent = listText(context.diagnoses, (code) =>
-    code === "ACS" ? "acute coronary syndrome" : "active gastrointestinal bleed",
+  $("ro-conditions").textContent = listText(
+    context.diagnoses,
+    (code) => CONDITION_LABELS[code] || code,
   );
   $("ro-chronic").textContent = listText(context.chronic_medications, drugName);
   $("ro-allergies").textContent = listText(context.allergies);
@@ -191,6 +197,13 @@ function setFieldError(input, message) {
   input.setAttribute("aria-invalid", "true");
 }
 
+function clearFieldError(input) {
+  const node = errorNodeFor(input);
+  node.textContent = "";
+  node.hidden = true;
+  input.removeAttribute("aria-invalid");
+}
+
 function clearErrors() {
   for (const input of fields()) {
     const node = errorNodeFor(input);
@@ -217,6 +230,10 @@ function validate() {
   };
   for (const [path, rule] of Object.entries(RANGES)) {
     const raw = fieldFor(path).value.trim();
+    if (fieldFor(path).validity && fieldFor(path).validity.badInput) {
+      fail(path, `${rule.label} must be a number.`);
+      continue;
+    }
     if (raw === "") {
       if (rule.required) fail(path, `${rule.label} is required.`);
       continue;
@@ -262,9 +279,10 @@ function renderStatusHeader(card) {
   ]);
 }
 
-function actionText(status) {
-  if (status === "BLOCKED") {
-    return "Action required: this order conflicts with the patient context. Use the alternative or acknowledge before signing.";
+function actionText(card) {
+  if (card.status === "BLOCKED") {
+    const choice = card.alternative ? "Use the alternative or acknowledge" : "Acknowledge";
+    return `Action required: this order conflicts with the patient context. ${choice} before signing.`;
   }
   return "Review before signing: check the points below.";
 }
@@ -299,7 +317,7 @@ function renderWhy(card) {
 
 function renderAlternative(card) {
   const alt = card.alternative;
-  const details = `${alt.dose_text} · ${alt.route} · ${alt.frequency}`;
+  const details = [alt.dose_text, alt.route, alt.frequency].filter((part) => part).join(" · ");
   const useButton = el("button", {
     cls: "secondary",
     text: "Use alternative",
@@ -327,6 +345,7 @@ function renderActions(card) {
     acknowledge.disabled = true;
     acknowledge.textContent = "Acknowledged";
     updateSign();
+    $("sign-button").focus();
   });
   wrapper.appendChild(acknowledge);
   return wrapper;
@@ -334,6 +353,7 @@ function renderActions(card) {
 
 function renderCard(card, { checking }) {
   const area = $("card-area");
+  const hadFocus = area.contains && area.contains(document.activeElement);
   clear(area);
   area.setAttribute("aria-busy", checking ? "true" : "false");
   const view = STATUS_VIEW[card.status];
@@ -344,8 +364,11 @@ function renderCard(card, { checking }) {
   container.appendChild(renderStatusHeader(card));
   if (card.status === "NO_ISSUE") {
     container.classList.add("card-compact");
+    if (card.renal_adjustment_required || card.fired_rules.length) {
+      container.appendChild(renderWhy({ ...card, rationale: "" }));
+    }
   } else {
-    container.appendChild(el("p", { cls: "action-required", text: actionText(card.status) }));
+    container.appendChild(el("p", { cls: "action-required", text: actionText(card) }));
     container.appendChild(el("h3", { cls: "headline", text: card.headline }));
     container.appendChild(renderWhy(card));
     if (card.alternative && !checking) container.appendChild(renderAlternative(card));
@@ -355,6 +378,8 @@ function renderCard(card, { checking }) {
     container.appendChild(el("p", { cls: "model-note", text: card.model_note }));
   }
   area.appendChild(container);
+  if (hadFocus) $("result-heading").focus();
+  if (area.scrollIntoView) area.scrollIntoView({ block: "nearest" });
 }
 
 function renderMessage(text, cls) {
@@ -373,9 +398,12 @@ function updateSign() {
   $("sign-button").disabled = !allowed;
   let hint = "";
   if (state.checking) hint = "Waiting for the check to finish.";
-  else if (blockedUnresolved) hint = "Choose “Use alternative” or “Acknowledge and keep order” first.";
+  else if (blockedUnresolved) {
+    hint = card.alternative
+      ? "Choose “Use alternative” or “Acknowledge and keep order” first."
+      : "Choose “Acknowledge and keep order” first.";
+  }
   $("sign-hint").textContent = hint;
-  $("check-button").disabled = state.checking;
 }
 
 function signOrder() {
@@ -407,8 +435,10 @@ function invalidate() {
   state.seq += 1;
   state.checking = false;
   resetOutcome();
-  $("check-button").disabled = false;
-  renderMessage("Inputs changed. Press “Check order” to evaluate.", "placeholder");
+  $("check-button").disabled = state.hidden.patient_id === "";
+  if (!$("card-area").textContent.startsWith("Inputs changed")) {
+    renderMessage("Inputs changed. Press “Check order” to evaluate.", "placeholder");
+  }
   updateSign();
 }
 
@@ -437,9 +467,7 @@ async function evaluate() {
     if (!response.ok) throw new Error(`rules check failed: ${response.status}`);
     rules = await response.json();
   } catch (_error) {
-    if (mine !== state.seq) return;
-    state.seq += 1;
-    finishWithMessage("The check could not be completed. Nothing was evaluated.");
+    // Other rules failures: let the final request settle the card (or the fallback).
     return;
   }
   if (mine !== state.seq) return;
@@ -506,6 +534,15 @@ async function settleWithRulesOnly(request, mine) {
 
 function useAlternative(alt) {
   $("f-drug").value = alt.drug_id;
+  if (!alt.route || !alt.frequency) {
+    // Unreviewed dose (NFR-011): the UI never invents one. The clinician enters it.
+    $("f-dose").value = "";
+    $("f-frequency").value = "";
+    invalidate();
+    showFormError(`${alt.name} selected. Enter the dose and frequency per SmPC, then press “Check order”.`);
+    $("f-dose").focus();
+    return;
+  }
   $("f-dose").value = alt.dose_text;
   $("f-route").value = alt.route;
   $("f-frequency").value = alt.frequency;
@@ -553,7 +590,10 @@ function init() {
     button.addEventListener("click", () => loadPreset(button.dataset.preset));
   }
   for (const input of fields()) {
-    input.addEventListener("input", invalidate);
+    input.addEventListener("input", () => {
+      clearFieldError(input);
+      invalidate();
+    });
     input.addEventListener("change", invalidate);
   }
   $("check-form").addEventListener("submit", (event) => {
@@ -562,8 +602,8 @@ function init() {
   });
   $("sign-button").addEventListener("click", signOrder);
   drugsReady = loadDrugs();
-  warmUp().then(refreshHealth);
-  refreshHealth();
+  warmUp().then(() => refreshHealth(true));
+  refreshHealth(true);
 }
 
 document.addEventListener("DOMContentLoaded", init);

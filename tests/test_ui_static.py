@@ -62,3 +62,27 @@ def test_ac_010_1_page_has_banner_and_local_assets(client: TestClient) -> None:
 def test_t_007_static_assets_are_served_locally(client: TestClient) -> None:
     assert client.get("/static/app.js").status_code == 200
     assert client.get("/static/style.css").status_code == 200
+
+
+def test_ac_008_8_ui_contains_required_fixed_texts() -> None:
+    script = (PACKAGE / "static" / "app.js").read_text()
+
+    assert "Order signed (demo — nothing stored)" in script
+    assert "Checking context…" in script
+    assert "Acknowledge and keep order" in script
+    assert "Use alternative" in script
+    assert "No issue found by these checks" in script
+
+
+def test_ac_010_2_server_sent_texts_avoid_banned_wording() -> None:
+    from openmedcheck.presets import PRESETS
+    from openmedcheck.rule_table import ALLERGY_RULE, CONTEXT_RULES, RENAL_RULES
+
+    texts = [rule.reason for rule in (ALLERGY_RULE, *CONTEXT_RULES, *RENAL_RULES)]
+    for preset in PRESETS.values():
+        texts += [preset.title, preset.synthetic_label]
+    # Rule reasons may say "a coded diagnosis" (a recorded input, not a system action), so the
+    # noun is allowed here; the verbs and the absolute claims are not.
+    banned = re.compile(r"\bapproved\b|\bsafe\b|\bdiagnose\b|\bdiagnosed\b|\bdiagnosing\b")
+    for text in texts:
+        assert not banned.search(text), text

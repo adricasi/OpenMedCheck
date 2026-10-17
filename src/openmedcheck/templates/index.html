@@ -30,8 +30,8 @@
         <fieldset>
           <legend>Patient</legend>
           <div class="field">
-            <label for="f-age">Age (years)</label>
-            <input id="f-age" type="number" inputmode="numeric" step="1" data-path="context.age" aria-describedby="e-age">
+            <label for="f-age">Age (years, 18–110, required)</label>
+            <input id="f-age" aria-required="true" type="number" inputmode="numeric" step="1" data-path="context.age" aria-describedby="e-age">
             <span id="e-age" class="field-error" hidden></span>
           </div>
           <div class="field">
@@ -43,8 +43,8 @@
             <span id="e-sex" class="field-error" hidden></span>
           </div>
           <div class="field">
-            <label for="f-weight">Weight (kg)</label>
-            <input id="f-weight" type="number" inputmode="decimal" step="any" data-path="context.weight_kg" aria-describedby="e-weight">
+            <label for="f-weight">Weight (kg, 30–250, required)</label>
+            <input id="f-weight" aria-required="true" type="number" inputmode="decimal" step="any" data-path="context.weight_kg" aria-describedby="e-weight">
             <span id="e-weight" class="field-error" hidden></span>
           </div>
           <div class="field">
@@ -57,12 +57,12 @@
         <fieldset>
           <legend>Labs</legend>
           <div class="field">
-            <label for="f-creatinine">Creatinine (mg/dL)</label>
+            <label for="f-creatinine">Creatinine (mg/dL, 0.1–20)</label>
             <input id="f-creatinine" type="number" inputmode="decimal" step="any" data-path="context.labs.creatinine_mg_dl" aria-describedby="e-creatinine">
             <span id="e-creatinine" class="field-error" hidden></span>
           </div>
           <div class="field">
-            <label for="f-egfr">eGFR (mL/min/1.73 m²)</label>
+            <label for="f-egfr">eGFR (mL/min/1.73 m², 0–200)</label>
             <input id="f-egfr" type="number" inputmode="decimal" step="any" data-path="context.labs.egfr_ml_min_1_73m2" aria-describedby="e-egfr">
             <span id="e-egfr" class="field-error" hidden></span>
           </div>
@@ -88,8 +88,8 @@
             <span id="e-drug" class="field-error" hidden></span>
           </div>
           <div class="field">
-            <label for="f-dose">Dose</label>
-            <input id="f-dose" type="text" maxlength="100" data-path="order.dose_text" aria-describedby="e-dose">
+            <label for="f-dose">Dose (required)</label>
+            <input id="f-dose" aria-required="true" type="text" maxlength="100" data-path="order.dose_text" aria-describedby="e-dose">
             <span id="e-dose" class="field-error" hidden></span>
           </div>
           <div class="field">
@@ -103,8 +103,8 @@
             <span id="e-route" class="field-error" hidden></span>
           </div>
           <div class="field">
-            <label for="f-frequency">Frequency</label>
-            <input id="f-frequency" type="text" maxlength="100" data-path="order.frequency" aria-describedby="e-frequency">
+            <label for="f-frequency">Frequency (required)</label>
+            <input id="f-frequency" aria-required="true" type="text" maxlength="100" data-path="order.frequency" aria-describedby="e-frequency">
             <span id="e-frequency" class="field-error" hidden></span>
           </div>
         </fieldset>
@@ -114,12 +114,12 @@
     </section>
 
     <section class="result" aria-labelledby="result-heading">
-      <h2 id="result-heading">Check result</h2>
+      <h2 id="result-heading" tabindex="-1">Check result</h2>
       <div id="card-area" class="card-area" aria-live="polite" aria-busy="false">
         <p class="placeholder">Load a preset, then press “Check order”.</p>
       </div>
       <div class="sign">
-        <button type="button" id="sign-button" class="primary" disabled>Sign order</button>
+        <button type="button" id="sign-button" class="primary" aria-describedby="sign-hint" disabled>Sign order</button>
         <p id="sign-hint" class="hint"></p>
         <p id="sign-result" class="sign-result" role="status"></p>
       </div>
