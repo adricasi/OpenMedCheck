@@ -92,6 +92,11 @@ Measured on one machine (NVIDIA RTX 3000 Ada Laptop GPU, 8188 MiB; Ollama 0.35.1
   ANTIPLATELET_ACS in 20/20 (AC-003.4 asks for at least 9/10), with the rules alone giving
   `NO_ISSUE`.
 
+- [Prompt v3 evaluation](docs/measurements/2026-10-17-prompt-v3.md): 60/60 valid on the first
+  try (15 per case, through the full check pipeline); preset A `BLOCKED` with ANTIPLATELET_ACS
+  15/15, preset A re-checked with paracetamol `NO_ISSUE` 15/15, B `WARNING` with the renal flag,
+  C `NO_ISSUE`; model-step p95 at most 1.50 s.
+
 At temperature 0 repeated calls on one fixed preset are nearly deterministic, so these figures
 show stability on three presets, not robustness to other wordings. Both documents list their
 caveats.

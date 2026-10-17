@@ -112,8 +112,7 @@ screen reader, contrast.
   `model_note` "Model check unavailable - rules only", `source: rules`, HTTP 200.
 - [x] 2026-10-17 (HTTP): age 12 -> 422 with `errors[].field = context.age` (UI also validates
   client-side before sending).
-- [ ] **FAILS** AC-009.1/9.2: re-checking preset A with paracetamol 1 g every 6 hours (route PO)
-  returns `BLOCKED` (6 of 6 runs), model rationale "The proposed drug is an NSAID". Cause:
-  `prompt.py` GUIDANCE says ANTIPLATELET_ACS applies when the order is an NSAID **or** the
-  patient takes an antiplatelet, so the home aspirin alone blocks any drug. Needs a prompt/rule
-  fix (and a model evaluation); not a UI bug.
+- [x] 2026-10-17 (real model, eval): AC-009.1/9.2 — preset A re-checked with paracetamol (PO,
+  1 g every 8 hours) gives final `NO_ISSUE` in 15/15 runs with prompt v3
+  ([measurements](measurements/2026-10-17-prompt-v3.md)). Prompt v2 returned `BLOCKED` (6/6)
+  because its guidance let a home antiplatelet alone raise ANTIPLATELET_ACS; fixed in v3.
