@@ -24,7 +24,24 @@ def _inside_note(user: str) -> str:
 
 
 def test_prompt_version_is_set() -> None:
-    assert prompt.PROMPT_VERSION
+    assert prompt.PROMPT_VERSION == "3"
+
+
+def test_ac_009_2_antiplatelet_acs_guidance_is_conjunctive() -> None:
+    """A home antiplatelet or suspected ACS alone must not trigger the conflict (AC-009.2)."""
+    guidance = " ".join(prompt.GUIDANCE.split())
+    assert "applies only when ALL three hold" in guidance
+    assert "(1) the proposed drug is an NSAID" in guidance
+    assert "(3) the patient takes an antiplatelet" in guidance
+    assert "alone is not a conflict" in guidance
+    assert "never report ANTIPLATELET_ACS" in guidance
+    assert "paracetamol" in guidance
+    assert "the proposed order is an NSAID, or" not in guidance
+
+
+def test_ac_009_2_guidance_reaches_the_system_message() -> None:
+    system, _ = _messages()
+    assert prompt.GUIDANCE in system["content"]
 
 
 def test_ac_004_8_injection_note_appears_only_inside_the_delimiter() -> None:

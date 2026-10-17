@@ -22,7 +22,7 @@ from openmedcheck.contracts import (
     Status,
 )
 
-PROMPT_VERSION = "2"
+PROMPT_VERSION = "3"
 
 NOTE_OPEN_TAG = "<untrusted_note>"
 NOTE_CLOSE_TAG = "</untrusted_note>"
@@ -49,11 +49,14 @@ Rules:
 
 GUIDANCE = """\
 Clinical conflict guidance:
-- ANTIPLATELET_ACS: the note suggests an acute coronary syndrome (chest pain, suspected ACS or
-  SCA) and the proposed order is an NSAID, or the patient takes an antiplatelet such as aspirin
-  or clopidogrel. The coded diagnoses may not show it; read the note. Use BLOCKED, tier HIGH.
-- RENAL: eGFR below 30 or high creatinine and the drug needs renal adjustment. Use WARNING and
-  set renal_adjustment_required to true.
+- ANTIPLATELET_ACS applies only when ALL three hold: (1) the proposed drug is an NSAID, (2) the
+  note suggests an acute coronary syndrome (chest pain, suspected ACS or SCA) and (3) the patient
+  takes an antiplatelet such as aspirin or clopidogrel. The coded diagnoses may not show the ACS;
+  read the note. Then use BLOCKED, tier HIGH. A home antiplatelet or a suspected ACS alone is not
+  a conflict. If the proposed drug is not an NSAID (for example paracetamol), never report
+  ANTIPLATELET_ACS and do not call the proposed drug an NSAID.
+- RENAL: eGFR below 30 or high creatinine AND the proposed drug needs renal
+  adjustment. Use WARNING and set renal_adjustment_required to true.
 - Only report a conflict that is supported by the context. Otherwise NO_ISSUE.
 """
 
