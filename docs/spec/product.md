@@ -145,9 +145,16 @@ safety invariant in a self-hosted deployment.
   NFR-004.
 - [ ] Q-5: Preset B dose: numeric (CrCl-based, SmPC-cited) only if the specialist signs it off
   today; otherwise "renal adjustment required — consult SmPC".
-- [ ] Q-6: Do the Week 2 "Side Hustle" / "Best Use of Gemma" rules require a live hosted demo,
-  or is a repo + video accepted? (The idea brief assumed "deployed product".) Check
-  https://dev.to/challenges/hf26 before submission.
+- [x] Q-6: ~~Do the Week 2 "Side Hustle" / "Best Use of Gemma" rules require a live hosted demo?~~
+  Closed (2026-10-17): no. Source: DEV Events API `full_details` for event 80 "Hacktoberfest
+  Open-Source AI Challenge: Week 2" (https://dev.to/challenges/hf26), read 2026-10-17. A hosted
+  demo is not required; a demo video or GIF suffices. The post must say what was built and who
+  would pay for it, show a demo and explain why open innovation matters; required tag
+  `#hf26challenge`; a first user is a bonus. Judging: Writing Quality (weighted most),
+  Relevance, Creativity, Technical Execution, optional partner technology; featured category
+  "Best Use of Gemma". Submissions are due **Oct 18, 11:59 PM PDT (= Oct 19, 08:59 CEST)**, which
+  is later than the 22:00 CEST anchor used in G-4 and Constraints; 22:00 CEST stays as the
+  project's own, earlier target.
 
 ## Assumptions
 - A-1: UI in English; drug names as used in Spain (e.g. Enantyum, Adiro) with active
