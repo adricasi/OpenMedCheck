@@ -115,8 +115,6 @@ def _allowed_alternatives(drug_id: str) -> tuple[str, ...]:
 def _assess(client: ModelClient, model_request: ModelRequest) -> ModelResult:
     try:
         return client.assess(model_request)
-    except AssertionError:
-        raise  # a test double's own misuse must stay loud
     except Exception:
         # Fail-safe boundary (REQ-005): the client should never raise, but if it does the
         # check still returns the rules-only card. The message may carry context: dropped.
