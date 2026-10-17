@@ -122,7 +122,7 @@ pytest --cov` pass and CI is green, unless stated otherwise.
     blocking issue.
 
 ## Milestone 4: Evidence, docs and submission
-- [ ] T-009: Measurement script and real-model integration test
+- [x] T-009: Measurement script and real-model integration test
   - Requirements: REQ-012, AC-003.4, NFR-004, NFR-012
   - Depends on: T-006, T-007
   - Scope: `scripts/measure.py` (≥ 20 calls over presets, p50/p95 rules card and final card,
