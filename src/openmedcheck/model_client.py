@@ -38,6 +38,7 @@ OLLAMA_OPTIONS: dict[str, Any] = {"temperature": 0, "num_predict": 400}
 OLLAMA_KEEP_ALIVE = "10m"
 CONNECT_TIMEOUT_S = 2.0
 HEALTH_TIMEOUT_S = 2.0
+WARMUP_TIMEOUT_S = 120.0  # a cold load of the model can take well over the check deadline
 
 Clock = Callable[[], float]
 
@@ -133,6 +134,10 @@ class ModelClient(Protocol):
     def assess(self, request: ModelRequest) -> ModelResult: ...
 
     def health(self) -> ModelHealth: ...
+
+    def warm_up(self) -> bool:
+        """Load the model without patient data; True when it is loaded. Never raises."""
+        ...
 
 
 # --- content validation (AC-003.5) -------------------------------------------------------
@@ -355,6 +360,23 @@ class OllamaClient:
             return ModelHealth.READY
         return ModelHealth.WARMING
 
+    def warm_up(self) -> bool:
+        """Load the model into memory (REQ-014): an empty-prompt generate, no patient data."""
+        try:
+            response = self._http.post(
+                "/api/generate",
+                json={
+                    "model": self._model,
+                    "prompt": "",
+                    "stream": False,
+                    "keep_alive": OLLAMA_KEEP_ALIVE,
+                },
+                timeout=httpx.Timeout(WARMUP_TIMEOUT_S, connect=CONNECT_TIMEOUT_S),
+            )
+        except (httpx.HTTPError, UnicodeError, ValueError):
+            return False
+        return response.status_code == httpx.codes.OK
+
     def _model_names(self, path: str, key: str) -> list[str] | None:
         """Names listed by an Ollama listing endpoint, or None if it can't be read."""
         try:
@@ -466,9 +488,15 @@ class FakeModelClient:
     clock: ManualClock = field(default_factory=ManualClock)
     requests: list[ModelRequest] = field(default_factory=list)
     health_state: ModelHealth = ModelHealth.READY
+    warm_up_calls: int = 0
+    warm_up_ok: bool = True
 
     def health(self) -> ModelHealth:
         return self.health_state
+
+    def warm_up(self) -> bool:
+        self.warm_up_calls += 1
+        return self.warm_up_ok
 
     def assess(self, request: ModelRequest) -> ModelResult:
         self.requests.append(request)
