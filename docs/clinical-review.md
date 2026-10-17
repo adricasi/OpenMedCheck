@@ -150,7 +150,7 @@ The rules alone say `NO_ISSUE` because the suspected ACS is only in the free-tex
 - Status: **BLOCKED**
 - Headline: NSAID with suspected acute coronary syndrome
 - Rationale: The note describes suspected ACS and the patient takes an antiplatelet agent; an NSAID raises bleeding and cardiovascular risk.
-- Alternative: Paracetamol, offered once its dose is signed off by the specialist
+- Alternative: Paracetamol. Dose: consult SmPC (numeric dose shown only after specialist sign-off)
 
 ## Questions for the specialist
 
@@ -160,7 +160,7 @@ The rules alone say `NO_ISSUE` because the suspected ACS is only in the free-tex
 4. Renal gaps: no renal rule exists for ibuprofen, naproxen, diclofenac, morphine, metamizole, aspirin, clopidogrel or paracetamol because no threshold was available to cite. Which of these need one, and at what value?
 5. Cockcroft-Gault uses actual body weight, creatinine in mg/dL, a 0.85 factor for women, and compares the unrounded value with the threshold (the card shows one decimal). Is that acceptable, or should obese or low-weight patients use another weight?
 6. Preset B dose guidance: the ciprofloxacin text 'maximum 500 mg a day by mouth' is hidden until you sign it off (Q-5). Confirm or correct it, or keep the fallback 'consult SmPC'.
-7. Alternative paracetamol 1 g by mouth every 8 hours (preset A): confirm dose, route and frequency, or provide the dose to use. The design offers an alternative only once its dose is signed off, so the preset A alternative (paracetamol) appears only after your sign-off, or with the text 'Dose: consult SmPC' if the project decides to allow that.
+7. Alternative paracetamol 1 g by mouth every 8 hours (preset A): confirm dose, route and frequency, or provide the dose to use. Until you sign the dose off, the card offers paracetamol by name only, with the text 'Dose: consult SmPC' and no number; after your sign-off it shows the signed-off dose.
 8. Basis and bands: metformin rules use eGFR in mL/min/1.73 m2 where the SmPC says GFR in mL/min (acceptable?). Should enoxaparin CrCl below 15 be a stricter rule? Should dexketoprofen CrCl 60-89 (mild impairment, reduced maximum dose) warn? Does the ciprofloxacin renal table have a further CrCl band (30-60) needing its own rule?
 9. Alternatives: is paracetamol right for every NSAID with ACS or GI bleed and for dexketoprofen with renal impairment? Should ciprofloxacin with low CrCl (preset B) offer an alternative? Does the illustrative preset A text read correctly and avoid suggesting that the tool made the ACS diagnosis?
 10. Where two renal rules on one lab both apply (metformin below 30 and below 45), only the stricter one is shown. Acceptable?

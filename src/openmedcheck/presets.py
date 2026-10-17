@@ -103,5 +103,5 @@ PRESET_A_EXPECTED_FINAL_CARD: dict[str, str] = {
         "The note describes suspected ACS and the patient takes an antiplatelet agent; "
         "an NSAID raises bleeding and cardiovascular risk."
     ),
-    "alternative": "Paracetamol, offered once its dose is signed off by the specialist",
+    "alternative": "Paracetamol. Dose: consult SmPC (numeric dose shown only after specialist sign-off)",
 }

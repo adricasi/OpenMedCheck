@@ -373,9 +373,9 @@ SPECIALIST_QUESTIONS: tuple[str, ...] = (
     "Preset B dose guidance: the ciprofloxacin text 'maximum 500 mg a day by mouth' is hidden "
     "until you sign it off (Q-5). Confirm or correct it, or keep the fallback 'consult SmPC'.",
     "Alternative paracetamol 1 g by mouth every 8 hours (preset A): confirm dose, route and "
-    "frequency, or provide the dose to use. The design offers an alternative only "
-    "once its dose is signed off, so the preset A alternative (paracetamol) appears only after "
-    "your sign-off, or with the text 'Dose: consult SmPC' if the project decides to allow that.",
+    "frequency, or provide the dose to use. Until you sign the dose off, the card offers "
+    "paracetamol by name only, with the text 'Dose: consult SmPC' and no number; after your "
+    "sign-off it shows the signed-off dose.",
     "Basis and bands: metformin rules use eGFR in mL/min/1.73 m2 where the SmPC says GFR in "
     "mL/min (acceptable?). Should enoxaparin CrCl below 15 be a stricter rule? Should "
     "dexketoprofen CrCl 60-89 (mild impairment, reduced maximum dose) warn? Does the "
