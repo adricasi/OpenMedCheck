@@ -101,7 +101,13 @@ At temperature 0 repeated calls on one fixed preset are nearly deterministic, so
 show stability on three presets, not robustness to other wordings. Both documents list their
 caveats.
 
-TODO(T-009): replace with the final end-to-end measurements (rules card and final card p95).
+- [End-to-end measurement (T-009)](docs/measurements/2026-10-17.md), as a client sees the app over
+  HTTP: rules card p50 1.3 ms, p95 3.8 ms (200 calls, budget 200 ms); final card, warm, p50
+  1.51 s, p95 1.72 s (40 calls over presets A, B, C and A with paracetamol, budget 3 s); 40/40
+  cards had valid model output; preset A `BLOCKED` and A with paracetamol `NO_ISSUE` in every
+  run. A cold first check took 10.0 s and fell back to the rules-only card (the model load
+  exceeds the 10 s deadline on this laptop); the warm-up call the UI makes on page load avoids
+  this.
 
 ## Architecture
 
