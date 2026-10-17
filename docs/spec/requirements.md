@@ -213,7 +213,10 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
 - Goals: G-1
 - Acceptance criteria:
   - AC-009.1: WHEN the user clicks "Use alternative" THE SYSTEM SHALL replace the proposed order
-    with the alternative (drug, dose, route, frequency) and re-evaluate it automatically.
+    with the alternative (drug, dose, route, frequency) and re-evaluate it automatically. WHEN the
+    alternative's dose is not specialist-reviewed (shown as "Dose: consult SmPC", AC-004.6) THE
+    SYSTEM SHALL replace only the drug, clear dose and frequency, focus the dose field and
+    re-evaluate when the user submits the completed order (NFR-011).
   - AC-009.2: WHEN the alternative is re-evaluated THE SYSTEM SHALL show the new card through the
     same flow as REQ-008 (for preset A: paracetamol → `NO_ISSUE`).
 

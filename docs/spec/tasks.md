@@ -94,7 +94,7 @@ pytest --cov` pass and CI is green, unless stated otherwise.
     Sunday final-card check; Q-5 closed in product.md.
 
 ## Milestone 3: User interface
-- [ ] T-007: Chart, presets, progressive card, actions
+- [~] T-007: Chart, presets, progressive card, actions
   - Requirements: REQ-006 (AC-006.1 … AC-006.3 in the UI), REQ-007, REQ-008, REQ-009,
     REQ-011 (AC-011.2), REQ-014 (Could), NFR-010
   - Depends on: T-005
