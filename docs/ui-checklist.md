@@ -116,3 +116,29 @@ screen reader, contrast.
   1 g every 8 hours) gives final `NO_ISSUE` in 15/15 runs with prompt v3
   ([measurements](measurements/2026-10-17-prompt-v3.md)). Prompt v2 returned `BLOCKED` (6/6)
   because its guidance let a home antiplatelet alone raise ANTIPLATELET_ACS; fixed in v3.
+
+## Fresh-clone run-through
+
+2026-10-17, task T-010 (AC-011.1). Clone of branch `dev` (219dc52) into an empty temporary
+directory, README followed step by step. Python 3.12.3, uv 0.12.20, Ollama with `gemma4:e4b`
+already pulled (`ollama list` confirmed it; `ollama pull` not repeated). Synthetic data only.
+
+| Step | Result |
+|---|---|
+| `git clone` of the branch | pass |
+| `ollama list` shows `gemma4:e4b` | pass |
+| `uv sync` (network: pypi.org, files.pythonhosted.org) | pass |
+| `uv run openmedcheck` serves 127.0.0.1:8000 | pass; `GET /` 200, banner "Not for clinical use — synthetic patients" present |
+| `GET /api/model/health` | pass: `ready`, model `gemma4:e4b` |
+| `POST /api/model/warmup` | pass: 202 |
+| Preset A, rules then final | pass: `NO_ISSUE` (0.00 s), then `BLOCKED` (1.94 s), alternative Paracetamol, "Dose: consult SmPC" |
+| Preset A with paracetamol applied | pass: `NO_ISSUE` |
+| Preset B | pass: rules `WARNING` with `renal_adjustment_required`; final `WARNING` (1.58 s), no alternative |
+| Preset C | pass: `NO_ISSUE` both, headline "No issue found by these checks", no alternative |
+| Second instance, `OPENMEDCHECK_OLLAMA_URL=http://127.0.0.1:9`, port 8001 | pass: health `unavailable`; A, B, C all HTTP 200 rules-only (`source: rules`), note "Model check unavailable — rules only"; A stays `NO_ISSUE` |
+
+README corrections made from the run-through: added the clone step and the `ollama list` check,
+the expected result per preset, the warm-up and cold-start behaviour, the rules-only fallback
+instance command and the HTTP endpoints; the alternatives and "Dose: consult SmPC" wording in
+"How it works". Not covered: a visual walk through the UI in a browser (checked through the same
+API calls the UI makes) and README screenshots. Servers were stopped by PID and the clone deleted.

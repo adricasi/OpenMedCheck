@@ -27,28 +27,57 @@ Two layers, and the second can only make the first stricter (escalate-only):
    final. The renal flag cannot be cleared, and the reasons of every fired rule always appear
    on the card.
 2. **Layer 2, Gemma 4 E4B.** The local model reads the free-text ED note and can raise the
-   status or risk tier. It can never lower a verdict. Alternatives are drawn only from the drug
-   list, doses only from the rule table (never from the model), and every alternative is
-   re-checked by Layer 1 before it is shown.
+   status or risk tier. It can never lower a verdict. Alternatives are suggested by name only,
+   drawn from the drug list; doses come only from the rule table (never from the model), and
+   until a specialist has signed off an entry the card shows "Dose: consult SmPC" instead of a
+   number. Every alternative is re-checked by Layer 1 before it is shown, and "Use alternative"
+   in the UI sends the changed order through the full check again.
 
 If the model times out, is unreachable or returns invalid output twice, the app returns the
 rules-only card instead of an error. See [design.md](docs/spec/design.md) for the details.
 
 ## Quick start
 
-Requirements: Python 3.12+, [uv](https://docs.astral.sh/uv/), [Ollama](https://ollama.com/) and a
-GPU with at least 8 GB of VRAM for the latency figures below.
+Requirements: Linux, macOS or WSL with Python 3.12+, git, [uv](https://docs.astral.sh/uv/),
+[Ollama](https://ollama.com/) and a GPU with at least 8 GB of VRAM for the latency figures below.
+Network access is needed once, to install the Python packages and pull the model; the running
+app makes no other outbound call.
 
 ```bash
-ollama pull gemma4:e4b      # the model; Ollama must be running on 127.0.0.1:11434
+git clone https://github.com/adricasi/OpenMedCheck.git && cd OpenMedCheck
+ollama pull gemma4:e4b      # the model (about 6.6 GB); Ollama must be running on 127.0.0.1:11434
+ollama list                 # check that gemma4:e4b is listed
 uv sync                     # install the Python environment
-uv run openmedcheck         # serve the app
+uv run openmedcheck         # serve the app (leave it running)
 ```
 
-Then open <http://127.0.0.1:8000>. The three synthetic presets A, B and C are evaluated from the
-UI. If Ollama or the model is missing, the app still starts and shows rules-only cards.
+Then open <http://127.0.0.1:8000> in a browser. The page shows the banner "Not for clinical use —
+synthetic patients" and three synthetic presets, A, B and C, that you evaluate from the UI. When
+the page loads it asks the server to warm the model up. A first check right after Ollama starts
+can take longer than the 10 s model deadline; the card then falls back to rules only (see
+below). Wait for the model status to read ready and check again.
 
-TODO(T-007/T-005b): confirm the model layer, `/api/check` and the preset UI described here in the fresh-clone run-through (T-010); UI walkthrough with screenshots of presets A, B and C.
+What each preset shows with the model ready:
+
+| Preset | Rules card (instant) | Final card |
+|---|---|---|
+| A | `NO_ISSUE` ("No issue found by these checks") | `BLOCKED` after the model reads the note; alternative: Paracetamol, "Dose: consult SmPC" |
+| B | `WARNING` with the renal-adjustment flag | `WARNING`, renal flag kept, "Renal adjustment required — consult SmPC", no alternative |
+| C | `NO_ISSUE` | `NO_ISSUE`, no alternative |
+
+"Use alternative" on preset A swaps the order for the alternative and runs the full check again
+on the same patient; in the recorded runs that second check gives `NO_ISSUE` ("No issue found
+by these checks"). The prescriber always decides.
+
+If Ollama or the model is missing, or does not answer in time, the app still starts and returns
+the rules-only card with the note "Model check unavailable — rules only". The rules alone cannot
+read the free-text note, so preset A then stays `NO_ISSUE`; the note on the card says why. To
+try it, start a second instance:
+`OPENMEDCHECK_OLLAMA_URL=http://127.0.0.1:9 OPENMEDCHECK_PORT=8001 uv run openmedcheck`.
+
+The checks are also available over HTTP: `GET /api/presets/{A|B|C}` returns a request body
+that you can `POST` as JSON to `/api/check/rules` (rules only) or `/api/check` (final card), and
+`GET /api/model/health` reports `ready`, `warming` or `unavailable`.
 TODO(T-012): link the demo video.
 
 ## Configuration
