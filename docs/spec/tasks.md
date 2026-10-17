@@ -132,7 +132,7 @@ pytest --cov` pass and CI is green, unless stated otherwise.
   - Done when: `uv run pytest -m ollama` passes locally; `docs/measurements/<date>.md` is
     written; NFR-004 and NFR-012 met, or the miss and its cause are recorded honestly.
     **Feature freeze after this task (Sun 12:00).**
-- [ ] T-010: README, licence and fresh-clone run-through
+- [x] T-010: README, licence and fresh-clone run-through
   - Requirements: REQ-011 (AC-011.1), NFR-008, REQ-010 (AC-010.2)
   - Depends on: T-009
   - Scope: README (what it is, disclaimer, install Ollama + `ollama pull`, `uv sync`,
