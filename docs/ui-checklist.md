@@ -84,3 +84,36 @@ implementer.
   their field
 - [ ] Zoom to 200% and a 320 px wide window: no horizontal scroll, nothing cut off
 - [ ] Contrast spot check of the badge, hint, muted and error text (computed ratios are >= 4.5:1)
+
+## Run-through 2026-10-17 (QA worker, no browser available)
+
+No browser automation was available (no Playwright; the built-in browser cannot reach a
+localhost server started from the shell). Everything below was verified over HTTP against the
+real app (`uv run openmedcheck`, Ollama `gemma4:e4b` ready) and by reading `app.js`.
+Every other unticked item above is **not verified - needs a human in a real browser**: sticky
+banner, console/CSP messages, colours/icons as rendered, focus order and ring, "Checking
+context..." between cards, stale-response behaviour, sign/acknowledge flow, zoom/320 px,
+screen reader, contrast.
+
+- [x] 2026-10-17 (HTTP): `GET /` serves the banner text, CSP header
+  `default-src 'self'; script-src 'self'; ...` and one external-free script/stylesheet.
+- [x] 2026-10-17 (HTTP): `GET /api/model/health` returns `{"status": "ready", "model":
+  "gemma4:e4b"}`; the UI's `showHealth` reads `status` and `model` (matches). With Ollama URL
+  `http://127.0.0.1:9` it returns `{"status": "unavailable", ...}` -> "Model unavailable -
+  rules-only checks".
+- [x] 2026-10-17 (HTTP): `POST /api/model/warmup` is 404 today; `warmUp()` swallows it and the
+  page goes on to `refreshHealth()`.
+- [x] 2026-10-17 (HTTP): A rules card `NO_ISSUE` (0.00 s) -> final `BLOCKED` (1.5 s) with
+  alternative Paracetamol, dose "Dose: consult SmPC", empty route/frequency (UI takes the
+  dose-clearing branch of "Use alternative").
+- [x] 2026-10-17 (HTTP): B rules `WARNING` + renal flag, final `WARNING`, no alternative.
+  C rules and final `NO_ISSUE`, headline "No issue found by these checks", no alternative.
+- [x] 2026-10-17 (HTTP): Ollama unreachable: `/api/check` returns the rules card with
+  `model_note` "Model check unavailable - rules only", `source: rules`, HTTP 200.
+- [x] 2026-10-17 (HTTP): age 12 -> 422 with `errors[].field = context.age` (UI also validates
+  client-side before sending).
+- [ ] **FAILS** AC-009.1/9.2: re-checking preset A with paracetamol 1 g every 6 hours (route PO)
+  returns `BLOCKED` (6 of 6 runs), model rationale "The proposed drug is an NSAID". Cause:
+  `prompt.py` GUIDANCE says ANTIPLATELET_ACS applies when the order is an NSAID **or** the
+  patient takes an antiplatelet, so the home aspirin alone blocks any drug. Needs a prompt/rule
+  fix (and a model evaluation); not a UI bug.
