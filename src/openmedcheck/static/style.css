@@ -1,0 +1,22 @@
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  color: #1a1a1a;
+  background: #fff;
+}
+
+.banner {
+  position: sticky;
+  top: 0;
+  padding: 0.5rem 1rem;
+  background: #7a1f1f;
+  color: #fff;
+  font-weight: 600;
+  text-align: center;
+}
+
+main {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 1rem;
+}

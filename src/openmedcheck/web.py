@@ -1,0 +1,139 @@
+"""FastAPI app: page, rules-only check API and RFC 9457 problem+json errors."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, JSONResponse, Response
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from pydantic import ValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.middleware.base import RequestResponseEndpoint
+from starlette.middleware.trustedhost import TrustedHostMiddleware
+
+from openmedcheck.check_service import rules_card
+from openmedcheck.config import Config, is_loopback_host
+from openmedcheck.contracts import (
+    MAX_BODY_BYTES,
+    CheckRequest,
+    DecisionCard,
+    FieldError,
+    ProblemDetails,
+)
+
+PROBLEM_JSON = "application/problem+json"
+SECURITY_HEADERS = {
+    "Content-Security-Policy": (
+        "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; "
+        "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+    ),
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+}
+_PACKAGE_DIR = Path(__file__).parent
+
+
+def problem_response(problem: ProblemDetails) -> JSONResponse:
+    return JSONResponse(
+        problem.model_dump(mode="json", exclude_none=True),
+        status_code=problem.status,
+        media_type=PROBLEM_JSON,
+    )
+
+
+def _field_errors(error: ValidationError) -> list[FieldError]:
+    # Omits the offending input value (patient data, NFR-002) and never echoes
+    # client-chosen keys: unknown fields are reported as "<parent>.<unknown field>".
+    errors = []
+    for item in error.errors():
+        loc = item["loc"][:-1] if item["type"] == "extra_forbidden" else item["loc"]
+        parts = [str(part) for part in loc]
+        if item["type"] == "extra_forbidden":
+            parts.append("<unknown field>")
+        errors.append(FieldError(field=".".join(parts), message=item["msg"]))
+    return errors
+
+
+async def _read_check_request(request: Request) -> CheckRequest | JSONResponse:
+    """Parse the body once, at the edge: 415, 413, then 422 with field errors."""
+    content_type = request.headers.get("content-type", "").split(";")[0].strip().lower()
+    if content_type != "application/json":
+        return problem_response(
+            ProblemDetails(
+                title="Unsupported media type",
+                status=415,
+                detail="Content-Type must be application/json.",
+            )
+        )
+    declared = request.headers.get("content-length", "")
+    too_large = declared.isdigit() and int(declared) > MAX_BODY_BYTES
+    body = b"" if too_large else await request.body()
+    if too_large or len(body) > MAX_BODY_BYTES:
+        return problem_response(
+            ProblemDetails(
+                title="Request body too large",
+                status=413,
+                detail=f"The request body must not exceed {MAX_BODY_BYTES} bytes.",
+            )
+        )
+    try:
+        return CheckRequest.model_validate_json(body)
+    except ValidationError as error:
+        return problem_response(
+            ProblemDetails(
+                title="Invalid request",
+                status=422,
+                detail="The request failed validation and was not evaluated.",
+                errors=_field_errors(error),
+            )
+        )
+
+
+def create_app(config: Config | None = None) -> FastAPI:
+    config = config or Config()
+    app = FastAPI(title="OpenMedCheck", docs_url=None, redoc_url=None, openapi_url=None)
+
+    allowed_hosts = ["127.0.0.1", "localhost", "[::1]"]
+    if config.allow_nonlocal and not is_loopback_host(config.host):
+        allowed_hosts.append(config.host)
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)
+
+    @app.middleware("http")
+    async def _security_headers(request: Request, call_next: RequestResponseEndpoint) -> Response:
+        response = await call_next(request)
+        response.headers.update(SECURITY_HEADERS)
+        if request.url.path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
+    templates = Jinja2Templates(directory=_PACKAGE_DIR / "templates")
+    app.mount("/static", StaticFiles(directory=_PACKAGE_DIR / "static"), name="static")
+
+    @app.exception_handler(StarletteHTTPException)
+    async def _http_error(_request: Request, exc: StarletteHTTPException) -> Response:
+        return problem_response(ProblemDetails(title=str(exc.detail), status=exc.status_code))
+
+    @app.middleware("http")
+    async def _unexpected_error(request: Request, call_next: RequestResponseEndpoint) -> Response:
+        # Caught here, not by an Exception handler: Starlette re-raises those and uvicorn
+        # would then log the traceback, which can carry patient data (NFR-002).
+        try:
+            return await call_next(request)
+        except Exception:
+            return problem_response(ProblemDetails(title="Internal server error", status=500))
+
+    @app.get("/", response_class=HTMLResponse)
+    async def index(request: Request) -> HTMLResponse:
+        return templates.TemplateResponse(request, "index.html")
+
+    @app.post("/api/check/rules", response_model=DecisionCard)
+    async def check_rules(request: Request) -> Any:
+        parsed = await _read_check_request(request)
+        if isinstance(parsed, JSONResponse):
+            return parsed
+        return rules_card(parsed)
+
+    return app
