@@ -149,7 +149,7 @@ pytest --cov` pass and CI is green, unless stated otherwise.
     mark "Not implemented". No changes under `infra/`.
   - Done when: design.md sections are complete and sourced; Q-1 closed or marked unverified;
     `git diff --stat main -- infra/` is empty.
-- [ ] T-012: Demo video and DEV post
+- [~] T-012: Demo video and DEV post
   - Requirements: G-4 (supports REQ-006, REQ-010)
   - Depends on: T-010 (T-011 for the architecture section)
   - Scope: 60 s demo GIF/video of presets A → alternative, B, C, and the model-down fallback;
