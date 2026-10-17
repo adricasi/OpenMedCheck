@@ -16,8 +16,8 @@ must be credible: least privilege, no public model endpoint, scale to zero, sour
    Google's own Gemma-on-Cloud-Run tutorial, no VM ops, private model. Cons: GPU cold start
    (~19 s time to first token from zero for a 4B model, per Google's GA blog); internal ingress
    from another Cloud Run service needs Private Google Access/DNS set up correctly.
-2. **Same as 1 with min-instances = 1**: no cold start, but always-on GPU cost (L4 price
-   unverified, Q-1).
+2. **Same as 1 with min-instances = 1**: no cold start, but always-on GPU cost (about US$1.05 per instance-hour with 4 vCPU and 16 GiB, Q-1 closed with a caveat on
+   2026-10-17, see design.md).
 3. **Vertex AI endpoint + Private Service Connect**: managed, but an always-on node and no scale
    to zero.
 4. **Compute Engine g2 + L4 (spot)**: cheapest per hour, but VM operations, preemption, no scale
@@ -34,4 +34,7 @@ Terraform or create resources in this version.
   a concrete, reviewable hospital deployment.
 - Negative / risks: no hosted demo URL for judges; the plan is unverified (no `terraform plan`).
   Mitigation: repo + demo video; mark the plan "Not implemented"; check the challenge rules (Q-6).
-- Follow-ups: when implemented, review the Terraform plan, and confirm the L4 price (Q-1) before applying.
+- Follow-ups: when implemented, review the Terraform plan, and re-check the europe-west1 L4 price (Q-1 caveat) before applying.
+
+- Status note (2026-10-17, T-011): still documentation only. design.md lists the code changes the
+  plan needs (bind host, trusted hosts, ID-token call to `gemma`) as future spec changes.

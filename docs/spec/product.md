@@ -134,8 +134,11 @@ safety invariant in a self-hosted deployment.
 | ACS / SCA | Acute coronary syndrome / síndrome coronario agudo |
 
 ## Open questions
-- [ ] Q-1: Cloud Run L4 price in europe-west1 (check https://cloud.google.com/run/pricing),
-  for the documented cost estimate only.
+- [x] Q-1: ~~Cloud Run L4 price in europe-west1.~~ Closed with a caveat (2026-10-17): NVIDIA L4
+  US$0.0001867 per second without zonal redundancy (US$0.672/h), US$0.0002909 with, per
+  https://cloud.google.com/run/pricing (instance-based billing, default region table; the
+  europe-west1 row could not be selected, see design.md Cost estimate). For the documented
+  estimate only.
 - [x] Q-2: ~~L4 GPU quota in the GCP project.~~ Not needed: no deployment (2026-10-17).
 - [ ] Q-3: Exact Gemma 4 size naming (E4B) and Ollama tag `gemma4:e4b`, from the model card.
 - [x] Q-4: Local hardware → NVIDIA GPU with ≥ 8 GB VRAM (answered 2026-10-17); targets in

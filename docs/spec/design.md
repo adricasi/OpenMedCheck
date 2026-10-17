@@ -206,6 +206,12 @@ UI (AC-008.7): each evaluation gets a client request ID; "Sign order" is disable
 - **Cloud:** documented plan only (below). Not implemented (AC-013.3).
 
 ## GCP reference architecture (documented, not implemented)
+**Not implemented in v0.1** (REQ-013, AC-013.3): nothing in this section exists as code,
+Terraform or cloud resources, and the app has no cloud SDK calls (NFR-006). It was reviewed against
+the code on `dev` (`config.py`, `web.py`, `model_client.py`, `logging_setup.py`, `__main__.py`)
+on 2026-10-17; the gaps between the code and this plan are listed under "Code changes this plan
+needs", and each needs a spec change before anyone builds it.
+
 Target for a hospital's own GCP tenancy, europe-west1, one project per environment
 (`openmedcheck-dev`, `openmedcheck-prod`).
 
@@ -213,53 +219,88 @@ Target for a hospital's own GCP tenancy, europe-west1, one project per environme
 flowchart LR
   clin[Clinician browser<br/>hospital network] --> lb[HTTPS LB<br/>IAP + Cloud Armor]
   lb --> web[Cloud Run: web<br/>FastAPI + rules<br/>SA: web-sa]
-  web -- "Direct VPC egress<br/>all traffic via VPC" --> gemma[Cloud Run: gemma<br/>Ollama + gemma4:e4b, 1× L4<br/>ingress: internal only<br/>SA: gemma-sa]
+  web -- "Direct VPC egress<br/>all traffic via VPC" --> gemma[Cloud Run: gemma<br/>Ollama + gemma4:e4b, 1x L4<br/>ingress: internal only<br/>SA: gemma-sa]
   web -. logs: IDs + verdicts only .-> logging[Cloud Logging]
   ar[Artifact Registry] -. images by digest .-> web & gemma
 ```
 
-- **web**: Cloud Run service, the same container as local. Hospital deployment: ingress
-  `internal-and-cloud-load-balancing` behind an HTTPS load balancer with IAP (staff
-  identities) **and** Cloud Armor (gcp.md: no public ingress without Cloud Armor). No `allUsers`
-  invoker binding. Egress: Direct VPC
-  egress, all traffic through a custom-mode VPC with no NAT, so the app can't reach the internet.
+- **web**: Cloud Run service, the same container as local. Ingress
+  `internal-and-cloud-load-balancing` behind an HTTPS load balancer with IAP (staff identities)
+  **and** Cloud Armor (gcp.md: no public ingress without Cloud Armor). No `allUsers` invoker
+  binding. Egress: Direct VPC egress, all traffic through a custom-mode VPC with no NAT, so the
+  app cannot reach the internet. Probes: startup and liveness probe `GET /` (static HTML, no
+  model call). Do **not** probe `/api/model/health`: it reports the model state, and `web` must
+  stay up (rules-only) when the model is down (REQ-005).
 - **gemma**: Cloud Run service with 1 NVIDIA L4, Ollama with the model weights baked into the
-  image (no download at start), ingress `internal`, invoker role granted only to `web-sa`,
-  `max-instances=1`, `min-instances=0` (demo) or `1` (production), concurrency = 
-  `OLLAMA_NUM_PARALLEL`.
+  image (no download at start), `OLLAMA_HOST=0.0.0.0:<container port>` so Ollama listens on the
+  Cloud Run port instead of its loopback default, ingress `internal`, invoker role granted only
+  to `web-sa`, `max-instances=1`, `min-instances=0` (demo) or `1` (production), concurrency =
+  `OLLAMA_NUM_PARALLEL`. Instance-based billing (the mode the L4 prices below are quoted in).
 - **Identities:** `web-sa` (`roles/run.invoker` on `gemma` only, log writer); `gemma-sa` (log
   writer only). No key files; CI deploys through Workload Identity Federation.
 - **Network:** custom VPC + subnet in europe-west1, Private Google Access on, private DNS for
-  `run.app` so `web` reaches `gemma` over the VPC (risk to verify, idea brief §6).
-- **Data:** no storage of context; Cloud Logging receives the same allowlisted fields as locally;
-  Cloud Audit Logs on; log retention default. For real patient data, add a VPC Service
-  Controls perimeter around the project (gcp.md).
-- **Cold start:** GPU instance ready < 5 s; time to first token from zero ≈ 19 s for a 4B
-  Gemma (Google, Cloud Run GPU GA blog). Mitigated by the instant rules card, `/api/model/warmup`
-  on page load, and `min-instances=1` in production.
-- **Cost (estimate, unverified; Q-1):** dominated by L4 instance-hours. Idea brief estimate
-  ≈ US$1/h per running GPU instance; scale-to-zero demo week ≈ a few US$ per day of use; one
-  always-on instance ≈ US$700–750/month. Confirm on https://cloud.google.com/run/pricing before
-  any deployment; budget alert at 50/90/100% of €25 for a demo project.
+  `run.app` so `web` reaches `gemma` over the VPC (risk to verify, idea brief section 6).
+- **Data:** no storage of context. `web` writes one JSON line per check to stdout with the
+  allowlisted fields in `logging_setup.ALLOWED_FIELDS` (request ID, preset ID, rule IDs, statuses,
+  risk levels, latencies, model outcome and attempts, prompt version, HTTP method/path/status);
+  the platform's own Cloud Run request log adds method, path and status, never bodies. Cloud
+  Audit Logs on; log retention default. For real patient data, add a VPC Service Controls
+  perimeter around the project (gcp.md).
+- **Cold start:** Google's Cloud Run GPU GA announcement reports a GPU instance ready in under
+  5 s and about 19 s to first token from zero for a 4B Gemma (not re-measured here). The app's
+  total model deadline is 10 s (`OPENMEDCHECK_MODEL_TIMEOUT_S`, across attempt and retry), so with
+  `min-instances=0` the first check after idle will usually time out and return a rules-only
+  card (the designed fail-safe, REQ-005). Mitigations: the instant rules card,
+  `/api/model/warmup` on page load, and `min-instances=1` in production.
+- **Cost:** see "Cost estimate" below. L4 price read on 2026-10-17 (Q-1, closed with a caveat).
 
-### Deployment plan (Not implemented)
-1. **Prerequisites (human):** create the project, link billing, set a €25 budget with alerts;
-   request L4 quota in europe-west1 (default 3 GPUs/region without zonal redundancy); enable Run,
-   Artifact Registry, Compute (VPC), IAM, Logging APIs; organisation policies per gcp.md.
-2. **Terraform to write** (`infra/`, following terraform.md): `network` (custom VPC, subnet, PGA,
-   private DNS zone for `run.app`, deny-all egress firewall); `artifact_registry`; `iam`
-   (`web-sa`, `gemma-sa`, invoker binding); `run_gemma` (GPU, internal ingress, min/max
-   instances); `run_web` (Direct VPC egress, `OPENMEDCHECK_OLLAMA_URL` = gemma URL, ingress via
-   LB); `lb` + IAP + Cloud Armor; budget; labels `env/app/owner/managed-by=terraform`.
-3. **Images:** build `web` (this repo) and `gemma` (Ollama base + baked `gemma4:e4b`) in CI,
-   push to Artifact Registry, deploy by digest.
-4. **Review:** `terraform plan -out=tfplan` → plan review →
+### Code changes this plan needs (not implemented; each needs a spec change first)
+The shipped app is loopback-only by design (AC-011.3, AC-011.4, NFR-001). Running it on Cloud Run
+means deliberately relaxing that:
+
+| Topic | v0.1 behaviour (verified in code) | Documented future change |
+|---|---|---|
+| Bind host | `OPENMEDCHECK_HOST` default `127.0.0.1`; `Config.validate` refuses any non-loopback host | The Cloud Run service sets `OPENMEDCHECK_HOST=0.0.0.0` and `OPENMEDCHECK_ALLOW_NONLOCAL=1`. Cloud Run only reaches a container listening on all interfaces, so the flag is the explicit, reviewable opt-in. Set it only in the service definition (Terraform), never as an image default or in a `.env` file |
+| Port | `OPENMEDCHECK_PORT` (default 8000); the app does not read Cloud Run's `PORT` | Set `OPENMEDCHECK_PORT` to the service's container port in the service definition |
+| Trusted hosts | `TrustedHostMiddleware` allows `127.0.0.1`, `localhost`, `[::1]`, plus `config.host` when it is non-loopback and `ALLOW_NONLOCAL=1`. With host `0.0.0.0` that adds the literal `0.0.0.0`, which no real `Host` header matches, so every request through the load balancer would be rejected (400) | Add a configurable trusted-hosts list (for example `OPENMEDCHECK_TRUSTED_HOSTS`, comma-separated) holding the load balancer's DNS name and the service's `run.app` name; keep the DNS-rebinding defence on. Needs a new AC and a test |
+| Ollama URL | `OPENMEDCHECK_OLLAMA_URL` must be loopback unless `ALLOW_NONLOCAL=1` | Set to the internal `gemma` service URL (`https://...run.app`); allowed by the same flag |
+| Calling `gemma` | `model_client` sends no credentials; `httpx.Client(trust_env=False)` | An invoker-only Cloud Run service needs a Google-signed ID token with the `gemma` URL as audience on every call. Add an optional token provider in `model_client`; it makes the metadata server a second outbound destination, which contradicts NFR-001 ("only the Ollama URL") and its outbound-socket test, so NFR-001 must be amended first |
+| Log severity | JSON line carries `level`, `ts`, `logger`, `event` | Cloud Logging reads `severity` and `timestamp`; add them (or map them in the logging agent) so levels and times show correctly. Keep the allowlist unchanged |
+| Health | `GET /api/model/health` is model health, not process health | Use `GET /` for probes (above) |
+
+At the commit reviewed, `web.py` serves `/`, `/api/drugs`, `/api/presets` and `/api/check/rules`;
+`/api/check` and `/api/model/*` in the Interfaces table are still pending in the task plan, so the
+probe and warm-up statements above follow the design, not shipped code.
+
+### Deployment plan (Not implemented in v0.1)
+1. **Prerequisites (human):** create the project, link billing, set a budget with alerts at
+   50/90/100% (size it from the Cost estimate; a demo week is about US$10); request L4 quota in
+   europe-west1 on the Quotas page (the default per-region GPU quota, and whether zonal
+   redundancy changes it, are not verified here: read the current Cloud Run GPU documentation);
+   enable the Run, Artifact Registry, Compute (VPC), IAM and Logging APIs; apply organisation
+   policies per gcp.md (no SA keys, restrict public IPs, resource locations).
+2. **Code changes** from "Code changes this plan needs", through a spec change and with tests,
+   before any image is built.
+3. **Terraform to write** (`infra/`, following terraform.md; `envs/dev` and `envs/prod` as
+   separate root modules with GCS remote state): `network` (custom VPC, subnet, PGA, private DNS
+   zone for `run.app`, deny-all egress firewall); `artifact_registry`; `iam` (`web-sa`,
+   `gemma-sa`, invoker binding); `run_gemma` (GPU, internal ingress, min/max instances,
+   `OLLAMA_HOST`); `run_web` (Direct VPC egress, `OPENMEDCHECK_HOST=0.0.0.0`,
+   `OPENMEDCHECK_ALLOW_NONLOCAL=1`, `OPENMEDCHECK_PORT`, trusted hosts, `OPENMEDCHECK_OLLAMA_URL` =
+   gemma URL, ingress via LB); `lb` + IAP + Cloud Armor; budget; labels
+   `env/app/owner/managed-by=terraform`.
+4. **Images:** build `web` (this repo) and `gemma` (Ollama base + baked `gemma4:e4b`) in CI,
+   push to Artifact Registry, scan, deploy by digest.
+5. **Review:** `terraform plan -out=tfplan` -> plan review ->
    the human applies.
-5. **Verify:** `gemma` URL unreachable from the internet (403/404); `web` → `gemma` call works
-   over the VPC; `web` can't reach an external host; a log sample has no context fields; run
-   `scripts/measure.py` against the deployed URL and compare with NFR-004.
-6. **Rollback:** Cloud Run revision traffic shift to the previous revision; `terraform plan`
-   for any infra revert.
+6. **Verify:** `gemma` URL unreachable from the internet (403/404); `web` -> `gemma` call works
+   over the VPC with an ID token; `web` cannot reach an external host; a request with an
+   unexpected `Host` header is rejected; a log sample has no context fields; run
+   `scripts/measure.py` against the deployed URL and compare with NFR-004 (expect the first
+   call after idle to be rules-only when `min-instances=0`).
+7. **Rollback:** Cloud Run revision traffic shift to the previous revision; `terraform plan`
+   for any infra revert; to stop GPU spend the human sets `gemma` to zero instances or removes
+   the service.
 
 ## Testing strategy
 | Level | Covers | Tools | Requirements |
@@ -275,8 +316,36 @@ flowchart LR
 Each AC is referenced in the test name or docstring (e.g. `test_ac_004_3_rules_blocked_is_final`).
 
 ## Cost estimate
-- v0.1: €0 cloud spend (local only, NFR-006). Electricity/hardware are the developer's own.
-- Documented cloud target: see the estimate above (unverified, Q-1).
+- v0.1: EUR 0 cloud spend (local only, NFR-006). Electricity/hardware are the developer's own.
+- Documented cloud target (Not implemented in v0.1); **Q-1 closed with a caveat**.
+  - **Source:** Google Cloud, "Cloud Run pricing", https://cloud.google.com/run/pricing, section
+    "Services (Instance-based billing)", read 2026-10-17, USD. Quoted rates:
+    NVIDIA L4 without zonal redundancy US$0.0001867 per second (US$0.672 per hour); NVIDIA L4
+    with zonal redundancy US$0.0002909 per second (US$1.047 per hour); CPU US$0.000018 per
+    vCPU-second; memory US$0.000002 per GiB-second.
+  - **Caveat:** the page picks the region with a selector. The static page I could read showed
+    the default table (Iowa, us-central1); I could not select europe-west1 to confirm it. The
+    same page's worked "Example 3" (Ollama on Cloud Run in europe-west1, 4 vCPU, 16 GiB, L4
+    without zonal redundancy, up to 2 instances, bell-curve daily traffic) gives US$827.62 a
+    month before the free tier (US$822.40 after it), which is consistent with these rates but
+    does not prove them for europe-west1. Re-check the europe-west1 row, or the Pricing
+    Calculator, before deploying.
+  - **Assumptions:** one `gemma` instance of 4 vCPU and 16 GiB (the shape in Google's Example 3;
+    not verified as the minimum for an L4), instance-based billing, 730 hours a month, no free
+    tier, no committed-use discount; network, load balancer, Cloud Armor, Artifact Registry,
+    logging and `web` costs are not priced here.
+  - **Rate per running instance:** non-zonal 3600 x (0.0001867 + 4 x 0.000018 + 16 x 0.000002) =
+    US$1.047/h; zonal 3600 x (0.0002909 + 4 x 0.000018 + 16 x 0.000002) = US$1.422/h.
+
+    | Scenario | Instance-hours | Non-zonal | Zonal |
+    |---|---|---|---|
+    | Demo video day, `min-instances=0`, 2 h billed | 2 | US$2.09 | US$2.84 |
+    | Demo week (5 days x 2 h) | 10 | US$10.47 | US$14.22 |
+    | Production, `min-instances=1`, always on | 730 | US$764 | US$1,038 |
+
+    With `min-instances=0`, billed time includes the time an instance stays up after a request,
+    so real hours exceed active use; 2 h a day is an assumption, not a measurement. The earlier
+    first estimate (about US$1/h, US$700-750 a month) is close to the non-zonal rate.
 
 ## Decisions
 | ID | Decision | ADR |
