@@ -376,26 +376,31 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
   - AC-014.1: WHEN the UI loads THE SYSTEM SHALL send one warm-up request to the model and show
     "Model warming…" until it completes or times out.
 
-### REQ-015: Hosted demo profile (opt-in, synthetic data only)
-- Story: As a challenge judge, I want to try the demo in a browser without installing a model,
-  while the product story stays "runs on-premises in the hospital".
+### REQ-015: Opt-in non-local configuration (no public deployment in v0.1)
+- Story: As the operator of a future on-premises or cloud deployment, I want an explicit,
+  reviewable opt-in before the app binds beyond loopback or reaches a non-local model, so the
+  local, zero-egress default can't be loosened by accident.
 - Priority: Should
-- Goals: G-4
+- Goals: G-3
 - Acceptance criteria:
-  - AC-015.1: THE SYSTEM SHALL keep the local, zero-egress behaviour as the default; the hosted
-    profile is enabled only by explicit environment variables (`OPENMEDCHECK_ALLOW_NONLOCAL=1`
-    plus the public host name).
-  - AC-015.2: WHEN the hosted profile is enabled THE SYSTEM SHALL accept requests only for the
-    configured public host name(s), bind the address and port given by the platform, and reach
-    the model only at the configured HTTPS URL, sending a bearer API key read from the
+  - AC-015.1: THE SYSTEM SHALL keep the local, zero-egress behaviour as the default; the
+    non-local profile is enabled only by explicit environment variables
+    (`OPENMEDCHECK_ALLOW_NONLOCAL=1` plus the public host name).
+  - AC-015.2: WHEN the non-local profile is enabled THE SYSTEM SHALL accept requests only for
+    the configured public host name(s), bind the address and port given by the platform, and
+    reach the model only at the configured HTTPS URL, sending a bearer API key read from the
     environment; the key SHALL never be logged, returned or committed.
-  - AC-015.3: WHEN the hosted profile is enabled THE SYSTEM SHALL show on every page that the
-    demo is hosted for trying it, accepts synthetic data only, and that the product is meant to
-    run on-premises.
+  - AC-015.3: WHEN the non-local profile is enabled THE SYSTEM SHALL show on every page that
+    the instance is hosted for trying it, accepts synthetic data only, and that the product is
+    meant to run on-premises.
   - AC-015.4: THE SYSTEM SHALL provide a container image and a `docker compose` setup that runs
-    the app and Ollama locally with one command, and step-by-step deployment guides for the
-    hosted demo (app on Render, Gemma on a DigitalOcean GPU droplet behind an authenticating
-    HTTPS proxy). Nothing is deployed.
+    the app and Ollama locally with one command. v0.1 provides no public deployment: the GCP
+    reference architecture (REQ-013) is the only documented non-local deployment target, and it
+    is documented only, never deployed.
+  - Amended 2026-10-18 (docs/adr/0008-drop-opt-in-hosted-demo.md): dropped the Render +
+    DigitalOcean hosted-demo guides (the previous AC-015.4) and the "challenge judge" framing
+    (previously Goals: G-4); the non-local opt-in mechanism itself is unchanged in code and is
+    reused by the GCP plan (REQ-013).
 
 ## Non-functional requirements
 | ID | Category | Requirement (measurable) | Verification |

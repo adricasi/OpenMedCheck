@@ -11,18 +11,19 @@ nothing conflicts (the card then reads "No issue found by these checks"). Gemma 
 ## Try it
 
 OpenMedCheck is built to **run on-premises inside the hospital**, so patient context never leaves
-the building. The hosted copy below exists only so you can try the demo with synthetic data;
-never enter real patient data there.
+the building. There is no hosted demo: v0.1 ships local-only
+([ADR 0008](docs/adr/0008-drop-opt-in-hosted-demo.md)). See the demo video/GIF linked below for
+a look without installing anything, or run it yourself:
 
-- **Hosted demo (synthetic data only):** [HOSTED DEMO URL]
 - **Local with Docker (one command after the model pull):**
   `docker compose --profile setup run --rm model-pull && docker compose up --build`, then open
   <http://127.0.0.1:8000>. Details: [docs/deploy/local-docker.md](docs/deploy/local-docker.md).
 - **Local with uv:** see [Quick start](#quick-start) below (unchanged).
 
-Maintainers: the opt-in hosted profile is described in
-[ADR 0007](docs/adr/0007-hosted-demo-profile.md), with guides for
-[Render](docs/deploy/render.md) and [Gemma on a DigitalOcean GPU droplet](docs/deploy/digitalocean-gemma.md).
+For how this would run in a hospital's own cloud instead of on one laptop, see the documented
+(not implemented) GCP reference architecture:
+[docs/deploy/gcp-reference-architecture.md](docs/deploy/gcp-reference-architecture.md) and
+[ADR 0005](docs/adr/0005-gcp-reference-architecture-documented-only.md).
 
 ## What it does
 
@@ -225,7 +226,8 @@ its caveats.
   [0002 local FastAPI app with server-rendered UI](docs/adr/0002-local-fastapi-app-with-server-rendered-ui.md),
   [0003 escalate-only two-layer engine](docs/adr/0003-escalate-only-two-layer-engine.md),
   [0004 Gemma 4 E4B served locally with Ollama](docs/adr/0004-serve-gemma-4-e4b-locally-with-ollama.md),
-  [0005 GCP reference architecture, documented only](docs/adr/0005-gcp-reference-architecture-documented-only.md).
+  [0005 GCP reference architecture, documented only](docs/adr/0005-gcp-reference-architecture-documented-only.md),
+  [0008 dropped the opt-in hosted demo](docs/adr/0008-drop-opt-in-hosted-demo.md).
 - Version 0.1 runs locally only. The GCP deployment is documented, not implemented, and no
   cloud resources are created.
 
