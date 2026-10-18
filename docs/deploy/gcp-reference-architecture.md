@@ -142,7 +142,7 @@ environment is live if any of them fails.
 | 7 | A Google account outside the clinician group, through IAP | 403 |
 | 8 | The `gemma` `run.app` URL called directly, no token | 403 |
 | 9 | A sampled `web`/`gemma` log line | Only `logging_setup.ALLOWED_FIELDS` — no context, no prompt text |
-| 10 | `uv run python scripts/measure.py --url https://<load balancer URL>` vs. NFR-004 | First call after idle may be rules-only (`min-instances=0`); later calls meet the budget |
+| 10 | Measure latency against `https://<load balancer URL>` and compare with NFR-004 | First call after idle may be rules-only (`min-instances=0`); later calls meet the budget. `scripts/measure.py` has no remote-target option today — it only drives a local subprocess — so this step needs that option added (step "Code changes this plan needs" in design.md) before it can be run this way |
 | 11 | Uptime check, alerting policies, budget (design.md "Monitoring, alerting and operations") | All active |
 
 ## 6. Operate
@@ -167,8 +167,8 @@ down.
 ### Teardown
 ```bash
 terraform -chdir=infra/envs/prod plan -destroy -out=tfplan.destroy   # read-only
-# review (same as step 4), then, human only:
-terraform -chdir=infra/envs/prod apply tfplan.destroy
+# review (same as step 4), then:
+terraform -chdir=infra/envs/prod apply tfplan.destroy                # HUMAN ONLY
 ```
 Then remove the budget and confirm in Billing that no charge continues. Only a human runs `destroy`.
 

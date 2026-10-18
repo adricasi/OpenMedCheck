@@ -1,29 +1,48 @@
-# openmedcheck
+<div align="center">
 
-Open-source prescribing check for emergency-department doctors: it flags a proposed medication
-order that conflicts with the patient's labs, diagnoses or free-text note, and stays silent when
-nothing conflicts (the card then reads "No issue found by these checks"). Gemma 4 runs locally.
+# OpenMedCheck
+
+**Open-source prescribing check for emergency-department doctors.**
+Flags a medication order that conflicts with the patient's labs, diagnoses or free-text note —
+and stays silent when nothing conflicts. Deterministic rules decide; Gemma 4, running fully
+locally, can only escalate.
+
+[![CI](https://github.com/adricasi/OpenMedCheck/actions/workflows/ci-python.yml/badge.svg)](https://github.com/adricasi/OpenMedCheck/actions/workflows/ci-python.yml)
+[![Security](https://github.com/adricasi/OpenMedCheck/actions/workflows/security.yml/badge.svg)](https://github.com/adricasi/OpenMedCheck/actions/workflows/security.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)](pyproject.toml)
+[![Status](https://img.shields.io/badge/status-not%20a%20medical%20device-critical)](#-disclaimer)
+
+[Quick start](#-quick-start) ·
+[How it works](#-how-it-works) ·
+[Configuration](#️-configuration) ·
+[Architecture](#-architecture--deployment) ·
+[Contributing](#-contributing)
+
+</div>
+
+## ⚠️ Disclaimer
 
 > **Not for clinical use — synthetic patients. Not a medical device.** OpenMedCheck is a concept
 > demonstrator built for the DEV Hacktoberfest Open-Source AI Challenge. It works on synthetic
-> patients only, gives no medical advice and must not be used for any real patient.
+> patients only, gives no medical advice, and must not be used for any real patient.
 
-## Try it
+## Table of contents
 
-OpenMedCheck is built to **run on-premises inside the hospital**, so patient context never leaves
-the building. There is no hosted demo: v0.1 ships local-only
-([ADR 0008](docs/adr/0008-drop-opt-in-hosted-demo.md)). See the demo video/GIF linked below for
-a look without installing anything, or run it yourself:
-
-- **Local with Docker (one command after the model pull):**
-  `docker compose --profile setup run --rm model-pull && docker compose up --build`, then open
-  <http://127.0.0.1:8000>. Details: [docs/deploy/local-docker.md](docs/deploy/local-docker.md).
-- **Local with uv:** see [Quick start](#quick-start) below (unchanged).
-
-For how this would run in a hospital's own cloud instead of on one laptop, see the documented
-(not implemented) GCP reference architecture:
-[docs/deploy/gcp-reference-architecture.md](docs/deploy/gcp-reference-architecture.md) and
-[ADR 0005](docs/adr/0005-gcp-reference-architecture-documented-only.md).
+- [What it does](#what-it-does)
+- [How it works](#-how-it-works)
+- [Try it](#-try-it)
+- [Quick start](#-quick-start)
+- [Using the demo](#using-the-demo)
+- [Configuration](#️-configuration)
+- [Tests and checks](#-tests-and-checks)
+- [Evaluation set](#-evaluation-set)
+- [Measurements](#-measurements)
+- [Architecture & deployment](#-architecture--deployment)
+- [Privacy and zero egress](#-privacy-and-zero-egress)
+- [Licence and credits](#-licence-and-credits)
+- [Contributing](#-contributing)
+- [Development workflow](#-development-workflow-spec-driven)
 
 ## What it does
 
@@ -36,34 +55,61 @@ data it is given; it never makes diagnoses of its own.
 **The doctor only writes the order.** The patient context is not meant to be typed: in a
 hospital it would be pulled from the patient's record (demographics, latest labs, coded
 diagnoses, current medication, allergies and the ED note) when the order is drafted, and the
-card would appear inline in the existing prescribing screen, or, when nothing conflicts, no
-card at all (the demo shows "No issue found by these checks"). The check engine is the
-product; the web UI here is a demo harness whose editable chart and synthetic presets stand in
-for that record. Record-system integration (for example HL7 FHIR with CDS Hooks) is not
-implemented in v0.1 and is out of scope for this version (see
+card would appear inline in the existing prescribing screen — or, when nothing conflicts, no
+card at all (the demo shows "No issue found by these checks" so the check's result is visible).
+The check engine is the product; the web UI here is a demo harness whose editable chart and
+synthetic presets stand in for that record. Record-system integration (for example HL7 FHIR
+with CDS Hooks) is not implemented in v0.1 and is out of scope for this version (see
 [product.md](docs/spec/product.md) non-goals).
 
-## How it works
+## 🧠 How it works
 
-Two layers, and the second can only make the first stricter (escalate-only):
+Two layers, and the second can only make the first stricter (**escalate-only**):
+
+```mermaid
+flowchart LR
+    O["Order + patient context<br/>(labs, diagnoses, meds, allergies, note)"] --> R
+    R["Layer 1 — rules engine<br/>(deterministic, cites a source,<br/>sets the floor)"] --> C
+    O -. free-text note .-> M
+    M["Layer 2 — Gemma 4 E4B<br/>(reads the note, can only<br/>raise status/risk, never lower)"] --> C
+    C["Combiner (pure)<br/>status = max(rules, model)"] --> D["Decision card<br/>NO_ISSUE / WARNING / BLOCKED"]
+```
 
 1. **Layer 1, deterministic rules.** A rule table in code (every entry cites a source and carries
-   a review status; every current entry was reviewed by a clinical specialist on 2026-10-18,
-   and an entry not yet reviewed shows "consult SmPC" instead of a numeric dose) checks the order against labs, allergies and listed diagnoses. It
-   sets the floor: the final status is never below the rules' status, and a rules `BLOCKED` is
-   final. The renal flag cannot be cleared, and the reasons of every fired rule always appear
-   on the card.
-2. **Layer 2, Gemma 4 E4B.** The local model reads the free-text ED note and can raise the
-   status or risk tier. It can never lower a verdict. Alternatives are suggested by name only,
-   drawn from the drug list; doses come only from the rule table (never from the model), and
-   until a specialist has signed off an entry the card shows "Dose: consult SmPC" instead of a
-   number. Every alternative is re-checked by Layer 1 before it is shown, and "Use alternative"
-   in the UI sends the changed order through the full check again.
+   a review status; every current entry was reviewed by a clinical specialist on 2026-10-18, and
+   an entry not yet reviewed shows "consult SmPC" instead of a numeric dose) checks the order
+   against labs, allergies and listed diagnoses. It sets the floor: the final status is never
+   below the rules' status, and a rules `BLOCKED` is final. The renal flag cannot be cleared, and
+   the reasons of every fired rule always appear on the card.
+2. **Layer 2, Gemma 4 E4B.** The local model reads the free-text ED note and can raise the status
+   or risk tier. It can never lower a verdict. Alternatives are suggested by name only, drawn
+   from the drug list; doses come only from the rule table (never from the model), and until a
+   specialist has signed off an entry the card shows "Dose: consult SmPC" instead of a number.
+   Every alternative is re-checked by Layer 1 before it is shown, and "Use alternative" in the UI
+   sends the changed order through the full check again.
 
-If the model times out, is unreachable or returns invalid output twice, the app returns the
+If the model times out, is unreachable, or returns invalid output twice, the app returns the
 rules-only card instead of an error. See [design.md](docs/spec/design.md) for the details.
 
-## Quick start
+## 🚀 Try it
+
+OpenMedCheck is built to **run on-premises inside the hospital**, so patient context never leaves
+the building. There is no hosted demo: v0.1 ships local-only
+([ADR 0008](docs/adr/0008-drop-opt-in-hosted-demo.md)).
+
+**Demo video/GIF:** [to be added by the human before submission — T-012].
+
+| Run it | Command | Details |
+|---|---|---|
+| **Docker (recommended)** | `docker compose --profile setup run --rm model-pull && docker compose up --build`, then open <http://127.0.0.1:8000> | [docs/deploy/local-docker.md](docs/deploy/local-docker.md) |
+| **uv (for development)** | see [Quick start](#-quick-start) below | — |
+
+For how this would run in a hospital's own cloud instead of on one laptop, see the documented
+(not implemented) GCP reference architecture:
+[docs/deploy/gcp-reference-architecture.md](docs/deploy/gcp-reference-architecture.md) and
+[ADR 0005](docs/adr/0005-gcp-reference-architecture-documented-only.md).
+
+## 📦 Quick start
 
 Requirements: Linux, macOS or WSL with Python 3.12+, git, [uv](https://docs.astral.sh/uv/),
 [Ollama](https://ollama.com/) and a GPU with at least 8 GB of VRAM for the latency figures below.
@@ -78,9 +124,10 @@ uv sync                     # install the Python environment
 uv run openmedcheck         # serve the app (leave it running)
 ```
 
-Then open <http://127.0.0.1:8000> in a browser. The page shows the banner "Not for clinical use —
-synthetic patients. Not a medical device." and three rooms with synthetic ED patients (Bed 3,
-Bed 7 and Bed 12, which are presets A, B and C).
+Then open <http://127.0.0.1:8000> in a browser. The page shows the disclaimer banner and three
+rooms with synthetic ED patients (Bed 3, Bed 7 and Bed 12, which are presets A, B and C).
+
+## Using the demo
 
 1. Select a room: its simulated record opens read-only and the prescription is empty.
 2. Write a prescription, or press "Auto-fill test prescription" for the case's demo order.
@@ -118,18 +165,20 @@ If Ollama or the model is missing, or does not answer in time, the app still sta
 the rules-only card with the note "Model check unavailable — rules only". The rules alone cannot
 read the free-text note, so when they find nothing the card is a `WARNING` "Free-text note not
 checked" instead of "No issue found by these checks" (a check that could not check the note must
-not look like a pass; rule findings such as preset B's are shown unchanged). To
-try it, start a second instance:
-`OPENMEDCHECK_OLLAMA_URL=http://127.0.0.1:9 OPENMEDCHECK_PORT=8001 uv run openmedcheck`.
+not look like a pass; rule findings such as preset B's are shown unchanged). To try it, start a
+second instance:
+```bash
+OPENMEDCHECK_OLLAMA_URL=http://127.0.0.1:9 OPENMEDCHECK_PORT=8001 uv run openmedcheck
+```
 
 The checks are also available over HTTP: `GET /api/presets/{A–F}` returns a request body
 that you can `POST` as JSON to `/api/check/rules` (rules only) or `/api/check` (final card), and
 `GET /api/model/health` reports `ready`, `warming` or `unavailable`.
-TODO(T-012): link the demo video.
 
-## Configuration
+## ⚙️ Configuration
 
-All settings are environment variables read at start-up (`src/openmedcheck/config.py`).
+All settings are environment variables read at start-up (`src/openmedcheck/config.py`). The app
+refuses to start with an invalid value.
 
 | Variable | Default | Meaning |
 |---|---|---|
@@ -138,14 +187,12 @@ All settings are environment variables read at start-up (`src/openmedcheck/confi
 | `OPENMEDCHECK_OLLAMA_URL` | `http://127.0.0.1:11434` | Ollama base URL (`http` or `https`). Same loopback rule. |
 | `OPENMEDCHECK_MODEL` | `gemma4:e4b` | Model tag served by Ollama; must not be empty. |
 | `OPENMEDCHECK_MODEL_TIMEOUT_S` | `10.0` | Total model deadline in seconds across the first attempt and the retry; must be a positive, finite number. |
-| `OPENMEDCHECK_ALLOW_NONLOCAL` | `0` | Set to `1` to allow a non-loopback bind host or Ollama URL. Leave it at `0` for the zero-egress guarantee. |
-| `OPENMEDCHECK_PUBLIC_HOSTS` | empty | Hosted demo only: comma-separated host names accepted in the Host header and shown with the hosted-demo notice. Needs `OPENMEDCHECK_ALLOW_NONLOCAL=1`. |
-| `OPENMEDCHECK_OLLAMA_API_KEY` | empty | Hosted demo only: secret sent as `Authorization: Bearer` to the model host. Needs an `https://` Ollama URL (unless Ollama is on loopback). Never logged or returned. |
+| `OPENMEDCHECK_ALLOW_NONLOCAL` | `0` | Explicit opt-in (REQ-015) to allow a non-loopback bind host or Ollama URL. Leave it at `0` for the zero-egress guarantee — v0.1 has no deployment that needs `1` (see [Architecture & deployment](#-architecture--deployment)). |
+| `OPENMEDCHECK_PUBLIC_HOSTS` | empty | Comma-separated host names accepted in the Host header, shown with the "hosted for trying it" notice. Needs `OPENMEDCHECK_ALLOW_NONLOCAL=1`. Unused in v0.1. |
+| `OPENMEDCHECK_OLLAMA_API_KEY` | empty | Secret sent as `Authorization: Bearer` to a non-local model host. Needs an `https://` Ollama URL (unless Ollama is on loopback). Never logged or returned. Unused in v0.1. |
 | `PORT` | unset | Platform port, used only when `OPENMEDCHECK_PORT` is unset. |
 
-The app refuses to start with an invalid value.
-
-## Tests and checks
+## ✅ Tests and checks
 
 ```bash
 uv run pytest --cov                                  # tests with coverage
@@ -158,14 +205,13 @@ uv run pytest -m ollama                              # real-model tests (local o
 Unit, service and API tests use a fake model client; only the `-m ollama` tests call a real
 model.
 
-## Evaluation set
+## 🧪 Evaluation set
 
 An open set of **76 synthetic ED cases** ([evals/](evals/README.md)) covers every rule, notes
 where the conflict is only in free text, negations ("ACS ruled out", "not pregnant", "stopped
 warfarin"), past and family history, abbreviations, typos and clean notes that must stay silent.
 Each case states the findings the authors expect the note to state (not yet reviewed by a
-clinician), and a test keeps every case
-consistent with the rules. Result on the same machine
+clinician), and a test keeps every case consistent with the rules. Result on the same machine
 ([comparison](docs/measurements/2026-10-18-model-comparison.md)):
 
 | | Final status matches label | False alarms | Misses | Model step p50 |
@@ -177,10 +223,11 @@ consistent with the rules. Result on the same machine
 
 Note findings from Gemma 4 E4B: 100% precision for every type, 100% recall except allergy (5/6)
 and active GI bleed (3/4). The cases, prompt and verifier were developed together, so 97% is a
-development-set figure, not a held-out estimate. Run it yourself: `uv run python scripts/eval_set.py [--model <tag>]`. Synthetic
-notes, temperature 0: this measures coverage of wordings, not clinical validity.
+development-set figure, not a held-out estimate. Run it yourself:
+`uv run python scripts/eval_set.py [--model <tag>]`. Synthetic notes, temperature 0: this
+measures coverage of wordings, not clinical validity.
 
-## Measurements
+## 📊 Measurements
 
 Measured on one machine (NVIDIA RTX 3000 Ada Laptop GPU, 8188 MiB; Ollama 0.35.1; `gemma4:e4b`,
 `think: false`, temperature 0), model step, warm, unless stated:
@@ -189,35 +236,32 @@ Measured on one machine (NVIDIA RTX 3000 Ada Laptop GPU, 8188 MiB; Ollama 0.35.1
   runs; model-step p95 1.73 s (draft prompt) and 2.40 s (with conflict guidance), against the
   NFR-004 budget of 3 s for the final card.
 - [Prompt v2 evaluation](docs/measurements/2026-10-17-prompt-v2.md): 60/60 = 100% valid on the
-  first try (20 per preset); model-step p95 1.50 s (A), 1.32 s (B), 1.44 s (C); preset A (20 calls) was BLOCKED with
-  ANTIPLATELET_ACS in 20/20 (AC-003.4 asks for at least 9/10), with the rules alone giving
-  `NO_ISSUE`.
-
+  first try (20 per preset); model-step p95 1.50 s (A), 1.32 s (B), 1.44 s (C); preset A (20
+  calls) was BLOCKED with ANTIPLATELET_ACS in 20/20 (AC-003.4 asks for at least 9/10), with the
+  rules alone giving `NO_ISSUE`.
 - [Prompt v3 evaluation](docs/measurements/2026-10-17-prompt-v3.md): 60/60 valid on the first
   try (15 per case, through the full check pipeline); preset A `BLOCKED` with ANTIPLATELET_ACS
   15/15, preset A re-checked with paracetamol `NO_ISSUE` 15/15, B `WARNING` with the renal flag,
   C `NO_ISSUE`; model-step p95 at most 1.50 s.
-
-- [English presets and prompt v4](docs/measurements/2026-10-18-prompt-v4.md): after
-  the presets were translated to English, prompt v3 blocked the paracetamol re-check 15/15. v4
-  sends the ANTIPLATELET_ACS guidance only when the order is an NSAID (a fact from the drug
-  list). Then 60/60 valid on the first try; preset A `BLOCKED` 15/15, paracetamol re-check
-  `NO_ISSUE` 15/15, B `WARNING`, C `NO_ISSUE`; end to end rules card p95 2.0 ms, final card
-  p95 1.45 s (40 calls); cold first check 6.9 s with the model's reading (one sample).
+- [English presets and prompt v4](docs/measurements/2026-10-18-prompt-v4.md): after the presets
+  were translated to English, prompt v3 blocked the paracetamol re-check 15/15. v4 sends the
+  ANTIPLATELET_ACS guidance only when the order is an NSAID (a fact from the drug list). Then
+  60/60 valid on the first try; preset A `BLOCKED` 15/15, paracetamol re-check `NO_ISSUE` 15/15,
+  B `WARNING`, C `NO_ISSUE`; end to end rules card p95 2.0 ms, final card p95 1.45 s (40 calls);
+  cold first check 6.9 s with the model's reading (one sample).
+- Earlier (prompt v3, Spanish notes): [end-to-end measurement (T-009)](docs/measurements/2026-10-17.md),
+  as a client sees the app over HTTP: rules card p50 1.3 ms, p95 3.8 ms (200 calls, budget
+  200 ms); final card, warm, p50 1.51 s, p95 1.72 s (40 calls over presets A, B, C and A with
+  paracetamol, budget 3 s); 40/40 cards had valid model output; preset A `BLOCKED` and A with
+  paracetamol `NO_ISSUE` in every run. A cold first check took 10.0 s and fell back to the
+  rules-only card (the model load exceeds the 10 s deadline on this laptop); the warm-up call
+  the UI makes on page load avoids this.
 
 At temperature 0 repeated calls on one fixed preset are nearly deterministic, so these figures
 show stability on three presets, not robustness to other wordings. Each measurement file lists
 its caveats.
 
-- Earlier (prompt v3, Spanish notes): [end-to-end measurement (T-009)](docs/measurements/2026-10-17.md), as a client sees the app over
-  HTTP: rules card p50 1.3 ms, p95 3.8 ms (200 calls, budget 200 ms); final card, warm, p50
-  1.51 s, p95 1.72 s (40 calls over presets A, B, C and A with paracetamol, budget 3 s); 40/40
-  cards had valid model output; preset A `BLOCKED` and A with paracetamol `NO_ISSUE` in every
-  run. A cold first check took 10.0 s and fell back to the rules-only card (the model load
-  exceeds the 10 s deadline on this laptop); the warm-up call the UI makes on page load avoids
-  this.
-
-## Architecture
+## 🏗️ Architecture & deployment
 
 - [Specification](docs/spec/): [product](docs/spec/product.md),
   [requirements](docs/spec/requirements.md), [design](docs/spec/design.md) and
@@ -228,10 +272,14 @@ its caveats.
   [0004 Gemma 4 E4B served locally with Ollama](docs/adr/0004-serve-gemma-4-e4b-locally-with-ollama.md),
   [0005 GCP reference architecture, documented only](docs/adr/0005-gcp-reference-architecture-documented-only.md),
   [0008 dropped the opt-in hosted demo](docs/adr/0008-drop-opt-in-hosted-demo.md).
-- Version 0.1 runs locally only. The GCP deployment is documented, not implemented, and no
+- Deployment guides in [docs/deploy](docs/deploy/):
+  [local Docker](docs/deploy/local-docker.md) (the only one actually run) and the
+  [GCP reference architecture](docs/deploy/gcp-reference-architecture.md) (documented, not
+  implemented).
+- **Version 0.1 runs locally only.** The GCP deployment is documented, not implemented, and no
   cloud resources are created.
 
-## Privacy and zero egress
+## 🔒 Privacy and zero egress
 
 - The app binds to `127.0.0.1` by default. The only outbound connection is to the configured
   Ollama URL (default `http://127.0.0.1:11434`). There is no telemetry and no CDN: the UI
@@ -241,7 +289,7 @@ its caveats.
   caches. Logs carry only allowlisted fields such as request ID, rule IDs fired, statuses and
   timings (NFR-002).
 
-## Licence and credits
+## 📄 Licence and credits
 
 Licensed under the [Apache License 2.0](LICENSE). Copyright 2026 adricasi.
 
@@ -253,12 +301,12 @@ Clinical content in the rule table is a demonstrator and has not been signed off
 use; see [docs/clinical-review.md](docs/clinical-review.md) for the review status and open
 questions for a specialist.
 
-## Contributing
+## 🤝 Contributing
 
 Clinicians and developers are welcome: propose a rule with its source, review a rule, or add
 synthetic evaluation cases. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Development workflow (spec-driven)
+## 🛠️ Development workflow (spec-driven)
 
 The specification in
 `docs/spec/` is the source of truth, and each task is implemented from it with tests named after

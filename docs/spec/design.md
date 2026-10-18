@@ -485,9 +485,11 @@ with it.
      directly, without a token, also gets 403.
    - A sampled `web` and `gemma` log line carries no context fields and no prompt text — only
      `logging_setup.ALLOWED_FIELDS` (NFR-002).
-   - Run `scripts/measure.py` against the deployed URL and compare with NFR-004; with
+   - Measure latency against the deployed URL and compare with NFR-004; with
      `min-instances=0` the first call after idle is expected to come back rules-only (the
-     designed fail-safe, REQ-005), not an error.
+     designed fail-safe, REQ-005), not an error. `scripts/measure.py` only drives a local
+     subprocess today (it has no remote-target option); add one (or a small standalone script)
+     as part of step 2's code changes before relying on it here.
    - Confirm the uptime check, the alerting policies and the budget (see "Monitoring, alerting
      and operations" above) are all active before calling the deployment done.
 7. **Rollback:** shift Cloud Run traffic on `web` (and, if needed, `gemma`) back to the previous

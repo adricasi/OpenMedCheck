@@ -24,7 +24,8 @@ surfaced three problems with that plan before it was ever deployed:
   endpoint with a bearer key to generate, store and rotate (the split), or an hourly GPU bill
   that is the same whether anyone is looking at the demo or not (a DigitalOcean GPU droplet,
   from US$0.76/h for the smallest card, billed even while powered off until destroyed, per
-  DigitalOcean's GPU Droplet pricing page, read 2026-10-18). Either way it is a second
+  [DigitalOcean's GPU Droplet pricing page][DigitalOcean GPU Droplet pricing], read
+  2026-10-18). Either way it is a second
   production-shaped surface — a public endpoint, or a public app plus a public GPU host — to
   secure, monitor and tear down, for a judging window of a few days.
 - **It duplicates work the spec already commits to doing properly.** REQ-013 documents a GCP
