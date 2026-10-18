@@ -325,7 +325,7 @@ def test_nfr_002_log_lines_hold_no_context_or_model_text() -> None:
 
     output = stream.getvalue()
     assert len(output.splitlines()) == 3
-    for forbidden in (NOTE_MARKER, model_marker, "SYN-A", "Dolor", "Adiro"):
+    for forbidden in (NOTE_MARKER, model_marker, "SYN-A", "Chest pain", "crushing"):
         assert forbidden not in output
 
 

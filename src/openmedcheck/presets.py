@@ -30,11 +30,11 @@ PRESET_A = Preset(
             age=64,
             sex="M",
             weight_kg=82,
-            reason_for_consult="Dolor torácico",
+            reason_for_consult="Chest pain",
             ed_note=(
-                "Varón de 64 años con dolor torácico opresivo de 2 horas, irradiado al brazo "
-                "izquierdo, con sudoración. Sospecha de SCA; ECG y troponina pendientes. "
-                "Toma Adiro a diario."
+                "64-year-old man with a 2-hour history of crushing central chest pain "
+                "radiating to the left arm, with diaphoresis. Suspected ACS; ECG and troponin "
+                "pending. On daily aspirin."
             ),
             diagnoses=[],
             chronic_medications=["aspirin"],
@@ -58,10 +58,10 @@ PRESET_B = Preset(
             age=78,
             sex="F",
             weight_kg=62,
-            reason_for_consult="Fiebre y disuria",
+            reason_for_consult="Fever and dysuria",
             ed_note=(
-                "Mujer de 78 años con fiebre y disuria de 2 días. Sospecha de infección "
-                "urinaria. Sin alergias conocidas."
+                "78-year-old woman with 2 days of fever and dysuria. Suspected urinary tract "
+                "infection. No known allergies."
             ),
             diagnoses=[],
             chronic_medications=[],
@@ -85,8 +85,8 @@ PRESET_C = Preset(
             age=34,
             sex="F",
             weight_kg=68,
-            reason_for_consult="Esguince de tobillo",
-            ed_note="Mujer de 34 años con esguince de tobillo tras caída leve. Dolor moderado.",
+            reason_for_consult="Ankle sprain",
+            ed_note="34-year-old woman with an ankle sprain after a minor fall. Moderate pain.",
             diagnoses=[],
             chronic_medications=[],
             allergies=[],

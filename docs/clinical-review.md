@@ -92,7 +92,7 @@ How to read the sheet:
 
 - Patient: 64 years, sex M, 82 kg; creatinine 0.9 mg/dL, eGFR 92.0
 - Coded diagnoses: none; chronic medication: aspirin; allergies: none
-- Note: Varón de 64 años con dolor torácico opresivo de 2 horas, irradiado al brazo izquierdo, con sudoración. Sospecha de SCA; ECG y troponina pendientes. Toma Adiro a diario.
+- Note: 64-year-old man with a 2-hour history of crushing central chest pain radiating to the left arm, with diaphoresis. Suspected ACS; ECG and troponin pending. On daily aspirin.
 - Proposed order: dexketoprofen 25 mg PO every 8 hours
 
 Rules card (Layer 1 only):
@@ -111,7 +111,7 @@ Rules card (Layer 1 only):
 
 - Patient: 78 years, sex F, 62 kg; creatinine 2.4 mg/dL, eGFR 21.0
 - Coded diagnoses: none; chronic medication: none; allergies: none
-- Note: Mujer de 78 años con fiebre y disuria de 2 días. Sospecha de infección urinaria. Sin alergias conocidas.
+- Note: 78-year-old woman with 2 days of fever and dysuria. Suspected urinary tract infection. No known allergies.
 - Proposed order: ciprofloxacin 500 mg PO every 12 hours
 
 Rules card (Layer 1 only):
@@ -130,7 +130,7 @@ Rules card (Layer 1 only):
 
 - Patient: 34 years, sex F, 68 kg; creatinine 0.8 mg/dL, eGFR 105.0
 - Coded diagnoses: none; chronic medication: none; allergies: none
-- Note: Mujer de 34 años con esguince de tobillo tras caída leve. Dolor moderado.
+- Note: 34-year-old woman with an ankle sprain after a minor fall. Moderate pain.
 - Proposed order: paracetamol 1 g PO every 8 hours
 
 Rules card (Layer 1 only):

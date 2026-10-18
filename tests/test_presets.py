@@ -16,7 +16,7 @@ def test_ac_003_4_preset_a_has_suspected_acs_only_in_the_note() -> None:
     context = PRESETS["A"].request.context
 
     assert context.diagnoses == []
-    assert "SCA" in context.ed_note
+    assert "Suspected ACS" in context.ed_note
     assert context.chronic_medications == ["aspirin"]
     assert PRESETS["A"].request.order.drug_id == "dexketoprofen"
 
