@@ -10,7 +10,7 @@ model downloads.
 - Optional: an NVIDIA GPU with at least 8 GB of VRAM and the
   [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/).
   Without a GPU the model runs on the CPU and is much slower than the 10 s model deadline, so
-  cards fall back to rules only.
+  cards fall back to rules only (see "Symptom: Bed 3 says No issue" below).
 
 ## Steps
 ```bash
@@ -24,7 +24,21 @@ docker compose up --build                       # CPU
 # docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build   # NVIDIA GPU
 ```
 Open <http://127.0.0.1:8000>. Wait for the model status to read ready, then verify a
-prescription. Stop with `Ctrl+C`; `docker compose down` removes the containers, and
+prescription.
+
+### Symptom: Bed 3 says "No issue found by these checks" with "Model check unavailable"
+Bed 3's suspected ACS is only in the note, so only the model can catch it. If the card shows
+"Model check unavailable — rules only", the model did not answer within the deadline (the
+fail-safe, REQ-005). Check where the model runs:
+```bash
+docker compose exec ollama ollama ps        # PROCESSOR "100% CPU" = no GPU in the container
+```
+- **Best: give the container the GPU.** Install the NVIDIA Container Toolkit (on WSL2 inside the
+  Linux distribution, following NVIDIA's guide), run `sudo nvidia-ctk runtime configure
+  --runtime=docker` and restart Docker, stop any native Ollama that holds the VRAM, then start
+  with the GPU override above. `ollama ps` must then show `100% GPU`.
+- **CPU only: raise the deadline.** `OPENMEDCHECK_MODEL_TIMEOUT_S=120 docker compose up` makes
+  each check slow (tens of seconds) but lets the model finish, so Bed 3 is blocked. Stop with `Ctrl+C`; `docker compose down` removes the containers, and
 `docker compose down -v` also deletes the downloaded model.
 
 Alternative to step 1 once the stack is running:

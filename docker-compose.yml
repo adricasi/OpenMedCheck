@@ -37,6 +37,8 @@ services:
       - ollama
     environment:
       OPENMEDCHECK_OLLAMA_URL: http://ollama:11434
+      # Raise it on a CPU-only machine, e.g. OPENMEDCHECK_MODEL_TIMEOUT_S=120 docker compose up
+      OPENMEDCHECK_MODEL_TIMEOUT_S: ${OPENMEDCHECK_MODEL_TIMEOUT_S:-10}
     ports:
       # Loopback only: the app stays local to this machine (NFR-001).
       - "127.0.0.1:8000:8000"
