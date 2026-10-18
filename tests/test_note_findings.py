@@ -90,6 +90,7 @@ def test_ac_003_6_accepts_a_quote_from_the_reason_for_consult() -> None:
         ("ACS not ruled out yet.", acs("ACS")),
         ("ACS hasn\u2019t been ruled out.", acs("ACS")),
         ("ACS isn't fully excluded.", acs("ACS")),
+        ("Suspected ACS with troponin test negative so far.", acs()),
         (
             "Plan reviewed, meds stopped\nWarfarin daily for AF.",
             finding(FindingKind.MEDICATION, "warfarin", "Warfarin daily"),

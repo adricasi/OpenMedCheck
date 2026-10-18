@@ -78,8 +78,13 @@ _PRE_NEGATION = re.compile(
 # ruled out" keeps the finding).
 _POST_NEGATION = re.compile(
     r"^(?P<gap>\W*(?:[\w']+\W+){0,2}?)"
-    r"(?:ruled\s+out|rules\s+out|excluded|resolved|unlikely|test\s+(?:was\s+|is\s+)?negative)\b",
+    r"(?:ruled\s+out|rules\s+out|excluded|resolved|unlikely)\b",
     re.IGNORECASE,
+)
+# Only for pregnancy and only straight after the term ("pregnancy test negative"); a negative
+# troponin or stress test says nothing about an ACS.
+_POST_PREGNANCY_TEST_NEGATIVE = re.compile(
+    r"^[ \t]*test[ \t]+(?:was[ \t]+|is[ \t]+)?negative\b", re.IGNORECASE
 )
 _NEGATOR = re.compile(r"\b(?:not|never|no|cannot|\w+n't)\b", re.IGNORECASE)
 # "Warfarin stopped", "warfarin was discontinued": right after the drug, so "warfarin not
@@ -127,18 +132,23 @@ def _post_negated(clause_after: str) -> bool:
     return match is not None and not _NEGATOR.search(match.group("gap"))
 
 
-def _negated(text: str, term: re.Match[str], kind: FindingKind) -> bool:
+def _negated(text: str, term: re.Match[str], kind: FindingKind, code: str) -> bool:
     text = text.replace("\u2019", "'").replace("\u02bc", "'")  # typographic apostrophes
     before = text[: term.start()]
     ends = list(_CLAUSE_END.finditer(before))
     clause_before = before[ends[-1].end() :] if ends else before
     window = " ".join(clause_before.split()[-_PRE_WORDS:])
-    after = text[term.end() :]
+    # Terms can be word prefixes ("pregnan", "bleed"): look after the whole word.
+    word_end = term.end()
+    while word_end < len(text) and (text[word_end].isalnum() or text[word_end] == "'"):
+        word_end += 1
+    after = text[word_end:]
     stop = _CLAUSE_END.search(after)
     clause_after = after[: stop.start()] if stop else after
     return bool(
         _PRE_NEGATION.search(window)
         or _post_negated(clause_after)
+        or (code == "PREGNANCY" and bool(_POST_PREGNANCY_TEST_NEGATIVE.search(after)))
         # Stopping a drug only negates a medication finding, checked on the raw text before it.
         or (
             kind is FindingKind.MEDICATION
@@ -167,7 +177,7 @@ def _verified(finding: NoteFinding, context: PatientContext) -> NoteFinding | No
         if not MIN_QUOTE_CHARS <= len(span) <= MAX_QUOTE_CHARS:
             return None
         term = _term_in(match, _code_terms(finding.kind, finding.code))
-        if term is None or _negated(match.string, term, finding.kind):
+        if term is None or _negated(match.string, term, finding.kind, finding.code):
             return None
         # Show the note's own words, not the model's copy of them.
         return finding.model_copy(update={"quote": span})
