@@ -211,21 +211,20 @@ pytest --cov` pass and CI is green, unless stated otherwise.
     module file tree, and a command-level step list; added a standalone walkthrough,
     `docs/deploy/gcp-reference-architecture.md`. Still not implemented; `git diff --stat main --
     infra/` stays empty.
-- [~] T-012: Demo video and DEV post
+- [~] T-012: DEV post with demo screenshots (demo video dropped 2026-10-18)
   - Requirements: G-4 (supports REQ-006, REQ-010)
   - Depends on: T-010 (T-011 for the architecture section)
-  - Scope: 60 s demo GIF/video of presets A → alternative, B, C, and the model-down fallback;
+  - Scope: demo screenshots of presets A → alternative, B, C, and the model-down fallback;
     DEV post draft (problem with sourced figures, the escalate-only invariant, preset A as the
     Gemma case, measured numbers, specialist quote, local zero-egress run, documented GCP
     plan, disclaimers); check the challenge rules for hosted-demo requirements (Q-6).
-  - Note (2026-10-18): open the video on preset A (rules alone = `NO_ISSUE`, Gemma reads the
+  - Note (2026-10-18): lead the demo with preset A (rules alone = `NO_ISSUE`, Gemma reads the
     note = `BLOCKED`) rather than on the UI tour — that one case is the clearest, fastest way to
     show why Layer 2 exists, and the post draft's "76 synthetic cases" section backs it with the
     aggregate 72%→97% figure. Gemma's role is the headline, not a footnote after the rules.
-  - Note (2026-10-18): video tooling in `scripts/demo_video/` (slides, narration, Playwright
-    recording, Kokoro voice, ffmpeg build); the final cut must be recorded where the real model
-    runs (`record_app.py`), see `scripts/demo_video/README.md`.
-  - Done when: video is linked from the README; the post draft passes the wording rules
+  - Note (2026-10-18): the demo video and its tooling were removed on the owner's decision; the
+    post shows the demo with screenshots instead.
+  - Done when: the post shows the demo with screenshots; the post draft passes the wording rules
     (REQ-010); Q-6 answered; the user publishes and submits before Sun 22:00 CEST (human step).
 
 ## Coverage check
