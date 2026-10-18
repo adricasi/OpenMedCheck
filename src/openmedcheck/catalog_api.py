@@ -24,6 +24,7 @@ class DrugItem(BaseModel):
 class PresetItem(BaseModel):
     preset_id: str
     title: str
+    bed: str
     synthetic_label: str
     request: CheckRequest
 
@@ -32,6 +33,7 @@ def _preset_item(preset: Preset) -> PresetItem:
     return PresetItem(
         preset_id=preset.preset_id,
         title=preset.title,
+        bed=preset.bed,
         synthetic_label=preset.synthetic_label,
         request=preset.request,
     )

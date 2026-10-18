@@ -15,108 +15,133 @@
     <p id="model-status" class="model-status" role="status">Model status: checking…</p>
   </header>
   <main class="layout">
+    <nav class="patients" aria-labelledby="patients-heading">
+      <h2 id="patients-heading">ED patients (synthetic)</h2>
+      <ul id="patient-list" class="patient-list"></ul>
+    </nav>
+
     <section class="chart" aria-labelledby="chart-heading">
-      <h2 id="chart-heading">Patient chart</h2>
-      <div class="presets" role="group" aria-label="Synthetic patient presets">
-        <button type="button" class="preset-button" data-preset="A">Preset A</button>
-        <button type="button" class="preset-button" data-preset="B">Preset B</button>
-        <button type="button" class="preset-button" data-preset="C">Preset C</button>
-      </div>
-      <p id="preset-title" class="preset-title"></p>
+      <h2 id="chart-heading" tabindex="-1">Patient record</h2>
+      <p id="preset-title" class="preset-title" role="status">Select a patient to open the record.</p>
       <p id="synthetic-label" class="synthetic-label"></p>
 
       <form id="check-form" novalidate>
         <p id="form-error" class="field-error" role="alert" hidden></p>
-        <fieldset>
-          <legend>Patient</legend>
-          <div class="field">
-            <label for="f-age">Age (years, 18–110, required)</label>
-            <input id="f-age" aria-required="true" type="number" inputmode="numeric" step="1" data-path="context.age" aria-describedby="e-age">
-            <span id="e-age" class="field-error" hidden></span>
+        <div id="record" class="record" hidden>
+          <div class="record-header">
+            <p class="record-source" role="status">From the patient record (simulated)</p>
+            <label class="edit-toggle" for="edit-scenario">
+              <input type="checkbox" id="edit-scenario" aria-describedby="edit-hint">
+              Edit scenario (demo only)
+            </label>
+            <a class="skip" href="#order-heading">Skip to Prescribe</a>
           </div>
-          <div class="field">
-            <label for="f-sex">Sex</label>
-            <select id="f-sex" data-path="context.sex" aria-describedby="e-sex">
-              <option value="M">Male</option>
-              <option value="F">Female</option>
-            </select>
-            <span id="e-sex" class="field-error" hidden></span>
-          </div>
-          <div class="field">
-            <label for="f-weight">Weight (kg, 30–250, required)</label>
-            <input id="f-weight" aria-required="true" type="number" inputmode="decimal" step="any" data-path="context.weight_kg" aria-describedby="e-weight">
-            <span id="e-weight" class="field-error" hidden></span>
-          </div>
-          <div class="field">
-            <label for="f-reason">Reason for consult</label>
-            <input id="f-reason" type="text" maxlength="200" data-path="context.reason_for_consult" aria-describedby="e-reason">
-            <span id="e-reason" class="field-error" hidden></span>
-          </div>
-        </fieldset>
+          <p id="record-status" class="record-status" role="status"></p>
+          <p id="edit-hint" class="hint">In a hospital this context would come from the hospital's record system (not connected in this demo); the doctor only writes the order.</p>
 
-        <fieldset>
-          <legend>Labs</legend>
-          <div class="field">
-            <label for="f-creatinine">Creatinine (mg/dL, 0.1–20)</label>
-            <input id="f-creatinine" type="number" inputmode="decimal" step="any" data-path="context.labs.creatinine_mg_dl" aria-describedby="e-creatinine">
-            <span id="e-creatinine" class="field-error" hidden></span>
-          </div>
-          <div class="field">
-            <label for="f-egfr">eGFR (mL/min/1.73 m², 0–200)</label>
-            <input id="f-egfr" type="number" inputmode="decimal" step="any" data-path="context.labs.egfr_ml_min_1_73m2" aria-describedby="e-egfr">
-            <span id="e-egfr" class="field-error" hidden></span>
-          </div>
-        </fieldset>
+          <fieldset class="record-fields">
+            <legend>Patient</legend>
+            <div class="field">
+              <label for="f-age">Age (years, 18–110, required)</label>
+              <input id="f-age" aria-required="true" type="number" inputmode="numeric" step="1" data-path="context.age" data-record aria-describedby="e-age">
+              <span id="e-age" class="field-error" hidden></span>
+            </div>
+            <div class="field">
+              <label id="l-sex" for="f-sex">Sex</label>
+              <input id="f-sex-text" type="text" readonly aria-labelledby="l-sex">
+              <select id="f-sex" data-path="context.sex" data-record aria-describedby="e-sex">
+                <option value="M">Male</option>
+                <option value="F">Female</option>
+              </select>
+              <span id="e-sex" class="field-error" hidden></span>
+            </div>
+            <div class="field">
+              <label for="f-weight">Weight (kg, 30–250, required)</label>
+              <input id="f-weight" aria-required="true" type="number" inputmode="decimal" step="any" data-path="context.weight_kg" data-record aria-describedby="e-weight">
+              <span id="e-weight" class="field-error" hidden></span>
+            </div>
+            <div class="field">
+              <label for="f-reason">Reason for consult</label>
+              <input id="f-reason" type="text" maxlength="200" data-path="context.reason_for_consult" data-record aria-describedby="e-reason">
+              <span id="e-reason" class="field-error" hidden></span>
+            </div>
+          </fieldset>
 
-        <fieldset>
-          <legend>Emergency department note</legend>
-          <div class="field field-wide">
-            <label for="f-note">Free-text note</label>
-            <textarea id="f-note" rows="6" maxlength="2000" data-path="context.ed_note" aria-describedby="e-note"></textarea>
-            <span id="e-note" class="field-error" hidden></span>
-          </div>
-          <p class="read-only">Recorded conditions: <span id="ro-conditions">none</span></p>
-          <p class="read-only">Chronic medication: <span id="ro-chronic">none</span></p>
-          <p class="read-only">Recorded allergies: <span id="ro-allergies">none</span></p>
-        </fieldset>
+          <fieldset class="record-fields">
+            <legend>Labs (latest results)</legend>
+            <div class="field">
+              <label for="f-creatinine">Creatinine (mg/dL, 0.1–20)</label>
+              <input id="f-creatinine" type="number" inputmode="decimal" step="any" data-path="context.labs.creatinine_mg_dl" data-record aria-describedby="e-creatinine">
+              <span id="e-creatinine" class="field-error" hidden></span>
+            </div>
+            <div class="field">
+              <label for="f-egfr">eGFR (mL/min/1.73 m², 0–200)</label>
+              <input id="f-egfr" type="number" inputmode="decimal" step="any" data-path="context.labs.egfr_ml_min_1_73m2" data-record aria-describedby="e-egfr">
+              <span id="e-egfr" class="field-error" hidden></span>
+            </div>
+          </fieldset>
 
-        <fieldset>
-          <legend>Proposed order</legend>
-          <div class="field">
-            <label for="f-drug">Drug</label>
-            <select id="f-drug" data-path="order.drug_id" aria-describedby="e-drug"></select>
-            <span id="e-drug" class="field-error" hidden></span>
-          </div>
-          <div class="field">
-            <label for="f-dose">Dose (required)</label>
-            <input id="f-dose" aria-required="true" type="text" maxlength="100" data-path="order.dose_text" aria-describedby="e-dose">
-            <span id="e-dose" class="field-error" hidden></span>
-          </div>
-          <div class="field">
-            <label for="f-route">Route</label>
-            <select id="f-route" data-path="order.route" aria-describedby="e-route">
-              <option value="PO">PO (oral)</option>
-              <option value="IV">IV</option>
-              <option value="IM">IM</option>
-              <option value="SC">SC</option>
-            </select>
-            <span id="e-route" class="field-error" hidden></span>
-          </div>
-          <div class="field">
-            <label for="f-frequency">Frequency (required)</label>
-            <input id="f-frequency" aria-required="true" type="text" maxlength="100" data-path="order.frequency" aria-describedby="e-frequency">
-            <span id="e-frequency" class="field-error" hidden></span>
-          </div>
-        </fieldset>
+          <fieldset class="record-fields">
+            <legend>Chart</legend>
+            <p class="read-only">Recorded conditions: <span id="ro-conditions">none</span></p>
+            <p class="read-only">Chronic medication: <span id="ro-chronic">none</span></p>
+            <p class="read-only">Recorded allergies: <span id="ro-allergies">none</span></p>
+          </fieldset>
 
-        <button type="submit" id="check-button" class="primary" disabled>Check order</button>
+          <fieldset class="record-fields">
+            <legend>Emergency department note (today)</legend>
+            <div class="field field-wide">
+              <label for="f-note">Free-text note</label>
+              <textarea id="f-note" rows="6" maxlength="2000" data-path="context.ed_note" data-record aria-describedby="e-note"></textarea>
+              <span id="e-note" class="field-error" hidden></span>
+            </div>
+          </fieldset>
+        </div>
       </form>
     </section>
 
-    <section class="result" aria-labelledby="result-heading">
+    <section class="result" aria-labelledby="order-heading">
+      <h2 id="order-heading" tabindex="-1">Prescribe</h2>
+      <p id="order-empty" class="placeholder">Select a patient to draft an order.</p>
+      <fieldset class="order" id="order-fields" hidden>
+        <legend>New order (drafted for this demo case; change it freely)</legend>
+        <div class="field">
+          <label for="f-drug">Drug</label>
+          <select id="f-drug" form="check-form" data-path="order.drug_id" aria-describedby="e-drug"></select>
+          <span id="e-drug" class="field-error" hidden></span>
+        </div>
+        <div class="field">
+          <label for="f-dose">Dose (required)</label>
+          <input id="f-dose" aria-required="true" type="text" maxlength="100" form="check-form" data-path="order.dose_text" aria-describedby="e-dose">
+          <span id="e-dose" class="field-error" hidden></span>
+        </div>
+        <div class="field">
+          <label for="f-route">Route</label>
+          <select id="f-route" form="check-form" data-path="order.route" aria-describedby="e-route">
+            <option value="PO">PO (oral)</option>
+            <option value="IV">IV</option>
+            <option value="IM">IM</option>
+            <option value="SC">SC</option>
+          </select>
+          <span id="e-route" class="field-error" hidden></span>
+        </div>
+        <div class="field">
+          <label for="f-frequency">Frequency (required)</label>
+          <input id="f-frequency" aria-required="true" type="text" maxlength="100" form="check-form" data-path="order.frequency" aria-describedby="e-frequency">
+          <span id="e-frequency" class="field-error" hidden></span>
+        </div>
+      </fieldset>
+
+      <button type="submit" form="check-form" id="check-button" class="primary" disabled>Check order</button>
+      <details id="payload" class="payload" hidden>
+        <summary>What the record system would send</summary>
+        <p class="hint">The request body for the current order: the drafted order plus the patient context. In this demo the browser builds it; no record system is connected. Shown here only; nothing is stored.</p>
+        <pre id="payload-body"></pre>
+      </details>
+
       <h2 id="result-heading" tabindex="-1">Check result</h2>
       <div id="card-area" class="card-area" aria-live="polite" aria-busy="false">
-        <p class="placeholder">Load a preset, then press “Check order”.</p>
+        <p class="placeholder">Select a patient. The check runs on the drafted order.</p>
       </div>
       <div class="sign">
         <button type="button" id="sign-button" class="primary" aria-describedby="sign-hint" disabled>Sign order</button>

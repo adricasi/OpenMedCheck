@@ -82,3 +82,11 @@ def test_ac_009_1_alternative_order_is_rechecked_preset_a_paracetamol(client: Te
 
     assert card["status"] == "NO_ISSUE"
     assert card["headline"] == "No issue found by these checks"
+
+
+def test_ac_006_5_presets_carry_distinct_bed_labels(client: TestClient) -> None:
+    presets = client.get("/api/presets").json()
+
+    beds = [preset["bed"] for preset in presets]
+    assert all(bed.startswith("Bed ") for bed in beds)
+    assert len(set(beds)) == len(beds)

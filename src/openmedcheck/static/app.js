@@ -33,6 +33,8 @@ const state = {
   resolved: false,
   signed: false,
   drugs: [],
+  record: null,
+  scenarioEdited: false,
   hidden: { patient_id: "", diagnoses: [], chronic_medications: [], allergies: [] },
 };
 
@@ -182,6 +184,53 @@ function buildRequest() {
       frequency: $("f-frequency").value.trim(),
     },
   };
+}
+
+// ---------- simulated record and scenario editing (AC-006.5, AC-007.1, AC-007.4) ----------
+
+const RECORD_SOURCE = "From the patient record (simulated)";
+const EDITED_SOURCE = "Edited scenario (demo only) — not the record";
+
+const SEX_LABELS = { M: "Male", F: "Female" };
+
+function setRecordEditable(editable) {
+  for (const input of document.querySelectorAll("[data-record]")) {
+    // A select has no read-only state, so a read-only text copy stands in while locked.
+    if (input.tagName === "SELECT") input.hidden = !editable;
+    else input.readOnly = !editable;
+  }
+  $("f-sex-text").value = SEX_LABELS[$("f-sex").value] || "";
+  $("f-sex-text").hidden = editable;
+  $("edit-scenario").checked = editable;
+  $("record").classList.toggle("record-editing", editable);
+  document.querySelector(".record-source").textContent = editable ? EDITED_SOURCE : RECORD_SOURCE;
+}
+
+function toggleScenarioEditing() {
+  const editable = $("edit-scenario").checked;
+  if (!editable && state.record && state.scenarioEdited) {
+    // Leaving edit mode restores the record; the drafted order is kept.
+    const order = buildRequest().order;
+    fillForm({ context: state.record.context, order });
+    clearErrors();
+    state.scenarioEdited = false;
+    invalidate();
+    $("record-status").textContent = "Record restored; scenario edits discarded.";
+  } else {
+    $("record-status").textContent = "";
+  }
+  setRecordEditable(editable);
+}
+
+function showPayload(request = buildRequest()) {
+  $("payload-body").textContent = JSON.stringify(request, null, 2);
+  $("payload").hidden = false;
+}
+
+function patientSummary(preset) {
+  const { context } = preset.request;
+  const sex = SEX_LABELS[context.sex] || context.sex;
+  return `${preset.bed} · ${sex}, ${context.age} · ${context.reason_for_consult}`;
 }
 
 // ---------- inline validation (AC-007.3) ----------
@@ -436,6 +485,7 @@ function invalidate() {
   state.checking = false;
   resetOutcome();
   $("check-button").disabled = state.hidden.patient_id === "";
+  if (state.record) showPayload();
   if (!$("card-area").textContent.startsWith("Inputs changed")) {
     renderMessage("Inputs changed. Press “Check order” to evaluate.", "placeholder");
   }
@@ -445,6 +495,7 @@ function invalidate() {
 async function evaluate() {
   if (!validate()) return;
   const request = buildRequest();
+  showPayload(request);
   state.seq += 1;
   const mine = state.seq;
   resetOutcome();
@@ -558,16 +609,45 @@ async function loadPreset(presetId) {
     if (!response.ok) throw new Error(String(response.status));
     const preset = await response.json();
     clearErrors();
+    state.record = preset.request;
+    state.scenarioEdited = false;
     fillForm(preset.request);
-    $("preset-title").textContent = `Preset ${preset.preset_id}: ${preset.title}`;
+    setRecordEditable(false);
+    $("record-status").textContent = "";
+    $("record").hidden = false;
+    $("order-fields").hidden = false;
+    $("order-empty").hidden = true;
+    $("preset-title").textContent = `${patientSummary(preset)} — demo case: ${preset.title}`;
     $("synthetic-label").textContent = preset.synthetic_label;
-    for (const button of document.querySelectorAll(".preset-button")) {
+    for (const button of document.querySelectorAll(".patient-button")) {
       button.setAttribute("aria-pressed", String(button.dataset.preset === preset.preset_id));
     }
     $("check-button").disabled = false;
+    invalidate(); // never leave the previous patient's card signable
+    $("chart-heading").focus();
     await evaluate();
   } catch (_error) {
     showFormError("The preset could not be loaded.");
+  }
+}
+
+async function loadPatients() {
+  try {
+    const response = await fetch("/api/presets");
+    if (!response.ok) throw new Error(String(response.status));
+    const list = $("patient-list");
+    clear(list);
+    for (const preset of await response.json()) {
+      const button = el("button", {
+        cls: "patient-button",
+        text: patientSummary(preset),
+        attrs: { type: "button", "data-preset": preset.preset_id, "aria-pressed": "false" },
+      });
+      button.addEventListener("click", () => loadPreset(preset.preset_id));
+      list.appendChild(el("li", {}, [button]));
+    }
+  } catch (_error) {
+    showFormError("The patient list could not be loaded.");
   }
 }
 
@@ -585,23 +665,25 @@ async function loadDrugs() {
 }
 
 function init() {
-  for (const button of document.querySelectorAll(".preset-button")) {
-    button.setAttribute("aria-pressed", "false");
-    button.addEventListener("click", () => loadPreset(button.dataset.preset));
-  }
   for (const input of fields()) {
+    const edited = () => {
+      if (input.hasAttribute("data-record")) state.scenarioEdited = true;
+      invalidate();
+    };
     input.addEventListener("input", () => {
       clearFieldError(input);
-      invalidate();
+      edited();
     });
-    input.addEventListener("change", invalidate);
+    input.addEventListener("change", edited);
   }
   $("check-form").addEventListener("submit", (event) => {
     event.preventDefault();
     evaluate();
   });
   $("sign-button").addEventListener("click", signOrder);
+  $("edit-scenario").addEventListener("change", toggleScenarioEditing);
   drugsReady = loadDrugs();
+  loadPatients();
   warmUp().then(() => refreshHealth(true));
   refreshHealth(true);
 }

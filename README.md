@@ -62,18 +62,21 @@ uv run openmedcheck         # serve the app (leave it running)
 ```
 
 Then open <http://127.0.0.1:8000> in a browser. The page shows the banner "Not for clinical use —
-synthetic patients" and three synthetic presets, A, B and C, that you evaluate from the UI. When
+synthetic patients. Not a medical device." and a list of three synthetic ED patients (Bed 3, Bed 7 and Bed 12, which are
+presets A, B and C). Selecting one opens its simulated record read-only, with a drafted order you
+can change, and checks that order; "Edit scenario (demo only)" unlocks the record fields so you
+can try other cases, and "What the record system would send" shows the request body. When
 the page loads it asks the server to warm the model up. A first check right after Ollama starts
 can take longer than the 10 s model deadline; the card then falls back to rules only (see
 below). Wait for the model status to read ready and check again.
 
 What each preset shows with the model ready:
 
-| Preset | Rules card (instant) | Final card |
+| Preset (patient) | Rules card (instant) | Final card |
 |---|---|---|
-| A | `NO_ISSUE` ("No issue found by these checks") | `BLOCKED` after the model reads the note; alternative: Paracetamol, "Dose: consult SmPC" |
-| B | `WARNING` with the renal-adjustment flag | `WARNING`, renal flag kept, "Renal adjustment required — consult SmPC", no alternative |
-| C | `NO_ISSUE` | `NO_ISSUE`, no alternative |
+| A (Bed 3) | `NO_ISSUE` ("No issue found by these checks") | `BLOCKED` after the model reads the note; alternative: Paracetamol, "Dose: consult SmPC" |
+| B (Bed 7) | `WARNING` with the renal-adjustment flag | `WARNING`, renal flag kept, "Renal adjustment required — consult SmPC", no alternative |
+| C (Bed 12) | `NO_ISSUE` | `NO_ISSUE`, no alternative |
 
 "Use alternative" on preset A swaps the order for the alternative and runs the full check again
 on the same patient; in the recorded runs that second check gives `NO_ISSUE` ("No issue found

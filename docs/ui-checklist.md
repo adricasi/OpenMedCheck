@@ -46,6 +46,24 @@ implementer.
 - [ ] Once the dose is specialist-reviewed (route and frequency present): all four order fields
   are replaced and the check reruns automatically
 
+## Simulated record (AC-006.5, AC-007.1, AC-007.4)
+- [x] The page lists "ED patients (synthetic)" (Bed 3, Bed 7, Bed 12) instead of preset letters;
+  each preset carries a distinct bed label (`tests/test_ui_static.py`,
+  `tests/test_catalog_api.py`)
+- [x] jsdom run of the real `app.js` against the local app with `gemma4:e4b` ready, 2026-10-18
+  (34/34 checks): record and order hidden before a patient is selected; on selection focus
+  moves to the record heading and the context is read-only (inputs `readOnly`, sex shown as a
+  read-only text copy) and labelled "From the patient record (simulated)", only the order is
+  editable; the request panel is filled on load and tracks the current inputs; Bed 7 `WARNING`, Bed 3 `BLOCKED`,
+  Bed 12 `NO_ISSUE`; the request panel shows the body sent, including the sex from the
+  disabled select; "Edit scenario (demo only)" unlocks the fields and relabels the record;
+  an edited normal eGFR is evaluated; switching it off restores the record, keeps the drafted
+  order, clears the card and announces "Record restored; scenario edits discarded."; switching
+  patients resets the toggle
+- [ ] In a real browser: read-only fields are visibly distinct (dashed border) and readable;
+  the toggle, "Skip to Prescribe" and the request panel work by keyboard; layout at 1280 px (three columns) and
+  375 px (stacked)
+
 ## Editing and validation
 - [x] Edited context is evaluated, not the stored preset (`tests/test_catalog_api.py`, AC-007.2)
 - [x] Out-of-range value is rejected with a field error by the API (AC-007.3)
@@ -76,7 +94,8 @@ implementer.
   card and a status line saying the model is unavailable (DOM stub run confirmed)
 
 ## Keyboard only (NFR-010)
-- [ ] Tab reaches presets, every field, "Check order", the card buttons and "Sign order" in a
+- [ ] Tab reaches the patient list, the scenario toggle, every editable field, "Check order",
+  the card buttons and "Sign order" in a
   logical order; Enter in a field submits "Check order"; no keyboard trap
 - [ ] Focus ring is visible on every control (3 px blue outline)
 - [ ] Status is understandable without colour (text label and icon on red, amber, green)

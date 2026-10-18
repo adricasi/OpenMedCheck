@@ -11,6 +11,7 @@
   --warn-bg: #fff3d6;
   --ok: #1b5e2f;
   --ok-bg: #e6f4ea;
+  --order: #1f3a8a;
 }
 
 html {
@@ -52,7 +53,7 @@ body {
 
 .page-header,
 .layout {
-  max-width: 72rem;
+  max-width: 90rem;
   margin: 0 auto;
   padding: 0 1rem;
 }
@@ -95,12 +96,139 @@ body {
     align-items: start;
   }
 
+  .patients {
+    grid-column: 1 / -1;
+  }
 }
 
-.presets {
+@media (min-width: 76rem) {
+  .layout {
+    grid-template-columns: 15rem minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .patients {
+    grid-column: auto;
+  }
+}
+
+.patient-list {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.patient-list li {
+  flex: 1 1 14rem;
+}
+
+.patient-button {
+  width: 100%;
+  text-align: left;
+}
+
+@media (min-width: 76rem) {
+  .patient-list {
+    flex-direction: column;
+  }
+
+  .patient-list li {
+    flex: none;
+  }
+}
+
+.record-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.record-source {
+  margin: 0;
+  padding: 0.2rem 0.6rem;
+  border-left: 4px solid var(--border);
+  background: var(--panel);
+  font-weight: 700;
+}
+
+.record-editing .record-source {
+  border-left-color: var(--warn);
+  background: var(--warn-bg);
+}
+
+.edit-toggle {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+  min-height: 2.75rem;
+}
+
+.edit-toggle input {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.record > .hint {
+  margin-bottom: 0.75rem;
+}
+
+.record input[readonly],
+.record textarea[readonly],
+.record select:disabled,
+.record #f-sex-text {
+  border-style: dashed;
+  background: var(--panel);
+  color: var(--text);
+  opacity: 1;
+}
+
+.order {
+  border-width: 2px;
+  border-color: var(--order);
+}
+
+.skip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: var(--focus);
+  font-weight: 600;
+}
+
+.record-status {
+  margin: 0.25rem 0 0;
+  font-weight: 600;
+}
+
+.record-status:empty {
+  display: none;
+}
+
+.payload {
+  margin: 1rem 0 1.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.3rem;
+}
+
+.payload summary {
+  padding: 0.6rem 0;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.payload pre {
+  max-height: 24rem;
+  overflow: auto;
+  margin: 0.5rem 0 0;
+  padding: 0.5rem;
+  background: var(--panel);
+  font-size: 0.85rem;
+  white-space: pre-wrap;
 }
 
 button {

@@ -13,6 +13,7 @@ SYNTHETIC_LABEL = "Synthetic patient — invented data, not a real person"
 class Preset:
     preset_id: str
     title: str
+    bed: str
     expected_rules_status: Status
     request: CheckRequest
     synthetic_label: str = SYNTHETIC_LABEL
@@ -21,6 +22,7 @@ class Preset:
 PRESET_A = Preset(
     preset_id="A",
     title="Suspected ACS in the note only; aspirin at home; dexketoprofen proposed",
+    bed="Bed 3",
     expected_rules_status=Status.NO_ISSUE,
     request=CheckRequest(
         context=PatientContext(
@@ -48,6 +50,7 @@ PRESET_A = Preset(
 PRESET_B = Preset(
     preset_id="B",
     title="Reduced renal function; ciprofloxacin proposed",
+    bed="Bed 7",
     expected_rules_status=Status.WARNING,
     request=CheckRequest(
         context=PatientContext(
@@ -74,6 +77,7 @@ PRESET_B = Preset(
 PRESET_C = Preset(
     preset_id="C",
     title="Benign condition, normal renal function, standard analgesic",
+    bed="Bed 12",
     expected_rules_status=Status.NO_ISSUE,
     request=CheckRequest(
         context=PatientContext(
