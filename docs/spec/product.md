@@ -77,6 +77,9 @@ safety invariant in a self-hosted deployment.
   proposed drug, chosen from a fixed list of about 15 drugs.
 - Layer 1: about 6 deterministic rules (renal cut-offs, NSAID + antiplatelet + coded ACS,
   NSAID + active GI bleed, exact-match allergy).
+- Past medical history (added 2026-10-18, REQ-016, ADR 0009): a coded history in the record
+  (previous GI bleed or ulcer, ischaemic heart disease) and past history read from the note,
+  checked by two NSAID rules (unreviewed until the specialist confirms them).
 - Layer 2: Gemma 4 E4B decision card under the escalate-only invariant. Alternatives come only
   from the rule table and are re-checked by Layer 1.
 - The rules card shows first and is then replaced by the final card (no streaming). One-click

@@ -121,23 +121,29 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
   - AC-003.5: IF the model headline or rationale contains a dose pattern, the name of a drug
     from the drug list other than the ordered drug or the selected alternative, or a banned word
     (AC-010.2) THEN THE SYSTEM SHALL treat the output as invalid (AC-003.3).
-  - AC-003.6: WHEN the model returns output THE SYSTEM SHALL accept its answers to four note
-    questions, each with a quote: `note_acs_quote` and `note_gi_bleed_quote` (a phrase or
-    null), `note_medications` (up to 3 drug IDs from the drug list) and `note_allergies` (up to 3
-    drug IDs, active ingredients or class IDs). THE SYSTEM SHALL keep a finding only if its code
-    is valid for its kind, its quote (3–120 characters) appears word for word in the ED note or
-    the reason for consult (ignoring case and spacing), the quote names what it is coded as (the
-    drug or class name, or a term of the condition), and the sentence it comes from does not
-    deny it, rule it out or give only past history; at most 8 findings are kept. Dropped
-    findings SHALL NOT make the output invalid. The card SHALL show the note's own words.
+  - AC-003.6: WHEN the model returns output THE SYSTEM SHALL accept its answers to the note
+    questions, each with a quote: one phrase or null per current condition (`note_acs_quote`,
+    `note_gi_bleed_quote`, `note_heart_failure_quote`, `note_pregnancy_quote`),
+    `note_medications` (up to 3 drug IDs from the drug list), `note_allergies` (up to 3 drug
+    IDs, active ingredients or class IDs) and `note_history` (up to 3 past-history codes,
+    REQ-016). THE SYSTEM SHALL keep a finding only if its code is valid for its kind, its quote
+    (3–120 characters) appears word for word in the ED note or the reason for consult (ignoring
+    case and spacing), the quote names what it is coded as (the drug or class name, or a term of
+    the condition), and the clause it comes from does not deny it or rule it out. A current
+    condition SHALL NOT be kept from a sentence that gives only past history; past history is
+    kept only as a history finding (AC-016.4). At most 13 findings are kept. Dropped findings
+    SHALL NOT make the output invalid. The card SHALL show the note's own words.
+    (Amended 2026-10-18, ADR 0009: previously four questions, at most 8 findings, and past
+    history always dropped.)
   - AC-003.7: WHEN findings are kept THE SYSTEM SHALL run Layer 1 again on the coded context
     plus the kept findings (added to diagnoses, chronic medication and allergies; nothing is
     removed), use that verdict as the rules verdict for the combiner and the alternative
     re-check, and show on the card, under each rule that fired only because of a finding, the
     supporting quote labelled "From the clinician's note". Quotes are not subject to AC-003.5:
     they can only repeat the clinician's own text (accepted risk, ADR 0006).
-  - AC-003.8: IF the model's own verdict escalates with conflict type `ANTIPLATELET_ACS`,
-    `GI_BLEED` or `ALLERGY` and no rule of that type fired on the coded context plus the kept
+  - AC-003.8: IF the model's own verdict escalates with a conflict type the rules decide
+    (`ANTIPLATELET_ACS`, `GI_BLEED`, `ALLERGY`, `BLEEDING`, `HYPERKALAEMIA`, `HEART_FAILURE`,
+    `PREGNANCY`) and no rule of that type fired on the coded context plus the kept
     findings THEN THE SYSTEM SHALL set that escalation aside (the rules decide these conflicts)
     and log `model_escalation_gated`; escalations of other types still count, and the final card
     SHALL never be below the coded rules verdict (REQ-004). The final status SHALL never be below the
@@ -401,6 +407,34 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
     DigitalOcean hosted-demo guides (the previous AC-015.4) and the "challenge judge" framing
     (previously Goals: G-4); the non-local opt-in mechanism itself is unchanged in code and is
     reused by the GCP plan (REQ-013).
+
+### REQ-016: Past medical history
+- Story: As an ED physician, I want the check to take the patient's past medical history into
+  account, so that an order that conflicts with something in the patient's past (a previous GI
+  bleed, a previous heart attack) raises an alert even when nothing current conflicts.
+- Priority: Should
+- Goals: G-1, G-2
+- Acceptance criteria:
+  - AC-016.1: THE SYSTEM SHALL accept a coded past medical history in the patient context
+    (`history`: `PAST_GI_BLEED` for previous gastrointestinal bleeding, peptic ulcer or
+    perforation; `ISCHAEMIC_HEART_DISEASE` for a previous ACS or MI, coronary stent or angina),
+    default empty, show it in the record as "Past medical history" and let the demo edit it.
+  - AC-016.2: WHEN an NSAID is ordered for a patient with `PAST_GI_BLEED` THE SYSTEM SHALL fire
+    `NSAID_HISTORY_GI_BLEED` (WARNING, HIGH, conflict `GI_BLEED`); WHEN an NSAID is ordered for a
+    patient with `ISCHAEMIC_HEART_DISEASE` THE SYSTEM SHALL fire
+    `NSAID_HISTORY_ISCHAEMIC_HEART_DISEASE` (WARNING, HIGH, conflict `ANTIPLATELET_ACS`). Neither
+    rule SHALL fire for a drug outside the NSAID class or without that history. Adding history
+    SHALL never lower a verdict (REQ-004).
+  - AC-016.3: The two rules SHALL follow AC-002.8 and NFR-011: a cited source and no review mark
+    until the clinical specialist confirms them; the review sheet and the specialist questions
+    SHALL list them.
+  - AC-016.4: WHEN the model reports past history in `note_history` THE SYSTEM SHALL keep a
+    history finding only under AC-003.6, except that "history of", "previous", "prior" and "h/o"
+    SHALL NOT count as negation for history findings; a clause that denies the history ("no
+    history of", "denies") or attributes it to a relative (father, mother, sibling, family) SHALL
+    drop it. Kept history findings SHALL be added to `history` and shown as evidence (AC-003.7).
+  - AC-016.5: The evaluation set SHALL include cases for coded history, history only in the note,
+    denied history and family history, with family and denied history expected to stay silent.
 
 ## Non-functional requirements
 | ID | Category | Requirement (measurable) | Verification |

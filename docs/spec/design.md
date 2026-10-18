@@ -70,6 +70,7 @@ No persistence. All data is synthetic, in memory for one request only, classifie
 - **PatientContext**: `patient_id` (synthetic label), `age` (18–110), `sex` (`M`/`F`),
   `weight_kg` (30–250), `reason_for_consult` (≤ 200 chars), `ed_note` (free text, ≤ 2,000 chars),
   `diagnoses[]` (coded, from a small fixed list, e.g. `ACS`, `ACTIVE_GI_BLEED`),
+  `history[]` (coded past medical history: `PAST_GI_BLEED`, `ISCHAEMIC_HEART_DISEASE`; REQ-016),
   `chronic_medications[]` (drug IDs from the drug list), `allergies[]` (active ingredient or
   class IDs), `labs`: `creatinine_mg_dl` (0.1–20, optional), `egfr_ml_min_1_73m2` (0–200,
   optional), `potassium_mmol_l` (1.5–9, optional), `platelets_per_ul` (1,000–2,000,000,
@@ -575,6 +576,7 @@ Each AC is referenced in the test name or docstring (e.g. `test_ac_004_3_rules_b
 | D-5 | Two API calls for the progressive card (no streaming) | this document |
 | D-6 | Rule table as a typed Python module, rendered to Markdown for review | this document |
 | D-7 | Dropped the opt-in hosted demo (Render + DigitalOcean); the GCP plan above is the only documented non-local deployment target | docs/adr/0008-drop-opt-in-hosted-demo.md |
+| D-8 | Past medical history is an input: a coded `history` field, two NSAID rules keyed on it, and past history read from the note as history findings (never as current conditions) | docs/adr/0009-patient-history-is-an-input.md |
 
 ## Traceability
 | Requirement | Design section(s) |
@@ -594,6 +596,7 @@ Each AC is referenced in the test name or docstring (e.g. `test_ac_004_3_rules_b
 | REQ-013 | GCP reference architecture; Deployment plan; ADR 0005 |
 | REQ-014 | Interfaces (`/api/model/warmup`, health) |
 | REQ-015 | Security design (non-local opt-in); GCP reference architecture (reuses the same opt-in); ADR 0008 |
+| REQ-016 | Data model (`history`); Components (`rule_table`, `note_findings`, `prompt`); ADR 0009 |
 | NFR-001 | Security design (network exposure, output encoding, supply chain) |
 | NFR-002 | Data model (classification); Security (data protection) |
 | NFR-003 | Reliability (failure modes) |

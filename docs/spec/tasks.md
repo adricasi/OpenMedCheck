@@ -148,6 +148,23 @@ pytest --cov` pass and CI is green, unless stated otherwise.
 - [x] T-017: Clinician contribution guide and English-only names
   - Scope: CONTRIBUTING.md (propose a rule with a source, review marks, evaluation set as the
     regression guard, contributing synthetic cases); English for all technical names and text.
+- [~] T-018: Past medical history in the record
+  - Requirements: REQ-016 (AC-016.1 to AC-016.3, AC-016.5), REQ-004, NFR-011
+  - Depends on: T-006
+  - Scope: `PatientContext.history`; `ContextRule.history`; rules `NSAID_HISTORY_GI_BLEED` and
+    `NSAID_HISTORY_ISCHAEMIC_HEART_DISEASE` (WARNING, unreviewed); the recorded history in the
+    model's user message (prompt v8); "Past medical history" in the UI; templates J and K;
+    review sheet; evaluation cases; AC-named and property tests. ADR 0009.
+  - Done when: tests pass with the rules engine at 100% coverage; reviews of the escalate-only
+    invariant and the clinical wording find no blocking issue.
+- [~] T-019: Past history read from the note
+  - Requirements: REQ-016 (AC-016.4, AC-016.5), AC-003.6
+  - Depends on: T-018
+  - Scope: `FindingKind.HISTORY`; the `note_history` question and schema (prompt v8); history
+    findings kept unless denied or about a relative; evaluation set updated (`gi-past`,
+    `acs-past-history` now WARNING; denied and family history silent).
+  - Done when: tests pass; the model evaluation has run prompt v8 on the real model (human,
+    GPU) and the result is recorded in `docs/measurements/`; merge only after that.
 - [x] T-008: Hardening: local exposure, XSS, wording, concurrency
   - Requirements: NFR-001, NFR-005, NFR-008, REQ-010 (AC-010.2)
   - Depends on: T-007
@@ -227,6 +244,7 @@ pytest --cov` pass and CI is green, unless stated otherwise.
 | REQ-013 (Should) | T-011 |
 | REQ-014 (Could) | T-007 (optional) |
 | REQ-015 (Should) | T-016 |
+| REQ-016 (Should) | T-018, T-019 |
 | NFR-001, NFR-005, NFR-008 | T-008 |
 | NFR-002, NFR-003, NFR-007 | T-005 |
 | NFR-004, NFR-012 | T-001, T-009 |
