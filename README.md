@@ -89,6 +89,20 @@ with CDS Hooks) is not implemented in v0.1 and is out of scope for this version 
 
 ## 🧠 How it works
 
+**In plain words:** three parts, each with one job.
+
+1. **Gemma reads.** The local AI model reads the free text (today's note, the past medical
+   history) and reports the facts it finds, each with the exact words as proof ("Suspected ACS").
+2. **Code checks.** A plain program, no AI, checks every fact: are those exact words really in the
+   text, do they say what Gemma claims, are they denied ("ACS ruled out"), a relative's ("Father
+   had an MI") or an old event? Anything that fails is dropped.
+3. **Rules decide.** A fixed table of if-then rules, written by people from drug labels and
+   guidelines, some thresholds as stated project policy (for example: anti-inflammatory + suspected ACS + aspirin → `BLOCKED`), makes the
+   decision on the record plus the checked facts. Same facts, same answer, every time.
+
+**The full explanation, with worked examples and screenshots, is in
+[docs/how-it-works.md](docs/how-it-works.md).** The technical summary:
+
 **Gemma reads, the rules decide** ([ADR
 0006](docs/adr/0006-model-extracts-note-findings-rules-decide.md)), and nothing the model says can
 lower a verdict (**escalate-only**, [ADR 0003](docs/adr/0003-escalate-only-two-layer-engine.md)):
