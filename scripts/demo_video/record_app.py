@@ -1,4 +1,7 @@
-"""Record the running app for the demo video (T-012): Bed 3 -> verify -> alternative -> re-check.
+"""Record the running app for the demo video (T-012): Bed 3, then Bed 5.
+
+Bed 3: suspected ACS in today's note -> verify -> BLOCKED -> alternative -> re-check.
+Bed 5: a past GI bleed in the past medical history -> verify -> WARNING with the quote.
 
 Drives the real UI with Playwright against a running instance (default http://127.0.0.1:8000,
 e.g. `docker compose up` with the GPU override) and writes a video plus the timestamps of each
@@ -12,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 from playwright.sync_api import Page, sync_playwright
@@ -30,6 +34,24 @@ def wait_for_model_ready(page: Page, timeout_s: float) -> bool:
             return True
         page.wait_for_timeout(500)
     return False
+
+
+def open_room(page: Page, bed: str, mark: Callable[[str], None], name: str) -> None:
+    page.evaluate("window.scrollTo(0, 0)")
+    page.locator("button.patient-button", has_text=bed).click()
+    mark(name)
+
+
+def verify(page: Page, mark: Callable[[str], None], suffix: str, card_timeout_s: float) -> None:
+    page.locator("#autofill-button").click()
+    mark(f"autofill{suffix}")
+    page.wait_for_timeout(2000)
+    page.locator("#check-button").click()
+    mark(f"verify{suffix}")
+    card = page.locator("#card-area article.card")
+    card.wait_for(timeout=card_timeout_s * 1000)
+    mark(f"card{suffix}")
+    card.scroll_into_view_if_needed()
 
 
 def record(url: str, out_dir: Path, ready_timeout_s: float, card_timeout_s: float) -> Path:
@@ -56,21 +78,11 @@ def record(url: str, out_dir: Path, ready_timeout_s: float, card_timeout_s: floa
         page.wait_for_timeout(1000)
         mark("open")
 
-        page.locator("button.patient-button", has_text="Bed 3").click()
-        mark("room")
-        page.wait_for_timeout(3500)  # time to read the note
+        open_room(page, "Bed 3", mark, "room3")
+        page.wait_for_timeout(4000)  # time to read today's note
 
-        page.locator("#autofill-button").click()
-        mark("autofill")
-        page.wait_for_timeout(2000)
-
-        page.locator("#check-button").click()
-        mark("verify")
-        card = page.locator("#card-area article.card")
-        card.wait_for(timeout=card_timeout_s * 1000)
-        mark("card")
-        card.scroll_into_view_if_needed()
-        page.wait_for_timeout(6000)  # the verdict, the quoted evidence and the alternative
+        verify(page, mark, "3", card_timeout_s)
+        page.wait_for_timeout(6500)  # the verdict, the quoted evidence and the alternative
 
         page.locator("#use-alternative").click()
         mark("alternative")
@@ -78,6 +90,19 @@ def record(url: str, out_dir: Path, ready_timeout_s: float, card_timeout_s: floa
         mark("recheck")
         page.locator("#card-area").scroll_into_view_if_needed()
         page.wait_for_timeout(4000)
+
+        open_room(page, "Bed 5", mark, "room5")
+        page.wait_for_timeout(2500)
+        # Show the long past medical history: the line that matters is in the middle of it.
+        page.locator("#past-history-view").scroll_into_view_if_needed()
+        page.wait_for_timeout(4500)
+
+        verify(page, mark, "5", card_timeout_s)
+        # The quote is now highlighted in the history; show it, then the card.
+        page.locator("#past-history-view mark").first.scroll_into_view_if_needed()
+        page.wait_for_timeout(4000)
+        page.locator("#card-area article.card").scroll_into_view_if_needed()
+        page.wait_for_timeout(5000)
         mark("end")
 
         video = page.video

@@ -4,63 +4,79 @@
   "speed": 1.08,
   "scenes": [
     {
-      "id": "problem",
-      "slide": "problem",
-      "narration": "Emergency doctors sign orders under time pressure. Most prescribing checks look at drug pairs and coded data; the ones we looked at don't read the free-text note. And clinicians override between half and over ninety percent of medication alerts."
+      "id": "intro",
+      "slide": "intro",
+      "narration": "This is Open Med Check: an open-source prescribing check for emergency doctors, that reads the doctor's note and the patient's history."
     },
     {
-      "id": "case",
-      "slide": "case",
-      "narration": "Take this synthetic patient: chest pain, on daily aspirin, and a note that says suspected acute coronary syndrome. The order is dexketoprofen, an anti-inflammatory. The coded record is still empty, so the rules alone find no issue."
+      "id": "problem",
+      "slide": "problem",
+      "narration": "Emergency doctors write orders under time pressure. Two things are easy to miss: a suspicion written only in today's note, before anything is coded, and one past event buried in a long medical history. Most coded-data checks we looked at don't read free text, and clinicians override between about half and ninety-six percent of medication alerts, so a real one can get lost."
     },
     {
       "id": "solution",
       "slide": "solution",
-      "narration": "This is what Open Med Check is for. Gemma 4 reads the note, and reviewed rules decide."
+      "narration": "Open Med Check runs Gemma 4, an open-weight model that can run on a hospital's own hardware. Gemma reads the note and the history, and cited rules decide. When nothing conflicts, it stays silent. Let's see two synthetic patients."
     },
     {
-      "id": "app-open",
+      "id": "bed3-open",
       "clip": [
         "start",
-        "verify"
+        "verify3"
       ],
-      "narration": "Here is the app. We open bed three, and fill in the test prescription."
+      "narration": "Bed three: chest pain, a suspected acute coronary syndrome written in today's note, and daily aspirin. The doctor orders dexketoprofen, an anti-inflammatory. The suspected A C S is not coded yet, so the rules alone see no problem."
     },
     {
-      "id": "app-verdict",
+      "id": "bed3-verdict",
       "clip": [
-        "verify",
+        "verify3",
         "alternative"
       ],
-      "narration": "Gemma reads the note and quotes it. The rules decide from those quotes: blocked, with the doctor's own words as the evidence, and an alternative the rules have already re-checked."
+      "narration": "Gemma reads the note and quotes it. Code checks every quote word for word, and the rules decide: blocked, with the doctor's own words as the evidence, and an alternative the rules have already re-checked."
     },
     {
-      "id": "app-recheck",
+      "id": "bed3-recheck",
       "clip": [
         "alternative",
+        "room5"
+      ],
+      "narration": "One click re-checks paracetamol: no issue found by these checks."
+    },
+    {
+      "id": "bed5-open",
+      "clip": [
+        "room5",
+        "verify5"
+      ],
+      "narration": "Bed five: a wrist sprain after a bicycle fall, normal labs, and ibuprofen for the pain. Today's visit looks routine. But one line in his long past medical history matters: an upper G I bleed from a duodenal ulcer, in twenty twenty-one."
+    },
+    {
+      "id": "bed5-verdict",
+      "clip": [
+        "verify5",
         "end"
       ],
-      "narration": "One click re-checks paracetamol: no issue found by these checks. The prescriber still decides."
+      "narration": "Gemma finds that line, and code checks the quote word for word. A new rule, not yet specialist-reviewed, raises an amber warning that quotes the history, highlighted where it was written. Paracetamol is offered, with no dose until that review. The prescriber still decides."
     },
     {
       "id": "how",
       "slide": "how",
-      "narration": "Every quote is checked word for word against the note. The model can raise a verdict, never lower it. And if the model is down or answers badly, the card says the free-text note was not checked."
+      "narration": "The model can raise a verdict, never lower it. A past event never counts as a current one, and a denial or a relative's history is dropped. If the model is down, the card says the free text was not checked, instead of looking like a pass."
     },
     {
       "id": "results",
       "slide": "results",
-      "narration": "On seventy-six synthetic cases we wrote ourselves, a development set and not a clinical validation: seventy-two percent with the rules alone, ninety-seven percent with Gemma, and no false alarm on the thirty-four cases that should stay silent."
+      "narration": "On seventy-six synthetic cases we wrote ourselves, a development set and not a clinical validation, reading the note lifts the match from seventy-two to ninety-seven percent, with no false alarm on the cases that should stay silent. These figures were measured before we added the history step, which is not yet measured."
     },
     {
       "id": "open",
       "slide": "open",
-      "narration": "Gemma 4 is open-weight, so it can run on a hospital's own G P U, and the note never has to leave the building. We think the buyer is the medication-safety team, paying for a maintained rule table, integration and support. That is a hypothesis we have yet to test."
+      "narration": "Because Gemma's weights are open, the note never has to leave the building. We think the buyer is the hospital's medication-safety team, paying for a maintained rule table, integration and support. That is a hypothesis we have yet to test."
     },
     {
       "id": "end",
       "slide": "end",
-      "narration": "Today, Open Med Check is a demonstrator on synthetic patients, not a medical device. The next step we're looking for is a clinical pilot with a hospital pharmacy. It's open source, on GitHub."
+      "narration": "Open Med Check: Gemma reads the note and the history; the rules decide. Today it is a demonstrator on synthetic patients, not a medical device. Next, we are looking for a clinical pilot with a hospital pharmacy. It's open source, on GitHub."
     }
   ]
 }

@@ -149,8 +149,8 @@ def build_segment(
         if draft_label:
             label = draft_label.replace(":", r"\:").replace("'", r"\'")
             video_filter += (
-                f",drawtext=text='{label}':font='DejaVu Sans':fontsize=30:fontcolor=0x16232f:"
-                "box=1:boxcolor=0xf2b134:boxborderw=14:x=w-tw-36:y=70"
+                f",drawtext=text='{label}':font='DejaVu Sans':fontsize=26:fontcolor=0x16232f:"
+                "box=1:boxcolor=0xf2b134:boxborderw=10:x=44:y=62"
             )
     fade_out = max(duration - FADE_S, 0)
     style = CAPTION_STYLE

@@ -214,7 +214,7 @@ pytest --cov` pass and CI is green, unless stated otherwise.
     module file tree, and a command-level step list; added a standalone walkthrough,
     `docs/deploy/gcp-reference-architecture.md`. Still not implemented; `git diff --stat main --
     infra/` stays empty.
-- [~] T-012: DEV post with demo screenshots (demo video dropped 2026-10-18)
+- [~] T-012: Demo video and DEV post
   - Requirements: G-4 (supports REQ-006, REQ-010)
   - Depends on: T-010 (T-011 for the architecture section)
   - Scope: demo screenshots of presets A → alternative, B, C, and the model-down fallback;
@@ -225,9 +225,12 @@ pytest --cov` pass and CI is green, unless stated otherwise.
     note = `BLOCKED`) rather than on the UI tour — that one case is the clearest, fastest way to
     show why Layer 2 exists, and the post draft's "76 synthetic cases" section backs it with the
     aggregate 72%→97% figure. Gemma's role is the headline, not a footnote after the rules.
-  - Note (2026-10-18): the demo video and its tooling were removed on the owner's decision; the
-    post shows the demo with screenshots instead.
-  - Done when: the post shows the demo with screenshots; the post draft passes the wording rules
+  - Note (2026-10-18): the demo video was dropped and then reinstated by the owner. New cut:
+    introduction, the problems (today's note, a long history, alert overrides), the solution, Bed 3
+    (suspected ACS in the note → `BLOCKED`) and Bed 5 (past GI bleed in the history → `WARNING`),
+    how it works, results, promotional ending. Tooling restored in `scripts/demo_video/`; the final
+    cut is recorded live on the GPU.
+  - Done when: the video is linked from the README and the post; the post draft passes the wording rules
     (REQ-010); Q-6 answered; the user publishes and submits before Sun 22:00 CEST (human step).
 
 ## Coverage check

@@ -182,6 +182,8 @@ OpenMedCheck is built to **run on-premises inside the hospital**, so patient con
 the building. There is no hosted demo: v0.1 ships local-only
 ([ADR 0008](docs/adr/0008-drop-opt-in-hosted-demo.md)).
 
+**Demo video:** [to be added after the live recording on the GPU — T-012, `scripts/demo_video/`].
+
 | Run it | Command | Details |
 |---|---|---|
 | **Docker (recommended)** | `docker compose --profile setup run --rm model-pull && docker compose up --build`, then open <http://127.0.0.1:8000> | [docs/deploy/local-docker.md](docs/deploy/local-docker.md) |
