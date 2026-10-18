@@ -18,8 +18,9 @@ implementer.
 ## Preset A (suspected ACS in the note only, aspirin at home, dexketoprofen)
 - [x] `GET /api/presets/A` returns a valid request; rules-only card is `NO_ISSUE`
   (`tests/test_catalog_api.py`)
-- [ ] Click "Preset A": rules card appears at once with "Checking context…"; "Sign order" is
-  disabled meanwhile (AC-008.1, AC-008.7)
+- [ ] Select Bed 3, "Auto-fill test prescription", "Verify prescription": "Verifying the
+  prescription with Gemma…" appears, then the final card; "Sign order" is disabled meanwhile
+  (AC-008.1, AC-008.7)
 - [ ] With the model ready: final card is red, shows the text "Blocked" and an icon, order
   Action required → Why → Alternative; alternative is paracetamol (AC-006.1, AC-008.2, AC-008.5)
 - [ ] "Sign order" is disabled until "Use alternative" or "Acknowledge and keep order" is chosen
@@ -46,6 +47,49 @@ implementer.
 - [ ] Once the dose is specialist-reviewed (route and frequency present): all four order fields
   are replaced and the check reruns automatically
 
+## Rooms, templates, custom patient, verification (AC-006.6, AC-006.7, AC-007.5, AC-007.6, AC-008.1)
+- [x] Templates D, E and F give rules `BLOCKED` with NSAID_ACTIVE_GI_BLEED, ALLERGY_EXACT_MATCH and
+  RENAL_DEXKETOPROFEN_CRCL_60; only A, B and C are predefined rooms (`tests/test_presets.py`,
+  `tests/test_catalog_api.py`)
+- [x] Selecting a room hides results and empties the prescription; verify calls only
+  `/api/check` with a loading state; no browser storage (`tests/test_ui_static.py`)
+- [x] jsdom run of the real `app.js` against the local app with `gemma4:e4b` ready, 2026-10-18
+  (49/49 checks after the review fixes, app initialised exactly once): 3 predefined rooms, 6 templates; empty
+  prescription and hidden results on selection; verify with an empty prescription is stopped
+  client-side; auto-fill fills the template order; "Verifying the prescription with Gemma…"
+  shown and only `/api/check` called; Bed 3 `BLOCKED` → paracetamol `NO_ISSUE`; added rooms
+  from D, E, F `BLOCKED` with their rules; empty room name rejected; custom patient: save with
+  no age rejected, then saved with ACS, aspirin and allergies, sample ibuprofen `BLOCKED` with
+  NSAID_ANTIPLATELET_ACS, request body carries the custom history; switching rooms hides
+  results and keeps the custom patient for the page; review fixes: request panel only after the first verify,
+  auto-fill and the result announced in a status line, dose prompt inside the prescription
+  panel with focus on Dose after "Use alternative", Verify disabled until a custom patient is
+  saved, bottom "Save patient", chronic medication as checkboxes, Escape closes "Add room",
+  the current room marked with `aria-current`
+- [x] Real model through `/api/check`, 2026-10-18: templates D, E, F 5/5 each `BLOCKED` from
+  rules+model (D and F with paracetamol, F with the renal flag, E with no alternative)
+- [ ] In a real browser: the add-room form and the custom-patient editors at 375 px and 1280 px;
+  keyboard through "Add room" → name → template → "Create room"
+
+## Simulated record (AC-006.5, AC-007.1, AC-007.4)
+- [x] The page lists "ED patients (synthetic)" (Bed 3, Bed 7, Bed 12) instead of preset letters;
+  each preset carries a distinct bed label (`tests/test_ui_static.py`,
+  `tests/test_catalog_api.py`)
+- [x] jsdom run of the real `app.js` against the local app with `gemma4:e4b` ready, 2026-10-18
+  (34/34 checks; that harness also dispatched DOMContentLoaded itself, so the app initialised
+  twice; superseded by the 38/38 run above): record and order hidden before a patient is selected; on selection focus
+  moves to the record heading and the context is read-only (inputs `readOnly`, sex shown as a
+  read-only text copy) and labelled "From the patient record (simulated)", only the order is
+  editable; the request panel is filled on load and tracks the current inputs; Bed 7 `WARNING`, Bed 3 `BLOCKED`,
+  Bed 12 `NO_ISSUE`; the request panel shows the body sent, including the sex from the
+  disabled select; "Edit scenario (demo only)" unlocks the fields and relabels the record;
+  an edited normal eGFR is evaluated; switching it off restores the record, keeps the drafted
+  order, clears the card and announces "Record restored; scenario edits discarded."; switching
+  patients resets the toggle
+- [ ] In a real browser: read-only fields are visibly distinct (dashed border) and readable;
+  the toggle, "Skip to Prescribe" and the request panel work by keyboard; layout at 1280 px (three columns) and
+  375 px (stacked)
+
 ## Editing and validation
 - [x] Edited context is evaluated, not the stored preset (`tests/test_catalog_api.py`, AC-007.2)
 - [x] Out-of-range value is rejected with a field error by the API (AC-007.3)
@@ -59,8 +103,8 @@ implementer.
 
 ## AC-008.7 — Disabled while checking; stale responses dropped
 - [ ] Throttle the network to "Slow 3G" or stop Ollama mid-check: "Sign order" stays disabled
-  during "Checking context…"
-- [ ] Click a preset and edit a field (or click another preset) before the final card arrives:
+  while "Verifying the prescription with Gemma…" is shown
+- [ ] Press "Verify prescription" and edit a field (or select another room) before the final card arrives:
   the earlier card never appears (request sequence numbers; the DOM stub run confirmed the
   edit case)
 
@@ -76,8 +120,9 @@ implementer.
   card and a status line saying the model is unavailable (DOM stub run confirmed)
 
 ## Keyboard only (NFR-010)
-- [ ] Tab reaches presets, every field, "Check order", the card buttons and "Sign order" in a
-  logical order; Enter in a field submits "Check order"; no keyboard trap
+- [ ] Tab reaches the rooms, "Add room", "Add patient", the scenario toggle, every editable
+  field, "Auto-fill test prescription", "Verify prescription", the card buttons and "Sign order"
+  in a logical order; Enter in a field submits "Verify prescription"; no keyboard trap
 - [ ] Focus ring is visible on every control (3 px blue outline)
 - [ ] Status is understandable without colour (text label and icon on red, amber, green)
 - [ ] Screen reader: the card area announces updates (aria-live); field errors are read with
@@ -142,3 +187,10 @@ the expected result per preset, the warm-up and cold-start behaviour, the rules-
 instance command and the HTTP endpoints; the alternatives and "Dose: consult SmPC" wording in
 "How it works". Not covered: a visual walk through the UI in a browser (checked through the same
 API calls the UI makes) and README screenshots. Servers were stopped by PID and the clone deleted.
+
+## Visual design (2026-10-18 redesign)
+- [x] Headless Chrome screenshots of jsdom-driven states at 1440 px (Bed 3 blocked with note
+  quotes, Bed 7 warning, Bed 12 no issue with the request drawer open, new custom patient) and at
+  520 px (single column, no horizontal overflow); usability review: no blocking issue, contrast fixes applied
+  (edit-mode border, dashed read-only note, scrollable sticky rooms panel)
+- [ ] In a real browser: keyboard pass through the new app bar, rooms and card; zoom to 200 %

@@ -22,7 +22,7 @@ import statistics
 from collections import Counter
 from dataclasses import dataclass, field
 
-from openmedcheck import check_service, prompt, rule_table, rules_engine
+from openmedcheck import check_service, note_findings, prompt, rule_table, rules_engine
 from openmedcheck.config import Config
 from openmedcheck.contracts import CheckRequest, Order
 from openmedcheck.model_client import (
@@ -64,6 +64,9 @@ class PresetStats:
     verdicts: Counter[str] = field(default_factory=Counter)
     first_try_ok: int = 0
     final_cards: Counter[str] = field(default_factory=Counter)
+    # Note findings (ADR 0006): returned, kept after quote verification, and cards whose rules
+    # fired only because of a kept finding.
+    findings: Counter[str] = field(default_factory=Counter)
 
 
 def allowed_alternatives(drug_id: str) -> tuple[str, ...]:
@@ -77,14 +80,27 @@ def allowed_alternatives(drug_id: str) -> tuple[str, ...]:
 
 
 def build_cases() -> dict[str, CheckRequest]:
-    """Presets A, B, C plus A-alt: preset A's patient with the paracetamol alternative ordered.
+    """Presets A, B, C, A-alt (preset A with paracetamol), note-only D-note and E-note, A-neg.
 
     The dose text is user-entered and never sent to the model (data minimisation).
     """
     cases = {pid: preset.request for pid, preset in PRESETS.items()}
     alt = Order(drug_id="paracetamol", dose_text="1 g", route="PO", frequency="every 8 hours")
     cases["A-alt"] = cases["A"].model_copy(update={"order": alt})
-    return {key: cases[key] for key in ("A", "A-alt", "B", "C")}
+    # Note-only variants (ADR 0006): the fact is only in the free text, nothing is coded.
+    d_context = cases["D"].context.model_copy(update={"diagnoses": []})
+    cases["D-note"] = cases["D"].model_copy(update={"context": d_context})
+    e_context = cases["E"].context.model_copy(update={"allergies": []})
+    cases["E-note"] = cases["E"].model_copy(update={"context": e_context})
+    # Negated note: the conditions are denied, so no finding may survive and no rule may fire.
+    negated = (
+        "64-year-old man with chest pain after lifting boxes. ACS ruled out: ECG and troponin "
+        "normal. No GI bleeding. On daily aspirin."
+    )
+    a_neg_context = cases["A"].context.model_copy(update={"ed_note": negated})
+    cases["A-neg"] = cases["A"].model_copy(update={"context": a_neg_context})
+    keys = ("A", "A-alt", "B", "C", "D-note", "E-note", "A-neg")
+    return {key: cases[key] for key in keys}
 
 
 def build_request(check: CheckRequest) -> ModelRequest:
@@ -130,7 +146,7 @@ def first_try_reason(raw: str, request: ModelRequest) -> str | None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--calls", type=int, default=60, help="timed calls, cycling A, A-alt, B, C")
+    parser.add_argument("--calls", type=int, default=60, help="timed calls, cycling the cases")
     parser.add_argument("--warmup", type=int, default=3)
     args = parser.parse_args()
     config = Config()
@@ -166,6 +182,14 @@ def main() -> None:
                 stat.first_try_reasons[reason] += 1
                 if reason == "content:other_drug":
                     stat.offending_drugs.update(other_drug_names(client.raw_attempts[0], request))
+        if verdict is not None:
+            kept = note_findings.verify(verdict.note_findings, cases[pid].context)
+            stat.findings["returned"] += len(verdict.note_findings)
+            stat.findings["kept"] += len(kept)
+            for item in kept:
+                stat.findings[f"kept:{item.kind.value}:{item.code}"] += 1
+        if any(rule.evidence for rule in card.fired_rules):
+            stat.findings["cards_with_note_evidence"] += 1
         if result.verdict is not None:
             conflict = result.verdict.conflict_type
             label = conflict.value if conflict else "null"
@@ -187,6 +211,7 @@ def main() -> None:
         print("final invalid reasons:", dict(final_reasons))
         print("verdicts (ok only):", dict(stat.verdicts))
         print("final card (status/model conflict/source):", dict(stat.final_cards))
+        print("note findings:", dict(stat.findings))
         print(
             f"latency ms: p50={percentile(latencies, 50)} p95={percentile(latencies, 95)} "
             f"max={max(latencies)} mean={statistics.fmean(latencies):.0f}"

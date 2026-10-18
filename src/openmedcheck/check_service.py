@@ -12,7 +12,7 @@ import time
 import uuid
 from collections.abc import Callable
 
-from openmedcheck import prompt, rule_table, rules_engine
+from openmedcheck import note_findings, prompt, rule_table, rules_engine
 from openmedcheck.alternatives import select_alternative
 from openmedcheck.combiner import combine
 from openmedcheck.contracts import (
@@ -20,6 +20,8 @@ from openmedcheck.contracts import (
     ConflictType,
     DecisionCard,
     ModelVerdict,
+    PatientContext,
+    RiskLevel,
     RulesVerdict,
     Status,
 )
@@ -34,6 +36,11 @@ from openmedcheck.model_client import (
 
 LOGGER = logging.getLogger(f"{LOGGER_NAME}.check")
 MODEL_UNAVAILABLE_NOTE = "Model check unavailable — rules only"
+# Conflicts the rules decide from coded data and kept note findings (AC-003.8, ADR 0006): the
+# model's own escalation with one of these counts only if a rule of that type fired.
+RULE_DECIDED_CONFLICTS = frozenset(
+    {ConflictType.ANTIPLATELET_ACS, ConflictType.GI_BLEED, ConflictType.ALLERGY}
+)
 
 BLOCKED_HEADLINE = "Order conflicts with patient context"
 WARNING_HEADLINE = "Review this order before signing"
@@ -61,20 +68,25 @@ def combined_card(
     *,
     verdict: RulesVerdict | None = None,
     model_note: str | None = None,
+    context: PatientContext | None = None,
 ) -> tuple[DecisionCard, bool]:
     """Rules, then the escalate-only combiner, then the alternative re-check.
 
     Returns the card and whether a less strict model verdict was rejected (AC-004.2: the caller
     logs it). With ``model=None`` the card is the rules-only card (``source=rules``), which
     still carries a rule-table alternative when AC-001.3 allows one. ``verdict`` is the
-    already computed Layer 1 verdict, if the caller has one.
+    already computed Layer 1 verdict, if the caller has one; ``context`` is the context that
+    verdict was computed on (the coded context plus kept note findings, AC-003.7), which the
+    alternative re-check must also use.
     """
+    if context is None:
+        context = request.context
     if verdict is None:
-        verdict = rules_engine.evaluate(request.context, request.order)
+        verdict = rules_engine.evaluate(context, request.order)
     headline, rationale = _rules_text(verdict)
     combined = combine(verdict, headline, rationale, model)
     alternative = select_alternative(
-        request.context,
+        context,
         request.order,
         status=combined.status,
         conflict_type=combined.conflict_type,
@@ -127,6 +139,31 @@ def _names_unshown_drug(model: ModelVerdict, card: DecisionCard, request: CheckR
     )
 
 
+def _gate_rule_decided(
+    model: ModelVerdict | None, verdict: RulesVerdict
+) -> tuple[ModelVerdict | None, bool]:
+    """Drop the model's own escalation for a rule-decided conflict the rules did not confirm.
+
+    The rules floor is untouched: the combiner still never goes below ``verdict``. Only the
+    model's unsupported opinion is set aside ("ACS ruled out" read as ACS, prompt v5 eval).
+    """
+    if model is None or model.conflict_type not in RULE_DECIDED_CONFLICTS:
+        return model, False
+    if any(rule.conflict_type is model.conflict_type for rule in verdict.fired_rules):
+        return model, False
+    neutral = model.model_copy(
+        update={
+            "status": Status.NO_ISSUE,
+            "risk_level": RiskLevel.LOW,
+            "headline": "",
+            "rationale": "",
+            "conflict_type": None,
+            "alternative_drug_id": None,
+        }
+    )
+    return neutral, True
+
+
 def _assess(client: ModelClient, model_request: ModelRequest) -> ModelResult:
     try:
         return client.assess(model_request)
@@ -163,26 +200,52 @@ def final_card(
         ),
     )
     model = result.verdict if result.outcome is ModelOutcome.OK else None
-    card, downgrade_rejected = combined_card(
-        request,
-        model,
-        verdict=rules_verdict,
-        model_note=None if model is not None else MODEL_UNAVAILABLE_NOTE,
+    # Gemma reads the note, the rules decide (ADR 0006): kept findings only add facts.
+    found = () if model is None else model.note_findings
+    try:
+        kept = note_findings.verify(found, request.context)
+        context = note_findings.augment(request.context, kept)
+        verdict = note_findings.evaluate(request.context, request.order, kept, coded=rules_verdict)
+    except Exception:
+        # Fail-safe (REQ-005): a finding that cannot be applied never costs the coded verdict.
+        kept, context, verdict = (), request.context, rules_verdict
+    # AC-004.2 is about the model trying to go below the rules it was shown (the coded verdict),
+    # not below facts added after it answered.
+    downgrade_attempted = model is not None and (
+        model.status.rank < rules_verdict.status.rank
+        or model.risk_level.rank < rules_verdict.risk_level.rank
     )
-    if model is not None and _names_unshown_drug(model, card, request):
-        # The model's text recommends a drug the card does not offer (the Layer 1 re-check
-        # rejected it): keep its escalation but use the rules/fallback text (AC-003.5).
-        card, downgrade_rejected = combined_card(
+    try:
+        model, escalation_gated = _gate_rule_decided(model, verdict)
+        card, _ = combined_card(
             request,
-            model.model_copy(update={"headline": "", "rationale": ""}),
-            card.request_id,
-            verdict=rules_verdict,
+            model,
+            verdict=verdict,
+            model_note=None if model is not None else MODEL_UNAVAILABLE_NOTE,
+            context=context,
+        )
+        if model is not None and _names_unshown_drug(model, card, request):
+            # The model's text recommends a drug the card does not offer (the Layer 1 re-check
+            # rejected it): keep its escalation but use the rules/fallback text (AC-003.5).
+            card, _ = combined_card(
+                request,
+                model.model_copy(update={"headline": "", "rationale": ""}),
+                card.request_id,
+                verdict=verdict,
+                context=context,
+            )
+    except Exception:
+        # Fail-safe (REQ-005): anything that goes wrong after the model call yields the rules-only
+        # card on the coded context, never an error. The message may carry context: dropped.
+        model, escalation_gated, kept, verdict = None, False, (), rules_verdict
+        card, _ = combined_card(
+            request, None, verdict=rules_verdict, model_note=MODEL_UNAVAILABLE_NOTE
         )
     log_event(
         LOGGER,
         CHECK_EVENT,
         request_id=card.request_id,
-        rule_ids=[rule.rule_id for rule in rules_verdict.fired_rules],
+        rule_ids=[rule.rule_id for rule in verdict.fired_rules],
         rules_status=rules_verdict.status.value,
         rules_risk_level=rules_verdict.risk_level.value,
         model_status=None if model is None else model.status.value,
@@ -196,7 +259,10 @@ def final_card(
         model_outcome=result.outcome.value,
         model_attempts=result.attempts,
         invalid_reason=result.invalid_reason,
-        downgrade_rejected=downgrade_rejected,
+        downgrade_rejected=downgrade_attempted,
         prompt_version=prompt.PROMPT_VERSION,
+        note_findings_kept=len(kept),
+        model_escalation_gated=escalation_gated,
+        note_findings_dropped=len(found) - len(kept),
     )
     return card

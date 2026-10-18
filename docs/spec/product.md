@@ -20,7 +20,7 @@ or a renally cleared antibiotic at full dose with eGFR < 30.
 The EHR prescribing modules (Diraya, Orion Clinic, IANUS, HCIS/Selene, ECAP…) check orders
 against drug databases (e.g. Bot PLUS). Those checks are mostly drug-pair tables that ignore
 labs and acuity. They show SmPC text instead of an alternative, and they can't see the ED's
-free-text impression ("sospecha de SCA"), because coded diagnoses only arrive with the
+free-text impression ("suspected ACS"), because coded diagnoses only arrive with the
 discharge report. Clinicians override half to over 90% of medication alerts, depending on
 alert type and setting (49–96%, van der Sijs 2006; 46–96%, JMIR 2020; 64% in one ED, Yoo
 2020). The alert that matters gets lost in the noise. Lab-aware commercial products exist
@@ -31,7 +31,7 @@ safety invariant in a self-hosted deployment.
 ## Users and personas
 | Persona | Needs | Current pain |
 |---|---|---|
-| ED physician / MIR resident (end user) | Sign a safe order in seconds; get a dose or a substitute when it isn't safe; no extra clicks or lectures | Context-blind pop-ups, SmPC text dumps, manual MDCalc/UpToDate/CIMA lookups |
+| ED physician / MIR resident (end user) | Sign an order without a missed conflict in seconds; get a dose or a substitute when it conflicts; no extra clicks or lectures | Context-blind pop-ups, SmPC text dumps, manual MDCalc/UpToDate/CIMA lookups |
 | Hospital pharmacy service (buyer, story only) | Fewer preventable adverse drug events; auditable prescribing safety | Rule-only drug databases and in-house rule sets that are costly to maintain |
 | CMIO / clinical IT (buyer, story only) | EHR-adjacent safety tooling, self-hosted, FHIR-ready later | Vendor modules they can't extend |
 | Challenge judge / DEV reader (demo audience) | Understand the idea in under a minute; try it live; trust that the model can't overrule safety rules | — |
@@ -96,7 +96,7 @@ safety invariant in a self-hosted deployment.
 - Persistence of any patient context; audit history.
 - Fine-tuning; MedGemma.
 - A full drug database or drugs outside the fixed list.
-- Spanish/Catalan UI localisation beyond drug names.
+- Spanish/Catalan UI localisation.
 - Reporting or dashboards for buyers.
 - Any clinical use, medical-device claim or efficacy claim (e.g. "reduces ADEs").
 - Making, reviewing or suggesting diagnoses.
@@ -120,8 +120,8 @@ safety invariant in a self-hosted deployment.
 ## Glossary
 | Term | Meaning |
 |---|---|
-| ED | Emergency department (Urgencias) |
-| MIR | Spanish medical resident (Médico Interno Residente) |
+| ED | Emergency department |
+| MIR | Medical resident in the Spanish training system |
 | Order / proposed prescription | The single drug, dose, route and frequency being checked |
 | PatientContext | Synthetic patient data sent with one order (demographics, note, diagnoses, meds, allergies, labs) |
 | Decision card | The one result shown per order: status, risk tier, headline, rationale, renal flag, alternative |
@@ -130,8 +130,8 @@ safety invariant in a self-hosted deployment.
 | Escalate-only invariant | Final status = stricter of rules and model; model can't downgrade; rules-BLOCKED is final |
 | Preset | One of the three fixed synthetic cases A, B, C |
 | eGFR / CrCl | Estimated glomerular filtration rate / creatinine clearance (Cockcroft-Gault) |
-| SmPC | Summary of Product Characteristics (ficha técnica, AEMPS CIMA) |
-| ACS / SCA | Acute coronary syndrome / síndrome coronario agudo |
+| SmPC | Summary of Product Characteristics (AEMPS CIMA) |
+| ACS | Acute coronary syndrome |
 
 ## Open questions
 - [x] Q-1: ~~Cloud Run L4 price in europe-west1.~~ Closed with a caveat (2026-10-17): NVIDIA L4
@@ -157,8 +157,8 @@ safety invariant in a self-hosted deployment.
   project's own, earlier target.
 
 ## Assumptions
-- A-1: UI in English; drug names as used in Spain (e.g. Enantyum, Adiro) with active
-  ingredient.
+- A-1: UI, synthetic patient records and notes in English; drugs shown by their international
+  non-proprietary name (e.g. dexketoprofen, aspirin), not by brand.
 - ~~A-2: The judging period lies within the €25 budget at scale to zero.~~ Obsolete: no
   deployment (2026-10-17).
 - A-3: The specialist's review is enough clinical validation for a demonstrator; no further

@@ -171,7 +171,7 @@ CONTEXT_RULES: tuple[ContextRule, ...] = (
         status=Status.BLOCKED,
         risk_level=RiskLevel.CRITICAL,
         conflict_type=ConflictType.ANTIPLATELET_ACS,
-        reason="NSAID with an antiplatelet agent and a coded diagnosis of ACS.",
+        reason="NSAID with an antiplatelet agent and ACS recorded or suspected by the clinician.",
         source=f"{_NSAID_SMPC}, section 4.5 (NSAIDs with antiplatelet agents: higher bleeding "
         "risk) and section 4.4 (cardiovascular risk); Antman EM et al., Use of nonsteroidal "
         "antiinflammatory drugs: an update for clinicians, AHA scientific statement, "
@@ -185,7 +185,7 @@ CONTEXT_RULES: tuple[ContextRule, ...] = (
         status=Status.BLOCKED,
         risk_level=RiskLevel.CRITICAL,
         conflict_type=ConflictType.GI_BLEED,
-        reason="NSAID with a coded diagnosis of active gastrointestinal bleeding.",
+        reason="NSAID with active gastrointestinal bleeding recorded by the clinician.",
         source=f"{_NSAID_SMPC}, section 4.3 (active gastrointestinal bleeding or ulceration is "
         "a contraindication); the same contraindication appears in the SmPCs of ibuprofen, "
         "naproxen and diclofenac",
@@ -393,13 +393,41 @@ SPECIALIST_QUESTIONS: tuple[str, ...] = (
     "(class ANTIPLATELET, not NSAID here) also be flagged with an active GI bleed?",
     "Risk tiers (CRITICAL, HIGH, MODERATE) are the authors' judgment, not from a source. Please "
     "confirm or change them.",
-    "Allergy matching is exact (ignoring upper or lower case) on the drug ID or "
-    "class ID (NSAID, PENICILLIN, FLUOROQUINOLONE, "
+    "Allergy matching is exact (ignoring upper or lower case) on the drug ID, the active "
+    "ingredient or the class ID (NSAID, PENICILLIN, FLUOROQUINOLONE, "
     "OPIOID, PYRAZOLONE, ANTIPLATELET, LMWH, BIGUANIDE, ANALGESIC_ANTIPYRETIC). Spanish brand "
     "or ingredient names ('ibuprofeno', 'Adiro') do not match. Is that acceptable for a demo?",
-    "Allergy cross-reactivity is not modelled (an aspirin or penicillin allergy does not flag "
-    "NSAIDs or amoxicillin-clavulanate, and 'amoxicillin' does not match the class "
-    "PENICILLIN). Which cross-reactions, if any, should the rules cover?",
+    "Allergy cross-reactivity is not modelled: an aspirin allergy does not flag NSAIDs, and "
+    "'amoxicillin' alone does not match (only the drug ID, the active ingredient or the class "
+    "PENICILLIN does). Which cross-reactions, if any, should the rules cover?",
+    "Template D (coded active GI bleed, ibuprofen): the record has a coded active GI bleed and "
+    "the note says it was recorded today. Is that a realistic case, and is paracetamol the right "
+    "alternative?",
+    "Template E (penicillin allergy, amoxicillin-clavulanate for suspected pneumonia): should a "
+    "recorded penicillin allergy offer an alternative (for example levofloxacin, on the drug "
+    "list)? At the moment there is none.",
+    "Template F (72 M, 70 kg, creatinine 1.6 mg/dL, Cockcroft-Gault CrCl 41 mL/min, eGFR 43; "
+    "renal colic, dexketoprofen): is BLOCKED right, and is paracetamol the right alternative, "
+    "or should another analgesic on the list (for example metamizole) be offered? Should age "
+    "65 or over add its own dexketoprofen warning?",
+    "Demo order text (test input, not recommendations): ibuprofen 600 mg PO every 8 hours (D), "
+    "amoxicillin-clavulanate 875/125 mg PO every 8 hours (E), dexketoprofen 50 mg IV every 12 "
+    "hours (F), ibuprofen 400 mg PO every 8 hours (custom-patient sample). Do any read as "
+    "implausible for an ED order?",
+    "The paracetamol alternative now appears for presets A (ANTIPLATELET_ACS), D (GI_BLEED) and "
+    "F (RENAL). Please confirm one dose that applies to all three.",
+    "Note findings (ADR 0006): should a suspected ACS taken from the clinician's note give the "
+    "same BLOCKED / CRITICAL as a coded ACS, or WARNING?",
+    "Note findings: should 'suspected' or 'recent' GI bleeding written in the note count as "
+    "active bleeding for NSAID_ACTIVE_GI_BLEED?",
+    "Note findings: is a note saying the patient takes a drug (for example 'On daily aspirin') "
+    "enough to treat it as a home medicine for the rules?",
+    "Note findings: should an allergy written only in the note (template E without the coded "
+    "allergy) block the order the same way as a recorded allergy?",
+    "Card display: a verbatim note quote (which may contain dose text or other drug names) is "
+    "shown under a fired rule, labelled as the clinician's words. Is that acceptable?",
+    "Preset A card: does 'From the clinician's note: “Suspected ACS”' read as the clinician's "
+    "statement and not as a system diagnosis?",
     "Missing renal lab gives WARNING 'renal function unknown' (design choice A-5, not SmPC). "
     "Is a warning right, or should some drugs (e.g. metformin) be stricter?",
 )

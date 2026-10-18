@@ -6,7 +6,7 @@ from openmedcheck.presets import PRESETS, SYNTHETIC_LABEL
 
 
 def test_ac_006_4_every_preset_is_labelled_synthetic() -> None:
-    assert set(PRESETS) == {"A", "B", "C"}
+    assert set(PRESETS) == {"A", "B", "C", "D", "E", "F"}
     for preset in PRESETS.values():
         assert preset.synthetic_label == SYNTHETIC_LABEL
         assert preset.request.context.patient_id.startswith("SYN-")
@@ -16,7 +16,7 @@ def test_ac_003_4_preset_a_has_suspected_acs_only_in_the_note() -> None:
     context = PRESETS["A"].request.context
 
     assert context.diagnoses == []
-    assert "SCA" in context.ed_note
+    assert "Suspected ACS" in context.ed_note
     assert context.chronic_medications == ["aspirin"]
     assert PRESETS["A"].request.order.drug_id == "dexketoprofen"
 
@@ -41,3 +41,38 @@ def test_ac_006_3_preset_c_rules_card_is_no_issue_without_alternative() -> None:
 def test_expected_rules_status_matches_the_engine() -> None:
     for preset in PRESETS.values():
         assert rules_card(preset.request).status is preset.expected_rules_status
+
+
+def test_ac_006_6_template_d_coded_gi_bleed_blocks_ibuprofen_with_paracetamol() -> None:
+    card = rules_card(PRESETS["D"].request)
+
+    assert card.status is Status.BLOCKED
+    assert [rule.rule_id for rule in card.fired_rules] == ["NSAID_ACTIVE_GI_BLEED"]
+    assert card.alternative is not None
+    assert card.alternative.drug_id == "paracetamol"
+
+
+def test_ac_006_6_template_e_penicillin_allergy_blocks_amoxicillin_clavulanate() -> None:
+    card = rules_card(PRESETS["E"].request)
+
+    assert card.status is Status.BLOCKED
+    assert [rule.rule_id for rule in card.fired_rules] == ["ALLERGY_EXACT_MATCH"]
+    assert card.alternative is None
+
+
+def test_ac_006_6_template_f_low_crcl_blocks_dexketoprofen_with_renal_flag() -> None:
+    card = rules_card(PRESETS["F"].request)
+
+    assert card.status is Status.BLOCKED
+    assert [rule.rule_id for rule in card.fired_rules] == ["RENAL_DEXKETOPROFEN_CRCL_60"]
+    assert card.renal_adjustment_required
+    assert card.crcl_ml_min is not None
+    assert card.crcl_ml_min < 60
+    assert card.alternative is not None
+    assert card.alternative.drug_id == "paracetamol"
+
+
+def test_ac_006_5_only_presets_a_b_c_are_predefined_rooms() -> None:
+    rooms = {pid for pid, preset in PRESETS.items() if preset.bed is not None}
+
+    assert rooms == {"A", "B", "C"}

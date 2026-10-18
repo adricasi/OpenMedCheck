@@ -68,9 +68,11 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
     a value equal to the threshold doesn't fire) THE SYSTEM SHALL
     flag renal adjustment and return the rule's status (`WARNING` or `BLOCKED`).
   - AC-002.3: WHEN the proposed drug is an NSAID AND the patient takes an antiplatelet agent AND
-    a coded diagnosis of ACS is present THE SYSTEM SHALL return `BLOCKED`.
+    a coded diagnosis of ACS (or a kept note finding, AC-003.7) is present THE SYSTEM SHALL
+    return `BLOCKED`.
   - AC-002.4: WHEN the proposed drug is an NSAID AND a coded diagnosis of active
-    gastrointestinal bleeding is present THE SYSTEM SHALL return `BLOCKED`.
+    gastrointestinal bleeding (or a kept note finding, AC-003.7) is present THE SYSTEM SHALL
+    return `BLOCKED`.
   - AC-002.5: WHEN the proposed drug's active ingredient or drug class exactly matches a
     recorded allergy THE SYSTEM SHALL return `BLOCKED`.
   - AC-002.6: WHEN no rule fires THE SYSTEM SHALL return rules status `NO_ISSUE`, tier `LOW`.
@@ -81,7 +83,7 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
 
 ### REQ-003: Layer 2 model assessment with Gemma 4
 - Story: As an ED physician, I want the check to read my free-text note and the whole context,
-  so that it catches conflicts that coded data doesn't show yet (e.g. "sospecha de SCA").
+  so that it catches conflicts that coded data doesn't show yet (e.g. "suspected ACS").
 - Priority: Must
 - Goals: G-1, G-3
 - Acceptance criteria:
@@ -101,6 +103,27 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
   - AC-003.5: IF the model headline or rationale contains a dose pattern, the name of a drug
     from the drug list other than the ordered drug or the selected alternative, or a banned word
     (AC-010.2) THEN THE SYSTEM SHALL treat the output as invalid (AC-003.3).
+  - AC-003.6: WHEN the model returns output THE SYSTEM SHALL accept its answers to four note
+    questions, each with a quote: `note_acs_quote` and `note_gi_bleed_quote` (a phrase or
+    null), `note_medications` (up to 3 drug IDs from the drug list) and `note_allergies` (up to 3
+    drug IDs, active ingredients or class IDs). THE SYSTEM SHALL keep a finding only if its code
+    is valid for its kind, its quote (3–120 characters) appears word for word in the ED note or
+    the reason for consult (ignoring case and spacing), the quote names what it is coded as (the
+    drug or class name, or a term of the condition), and the sentence it comes from does not
+    deny it, rule it out or give only past history; at most 8 findings are kept. Dropped
+    findings SHALL NOT make the output invalid. The card SHALL show the note's own words.
+  - AC-003.7: WHEN findings are kept THE SYSTEM SHALL run Layer 1 again on the coded context
+    plus the kept findings (added to diagnoses, chronic medication and allergies; nothing is
+    removed), use that verdict as the rules verdict for the combiner and the alternative
+    re-check, and show on the card, under each rule that fired only because of a finding, the
+    supporting quote labelled "From the clinician's note". Quotes are not subject to AC-003.5:
+    they can only repeat the clinician's own text (accepted risk, ADR 0006).
+  - AC-003.8: IF the model's own verdict escalates with conflict type `ANTIPLATELET_ACS`,
+    `GI_BLEED` or `ALLERGY` and no rule of that type fired on the coded context plus the kept
+    findings THEN THE SYSTEM SHALL set that escalation aside (the rules decide these conflicts)
+    and log `model_escalation_gated`; escalations of other types still count, and the final card
+    SHALL never be below the coded rules verdict (REQ-004). The final status SHALL never be below the
+    verdict on the coded context alone (REQ-004).
 
 ### REQ-004: Escalate-only safety invariant
 - Story: As a hospital pharmacist, I want a guarantee that the model can only make the verdict
@@ -148,47 +171,79 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
   - AC-005.2: WHILE the model is unavailable THE SYSTEM SHALL still flag every high-risk case
     the rules cover (presets B and the coded variants of A return their rules status).
 
-### REQ-006: Synthetic presets
-- Story: As a challenge judge, I want three ready-made cases, so that I can see the three
-  outcomes in under a minute.
+### REQ-006: Synthetic presets, rooms and templates
+- Story: As a challenge judge, I want three ready-made rooms and a few more template patients,
+  so that I can see the three outcomes in under a minute and try other conflicts.
 - Priority: Must
 - Goals: G-1, G-4
 - Acceptance criteria:
   - AC-006.1: WHEN preset A is loaded (suspected ACS in the free-text note only, chronic
-    aspirin/Adiro, proposed dexketoprofen/Enantyum) and evaluated THE SYSTEM SHALL show a final
+    aspirin, proposed dexketoprofen) and its demo prescription is verified THE SYSTEM SHALL show a final
     `BLOCKED` card with paracetamol as the alternative (with the model available).
   - AC-006.2: WHEN preset B is loaded (eGFR < 30 mL/min/1.73 m², creatinine > 2.0 mg/dL,
-    proposed ciprofloxacin) and evaluated THE SYSTEM SHALL show a `WARNING` card with the
+    proposed ciprofloxacin) and its demo prescription is verified THE SYSTEM SHALL show a `WARNING` card with the
     renal-adjustment flag set and the dose guidance from the rule table: a numeric, SmPC-cited
     CrCl-based adjustment if the specialist signed it off, otherwise "Renal adjustment
     required — consult SmPC" with no number (Q-5).
   - AC-006.3: WHEN preset C is loaded (benign condition, normal renal function, standard
-    analgesic) and evaluated THE SYSTEM SHALL show a `NO_ISSUE` card with no alternative and no
+    analgesic) and its demo prescription is verified THE SYSTEM SHALL show a `NO_ISSUE` card with no alternative and no
     modal or blocking element.
   - AC-006.4: All patient data in presets SHALL be synthetic and labelled as such.
+  - AC-006.5: THE SYSTEM SHALL present presets A, B and C as predefined rooms of synthetic ED
+    patients (bed, sex, age, reason for consult) rather than as preset letters, and selecting a
+    room SHALL show its context as the patient's record (simulated).
+  - AC-006.6: THE SYSTEM SHALL offer six synthetic template patients: A, B, C and three more,
+    each with a deterministic rules conflict and a demo prescription:
+    D (coded active GI bleed, ibuprofen → rules `BLOCKED`, alternative paracetamol),
+    E (penicillin allergy, amoxicillin-clavulanate → rules `BLOCKED`, no alternative),
+    F (renal colic with estimated CrCl < 60 mL/min, dexketoprofen → rules `BLOCKED` with the
+    renal flag, alternative paracetamol).
+  - AC-006.7: WHEN the user chooses "Add room", names it and picks a template THE SYSTEM SHALL
+    add the room to the list with that template's record and select it. Rooms exist only in
+    the open page: nothing is stored and a reload shows the predefined rooms again (NFR-002).
 
-### REQ-007: Editable chart
-- Story: As an ED physician, I want to change the key context variables, so that I can see how
-  the verdict reacts (e.g. eGFR falling, a note mentioning chest pain).
+### REQ-007: Simulated record, editable scenario and custom patients
+- Story: As an ED physician, I want the patient context to come from the record so that I only
+  write the order; as a demo user, I want to change the key context variables, so that I can
+  see how the verdict reacts (e.g. eGFR falling, a note mentioning chest pain).
 - Priority: Must
 - Goals: G-1
 - Acceptance criteria:
-  - AC-007.1: WHEN a preset is loaded THE SYSTEM SHALL let the user edit creatinine, eGFR, age,
-    weight, sex, the free-text note and the proposed drug (dropdown from the drug list).
+  - AC-007.1: WHEN a preset is loaded THE SYSTEM SHALL show the patient context read-only,
+    labelled "From the patient record (simulated)", with only the proposed order editable
+    (drug from the drug list, dose, route, frequency). WHEN the user switches on "Edit scenario
+    (demo only)" THE SYSTEM SHALL also let the user edit creatinine, eGFR, age, weight, sex,
+    the reason for consult, the free-text note, the coded conditions, the chronic medication and
+    the allergies.
+  - AC-007.5: WHEN the user chooses "Add patient" THE SYSTEM SHALL add a room with an empty,
+    editable record (age, sex, weight, reason for consult, creatinine, eGFR, coded conditions,
+    chronic medication from the drug list, allergies, free-text note) labelled as a custom
+    patient; WHEN the user saves it THE SYSTEM SHALL validate the values (AC-007.3) and keep
+    them as that room's record for the open page only.
+  - AC-007.6: WHEN a room is selected THE SYSTEM SHALL leave the prescription empty; "Auto-fill
+    test prescription" SHALL fill it with the template's invented demo prescription, or with a
+    sample prescription from the drug list for a custom patient, and SHALL say that these doses
+    are test input, not recommendations.
+  - AC-007.4: WHEN a prescription has been verified THE SYSTEM SHALL offer a collapsed panel "What the
+    record system would send", outside the card, showing the request body for the current
+    order and context as plain text; it SHALL be built with `textContent` only and SHALL NOT be stored or logged.
   - AC-007.2: WHEN the user changes a chart value and evaluates THE SYSTEM SHALL evaluate the
     edited context, not the stored preset.
   - AC-007.3: IF an edited value is out of range THEN THE SYSTEM SHALL show an inline error next
     to the field and SHALL NOT submit the evaluation.
 
-### REQ-008: Progressive, triage-coded card display
-- Story: As an ED physician, I want the rules verdict instantly and the full card shortly after,
-  with colour and wording that match urgency, so that I'm never staring at a spinner.
+### REQ-008: Verification and triage-coded card display
+- Story: As an ED physician, I want to verify a prescription on demand and get one card with
+  colour and wording that match urgency.
 - Priority: Must
 - Goals: G-1
 - Acceptance criteria:
-  - AC-008.1: WHEN an evaluation starts THE SYSTEM SHALL display the rules card first (NFR-004),
-    marked "Checking context…", and replace it with the final card when available, without
-    streaming partial text.
+  - AC-008.1: THE SYSTEM SHALL keep the result panel hidden until the user presses "Verify
+    prescription". WHEN verification starts THE SYSTEM SHALL show a loading state "Verifying the
+    prescription with Gemma…" and then the final card (rules and model combined, or the
+    rules-only card on fallback, REQ-005), without streaming partial text. (Changed
+    2026-10-18: the instant rules card is no longer shown first in the UI; `/api/check/rules`
+    and NFR-004's rules budget remain for the API and the fallback.)
   - AC-008.2: WHEN the final status is `BLOCKED` THE SYSTEM SHALL show a red card with two
     actions, "Use alternative" (if one exists) and "Acknowledge and keep order", and SHALL
     disable "Sign order" until one of them is chosen.
@@ -200,7 +255,7 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
     Alternative and SHALL NOT show raw JSON or internal identifiers other than rule IDs.
   - AC-008.6: WHEN a card is shown THE SYSTEM SHALL communicate status with text and an icon,
     not colour alone (NFR-010).
-  - AC-008.7: WHILE "Checking context…" is shown THE SYSTEM SHALL keep "Sign order" disabled,
+  - AC-008.7: WHILE the loading state is shown THE SYSTEM SHALL keep "Sign order" disabled,
     and THE SYSTEM SHALL discard any card whose request ID doesn't match the latest evaluation
     (e.g. after a field edit).
   - AC-008.8: WHEN "Sign order" is clicked THE SYSTEM SHALL show "Order signed (demo — nothing

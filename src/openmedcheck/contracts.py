@@ -49,6 +49,14 @@ class ConflictType(StrEnum):
     OTHER = "OTHER"
 
 
+class FindingKind(StrEnum):
+    """What a note finding adds to the context (AC-003.6)."""
+
+    CONDITION = "CONDITION"
+    MEDICATION = "MEDICATION"
+    ALLERGY = "ALLERGY"
+
+
 class Source(StrEnum):
     RULES = "rules"
     RULES_MODEL = "rules+model"
@@ -114,6 +122,8 @@ class FiredRule(_Strict):
     rule_id: str
     reason: str
     conflict_type: ConflictType
+    # Verbatim ED-note quotes, set only when the rule fired because of a note finding (AC-003.7).
+    evidence: list[str] = Field(default_factory=list)
 
 
 class RulesVerdict(_Strict):
@@ -122,6 +132,20 @@ class RulesVerdict(_Strict):
     fired_rules: list[FiredRule]
     renal_adjustment_required: bool = False
     crcl_ml_min: float | None = None
+
+
+class NoteFinding(BaseModel):
+    """One fact the model read in the free text, with its quote (AC-003.6).
+
+    Unverified as parsed: ``note_findings.verify`` keeps it only if the code fits the kind and
+    the quote appears word for word in the note.
+    """
+
+    model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
+
+    kind: FindingKind
+    code: str
+    quote: str
 
 
 class ModelVerdict(BaseModel):
@@ -140,6 +164,7 @@ class ModelVerdict(BaseModel):
     renal_adjustment_required: bool
     conflict_type: ConflictType | None
     alternative_drug_id: str | None
+    note_findings: tuple[NoteFinding, ...] = ()
 
 
 class Alternative(_Strict):

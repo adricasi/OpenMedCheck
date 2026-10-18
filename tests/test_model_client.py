@@ -25,6 +25,12 @@ from openmedcheck.model_client import (
 )
 from tests.model_helpers import make_request, verdict_json
 
+
+def _verdict_fields() -> dict[str, Any]:
+    """The fake model output without the note answers, which ``ModelVerdict`` does not have."""
+    return {key: value for key, value in verdict_json().items() if not key.startswith("note_")}
+
+
 REQUEST = make_request()
 
 
@@ -97,7 +103,7 @@ def test_ac_001_2_limits_accept_the_boundary() -> None:
 
 
 def test_model_verdict_is_immutable() -> None:
-    verdict = ModelVerdict.model_validate_json(json.dumps(verdict_json()))
+    verdict = ModelVerdict.model_validate_json(json.dumps(_verdict_fields()))
     with pytest.raises(ValueError, match="frozen"):
         verdict.headline = "changed"  # type: ignore[misc]
 
@@ -337,7 +343,7 @@ def test_timeout_exception_is_timeout_outcome() -> None:
 
 
 def test_fake_accepts_model_verdict_and_records_requests() -> None:
-    fake = FakeModelClient([ModelVerdict.model_validate_json(json.dumps(verdict_json()))])
+    fake = FakeModelClient([ModelVerdict.model_validate_json(json.dumps(_verdict_fields()))])
     assert fake.assess(REQUEST).outcome is ModelOutcome.OK
     assert fake.requests == [REQUEST]
 
@@ -384,7 +390,7 @@ def test_ac_003_1_request_matches_the_spike_contract() -> None:
     assert body["stream"] is False
     assert body["think"] is False
     assert body["keep_alive"] == "10m"
-    assert body["options"] == {"temperature": 0, "num_predict": 400}
+    assert body["options"] == {"temperature": 0, "num_predict": 600}
     assert body["format"]["properties"]["alternative_drug_id"]["enum"] == [
         "paracetamol",
         "metamizole",
@@ -544,3 +550,37 @@ def test_ac_010_2_banned_word_prefixes_are_rejected(text: str) -> None:
 @pytest.mark.parametrize("text", ["Drug safety review needed", "Checks orders against diagnoses"])
 def test_ac_010_2_exact_exception_words_are_accepted(text: str) -> None:
     assert content_violation(text, allowed_drug_ids=["ibuprofen"], drug_list=("ibuprofen",)) is None
+
+
+def test_ac_003_6_question_style_note_answers_become_findings() -> None:
+    from openmedcheck.contracts import FindingKind
+
+    raw = verdict_json(status="NO_ISSUE", risk_level="LOW", conflict_type=None)
+    raw.update(
+        note_acs_quote="Suspected ACS",
+        note_gi_bleed_quote=None,
+        note_medications=[{"drug_id": "aspirin", "quote": "On daily aspirin"}],
+        note_allergies=[{"code": "PENICILLIN", "quote": "Penicillin allergy"}],
+    )
+
+    verdict = parse_model_output(json.dumps(raw), make_request())
+
+    assert type(verdict) is ModelVerdict
+    assert [(f.kind, f.code, f.quote) for f in verdict.note_findings] == [
+        (FindingKind.CONDITION, "ACS", "Suspected ACS"),
+        (FindingKind.MEDICATION, "aspirin", "On daily aspirin"),
+        (FindingKind.ALLERGY, "PENICILLIN", "Penicillin allergy"),
+    ]
+
+
+def test_ac_003_5_quotes_are_not_content_checked_but_the_text_still_is() -> None:
+    # A quote may repeat the doctor's own words, including a drug name; verify() later keeps it
+    # only if it is verbatim in the note. Headline and rationale are still checked (AC-003.5).
+    raw = verdict_json(status="NO_ISSUE", risk_level="LOW", conflict_type=None)
+    raw["note_medications"] = [{"drug_id": "aspirin", "quote": "aspirin 100 mg daily"}]
+
+    assert parse_model_output(json.dumps(raw), make_request()).note_findings
+
+    raw["rationale"] = "Give aspirin 100 mg."
+    with pytest.raises(InvalidModelOutput):
+        parse_model_output(json.dumps(raw), make_request())

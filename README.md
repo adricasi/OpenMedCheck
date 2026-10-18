@@ -16,6 +16,16 @@ renal-adjustment flag and, where the rule table allows one, an alternative drug.
 shown as "No issue found by these checks". The system checks orders against the diagnoses and
 data it is given; it never makes diagnoses of its own.
 
+**The doctor only writes the order.** The patient context is not meant to be typed: in a
+hospital it would be pulled from the patient's record (demographics, latest labs, coded
+diagnoses, current medication, allergies and the ED note) when the order is drafted, and the
+card would appear inline in the existing prescribing screen, or, when nothing conflicts, no
+card at all (the demo shows "No issue found by these checks"). The check engine is the
+product; the web UI here is a demo harness whose editable chart and synthetic presets stand in
+for that record. Record-system integration (for example HL7 FHIR with CDS Hooks) is not
+implemented in v0.1 and is out of scope for this version (see
+[product.md](docs/spec/product.md) non-goals).
+
 ## How it works
 
 Two layers, and the second can only make the first stricter (escalate-only):
@@ -52,21 +62,39 @@ uv run openmedcheck         # serve the app (leave it running)
 ```
 
 Then open <http://127.0.0.1:8000> in a browser. The page shows the banner "Not for clinical use —
-synthetic patients" and three synthetic presets, A, B and C, that you evaluate from the UI. When
-the page loads it asks the server to warm the model up. A first check right after Ollama starts
-can take longer than the 10 s model deadline; the card then falls back to rules only (see
-below). Wait for the model status to read ready and check again.
+synthetic patients. Not a medical device." and three rooms with synthetic ED patients (Bed 3,
+Bed 7 and Bed 12, which are presets A, B and C).
 
-What each preset shows with the model ready:
+1. Select a room: its simulated record opens read-only and the prescription is empty.
+2. Write a prescription, or press "Auto-fill test prescription" for the case's demo order.
+3. Press "Verify prescription": the page shows "Verifying the prescription with Gemma…", then
+   one card (rules and Gemma combined, or rules only if the model is unavailable).
 
-| Preset | Rules card (instant) | Final card |
+"Add room" creates a room from one of six template patients (A–F; D, E and F add a coded GI
+bleed, a penicillin allergy and reduced kidney function). "Add patient" opens an empty record to
+fill in, including conditions, chronic medication and allergies; "Save patient" keeps it. Added
+rooms and patients exist only in the open page: nothing is stored, and a reload shows the three
+predefined rooms again. "Edit scenario (demo only)" unlocks a record so you can try other cases,
+and "What the record system would send" shows the request body. When the page loads it asks the
+server to warm the model up. A first check right after Ollama starts can take longer than the
+10 s model deadline; the card then falls back to rules only (see below). Wait for the model
+status to read ready and verify again.
+
+What each template shows after "Auto-fill test prescription" and "Verify prescription", with
+the model ready (the rules column is what `/api/check/rules` returns):
+
+| Template (room) | Rules card | Final card |
 |---|---|---|
-| A | `NO_ISSUE` ("No issue found by these checks") | `BLOCKED` after the model reads the note; alternative: Paracetamol, "Dose: consult SmPC" |
-| B | `WARNING` with the renal-adjustment flag | `WARNING`, renal flag kept, "Renal adjustment required — consult SmPC", no alternative |
-| C | `NO_ISSUE` | `NO_ISSUE`, no alternative |
+| A (Bed 3) | `NO_ISSUE` ("No issue found by these checks") | `BLOCKED` after the model reads the note; alternative: Paracetamol, "Dose: consult SmPC" |
+| B (Bed 7) | `WARNING` with the renal-adjustment flag | `WARNING`, renal flag kept, "Renal adjustment required — consult SmPC", no alternative |
+| C (Bed 12) | `NO_ISSUE` | `NO_ISSUE`, no alternative |
+| D (added room) | `BLOCKED`: NSAID with a coded active GI bleed | `BLOCKED`; alternative: Paracetamol, "Dose: consult SmPC" |
+| E (added room) | `BLOCKED`: recorded penicillin allergy | `BLOCKED`, no alternative |
+| F (added room) | `BLOCKED`: dexketoprofen with estimated CrCl below 60 mL/min, renal flag | `BLOCKED`, renal flag kept; alternative: Paracetamol, "Dose: consult SmPC" |
 
-"Use alternative" on preset A swaps the order for the alternative and runs the full check again
-on the same patient; in the recorded runs that second check gives `NO_ISSUE` ("No issue found
+"Use alternative" on preset A selects paracetamol and clears the dose, because the dose is not
+specialist-reviewed; enter a dose (the recorded runs used the demo order text 1 g every 8 hours;
+this is not a recommendation) and verify again on the same patient; in the recorded runs that second check gives `NO_ISSUE` ("No issue found
 by these checks"). The prescriber always decides.
 
 If Ollama or the model is missing, or does not answer in time, the app still starts and returns
@@ -75,7 +103,7 @@ read the free-text note, so preset A then stays `NO_ISSUE`; the note on the card
 try it, start a second instance:
 `OPENMEDCHECK_OLLAMA_URL=http://127.0.0.1:9 OPENMEDCHECK_PORT=8001 uv run openmedcheck`.
 
-The checks are also available over HTTP: `GET /api/presets/{A|B|C}` returns a request body
+The checks are also available over HTTP: `GET /api/presets/{A–F}` returns a request body
 that you can `POST` as JSON to `/api/check/rules` (rules only) or `/api/check` (final card), and
 `GET /api/model/health` reports `ready`, `warming` or `unavailable`.
 TODO(T-012): link the demo video.
@@ -111,7 +139,7 @@ model.
 ## Measurements
 
 Measured on one machine (NVIDIA RTX 3000 Ada Laptop GPU, 8188 MiB; Ollama 0.35.1; `gemma4:e4b`,
-`think: false`, temperature 0), model step only, warm:
+`think: false`, temperature 0), model step, warm, unless stated:
 
 - [T-001 spike](docs/measurements/2026-10-17-spike.md): 30/30 valid on the first try in both
   runs; model-step p95 1.73 s (draft prompt) and 2.40 s (with conflict guidance), against the
@@ -126,11 +154,18 @@ Measured on one machine (NVIDIA RTX 3000 Ada Laptop GPU, 8188 MiB; Ollama 0.35.1
   15/15, preset A re-checked with paracetamol `NO_ISSUE` 15/15, B `WARNING` with the renal flag,
   C `NO_ISSUE`; model-step p95 at most 1.50 s.
 
-At temperature 0 repeated calls on one fixed preset are nearly deterministic, so these figures
-show stability on three presets, not robustness to other wordings. Both documents list their
-caveats.
+- [English presets and prompt v4](docs/measurements/2026-10-18-prompt-v4.md) (current): after
+  the presets were translated to English, prompt v3 blocked the paracetamol re-check 15/15. v4
+  sends the ANTIPLATELET_ACS guidance only when the order is an NSAID (a fact from the drug
+  list). Then 60/60 valid on the first try; preset A `BLOCKED` 15/15, paracetamol re-check
+  `NO_ISSUE` 15/15, B `WARNING`, C `NO_ISSUE`; end to end rules card p95 2.0 ms, final card
+  p95 1.45 s (40 calls); cold first check 6.9 s with the model's reading (one sample).
 
-- [End-to-end measurement (T-009)](docs/measurements/2026-10-17.md), as a client sees the app over
+At temperature 0 repeated calls on one fixed preset are nearly deterministic, so these figures
+show stability on three presets, not robustness to other wordings. Each measurement file lists
+its caveats.
+
+- Earlier (prompt v3, Spanish notes): [end-to-end measurement (T-009)](docs/measurements/2026-10-17.md), as a client sees the app over
   HTTP: rules card p50 1.3 ms, p95 3.8 ms (200 calls, budget 200 ms); final card, warm, p50
   1.51 s, p95 1.72 s (40 calls over presets A, B, C and A with paracetamol, budget 3 s); 40/40
   cards had valid model output; preset A `BLOCKED` and A with paracetamol `NO_ISSUE` in every

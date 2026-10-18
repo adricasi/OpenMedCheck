@@ -108,7 +108,10 @@ def test_ac_004_1_model_escalates_preset_a_to_blocked_with_paracetamol() -> None
     assert card.status is Status.BLOCKED
     assert card.source is Source.RULES_MODEL
     assert card.model_note is None
-    assert card.headline == "NSAID conflicts with suspected ACS"
+    # The rules decide from the quoted finding at a higher tier, so the card uses their text
+    # and shows the clinician's words (AC-003.7, AC-003.8).
+    assert card.headline == "Order conflicts with patient context"
+    assert card.fired_rules[0].evidence == ["Suspected ACS"]
     assert card.alternative is not None
     assert card.alternative.drug_id == "paracetamol"
 
@@ -257,8 +260,10 @@ def test_ac_003_5_unacceptable_model_text_falls_back_to_rules(
 
 
 def test_ac_001_2_card_text_respects_the_limits_for_valid_model_output() -> None:
-    card, _ = run(PRESET_A.request, verdict_json())
+    # Model-only escalation (no quote, a conflict the rules don't decide): its text is shown.
+    card, _ = run(PRESET_A.request, verdict_json(note_acs_quote=None, conflict_type="OTHER"))
 
+    assert card.headline == "NSAID conflicts with suspected ACS"
     assert len(card.headline.split()) <= 8
     assert len(card.rationale) <= 300
 
@@ -319,13 +324,13 @@ def test_nfr_002_log_lines_hold_no_context_or_model_text() -> None:
     model_marker = "UniqueModelHeadlineText"
 
     with captured_log() as stream:
-        run(request, verdict_json(headline=model_marker))
+        run(request, verdict_json(headline=model_marker, note_acs_quote=None))
         run(request, f"{NOTE_MARKER} not json", {"headline": NOTE_MARKER})
         run(request, ModelUnavailable())
 
     output = stream.getvalue()
     assert len(output.splitlines()) == 3
-    for forbidden in (NOTE_MARKER, model_marker, "SYN-A", "Dolor", "Adiro"):
+    for forbidden in (NOTE_MARKER, model_marker, "SYN-A", "Chest pain", "crushing"):
         assert forbidden not in output
 
 
