@@ -266,6 +266,8 @@ def test_ac_015_2_model_calls_over_the_cap_get_the_rules_only_card_at_once() -> 
     worker.join(5)
     assert card.source is Source.RULES
     assert card.model_note == MODEL_UNAVAILABLE_NOTE
+    assert card.status.value == "WARNING"  # busy slot: note not checked (AC-005.3)
+    assert card.headline == "Free-text note not checked"
 
 
 def test_ac_015_2_max_model_calls_is_validated() -> None:

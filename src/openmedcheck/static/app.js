@@ -29,6 +29,11 @@ const CONDITION_LABELS = {
 };
 const NO_MODEL_NOTE = "Model check unavailable — rules only";
 const VERIFYING_TEXT = "Verifying the prescription with Gemma…";
+// AC-005.3: same fixed text as the server's fallback; the note was not read, so no green card.
+const NOTE_UNCHECKED_HEADLINE = "Free-text note not checked";
+const NOTE_UNCHECKED_RATIONALE =
+  "The model check was unavailable, so the free-text note was not checked. The rules found no " +
+  "conflict in the coded data; review the note before signing.";
 // Test helper for custom patients (AC-007.6): an NSAID so the check has something to look at.
 const SAMPLE_ORDER = { drug_id: "ibuprofen", dose_text: "400 mg", route: "PO", frequency: "every 8 hours" };
 const EMPTY_ORDER = { drug_id: "", dose_text: "", route: "PO", frequency: "" };
@@ -676,6 +681,12 @@ async function settleWithRulesOnly(request, mine) {
     return;
   }
   rules.model_note = rules.model_note || NO_MODEL_NOTE;
+  if (rules.status === "NO_ISSUE") {
+    rules.status = "WARNING";
+    rules.risk_level = "MODERATE";
+    rules.headline = NOTE_UNCHECKED_HEADLINE;
+    rules.rationale = NOTE_UNCHECKED_RATIONALE;
+  }
   state.card = rules;
   state.checking = false;
   renderCard(rules);

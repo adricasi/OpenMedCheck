@@ -36,6 +36,12 @@ from openmedcheck.model_client import (
 
 LOGGER = logging.getLogger(f"{LOGGER_NAME}.check")
 MODEL_UNAVAILABLE_NOTE = "Model check unavailable — rules only"
+# AC-005.3: without the model the note was not read, so a clean rules verdict is not a pass.
+NOTE_UNCHECKED_HEADLINE = "Free-text note not checked"
+NOTE_UNCHECKED_RATIONALE = (
+    "The model check was unavailable, so the free-text note was not checked. The rules found no "
+    "conflict in the coded data; review the note before signing."
+)
 # Conflicts the rules decide from coded data and kept note findings (AC-003.8, ADR 0006): the
 # model's own escalation with one of these counts only if a rule of that type fired.
 RULE_DECIDED_CONFLICTS = frozenset(
@@ -172,6 +178,20 @@ def _gate_rule_decided(
     return neutral, True
 
 
+def _flag_unchecked_note(card: DecisionCard) -> DecisionCard:
+    """A rules-only NO_ISSUE card becomes a WARNING: the note was never read (AC-005.3)."""
+    if card.status is not Status.NO_ISSUE:
+        return card
+    return card.model_copy(
+        update={
+            "status": Status.WARNING,
+            "risk_level": RiskLevel.MODERATE,
+            "headline": NOTE_UNCHECKED_HEADLINE,
+            "rationale": NOTE_UNCHECKED_RATIONALE,
+        }
+    )
+
+
 def _assess(client: ModelClient, model_request: ModelRequest) -> ModelResult:
     try:
         return client.assess(model_request)
@@ -210,13 +230,16 @@ def final_card(
     model = result.verdict if result.outcome is ModelOutcome.OK else None
     # Gemma reads the note, the rules decide (ADR 0006): kept findings only add facts.
     found = () if model is None else model.note_findings
+    findings_unapplied = False
     try:
         kept = note_findings.verify(found, request.context)
         context = note_findings.augment(request.context, kept)
         verdict = note_findings.evaluate(request.context, request.order, kept, coded=rules_verdict)
     except Exception:
-        # Fail-safe (REQ-005): a finding that cannot be applied never costs the coded verdict.
+        # Fail-safe (REQ-005): a finding that cannot be applied never costs the coded verdict,
+        # and the note then counts as not checked (AC-005.3).
         kept, context, verdict = (), request.context, rules_verdict
+        findings_unapplied = True
     # AC-004.2 is about the model trying to go below the rules it was shown (the coded verdict),
     # not below facts added after it answered.
     downgrade_attempted = model is not None and (
@@ -224,7 +247,12 @@ def final_card(
         or model.risk_level.rank < rules_verdict.risk_level.rank
     )
     try:
-        model, escalation_gated = _gate_rule_decided(model, verdict)
+        # Without the findings the rules cannot confirm anything, so the gate would discard a
+        # real escalation; keep the model's own verdict instead (safety review).
+        if not findings_unapplied:
+            model, escalation_gated = _gate_rule_decided(model, verdict)
+        else:
+            escalation_gated = False
         card, _ = combined_card(
             request,
             model,
@@ -249,6 +277,8 @@ def final_card(
         card, _ = combined_card(
             request, None, verdict=rules_verdict, model_note=MODEL_UNAVAILABLE_NOTE
         )
+    if model is None or findings_unapplied:
+        card = _flag_unchecked_note(card)
     log_event(
         LOGGER,
         CHECK_EVENT,

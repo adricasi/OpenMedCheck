@@ -188,6 +188,12 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
     as the final card with source `rules` and the fallback note.
   - AC-005.2: WHILE the model is unavailable THE SYSTEM SHALL still flag every high-risk case
     the rules cover (presets B and the coded variants of A return their rules status).
+  - AC-005.3: IF the model is unavailable (AC-005.1, including a full model-call cap) AND the
+    rules verdict is `NO_ISSUE` THEN THE SYSTEM SHALL return `WARNING` / `MODERATE` with the
+    fixed headline "Free-text note not checked" and the fixed rationale "The model check was unavailable, so the free-text note was not checked. The rules found no conflict in the coded data; review the note before signing.",
+    never "No issue found by these checks" (a check that could not check the note must not look
+    like a pass); a rules verdict of `WARNING` or `BLOCKED` is returned unchanged.
+    `/api/check/rules` (rules only by design) is not affected.
 
 ### REQ-006: Synthetic presets, rooms and templates
 - Story: As a challenge judge, I want three ready-made rooms and a few more template patients,

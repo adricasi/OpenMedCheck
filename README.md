@@ -115,7 +115,9 @@ by these checks"). The prescriber always decides.
 
 If Ollama or the model is missing, or does not answer in time, the app still starts and returns
 the rules-only card with the note "Model check unavailable — rules only". The rules alone cannot
-read the free-text note, so preset A then stays `NO_ISSUE`; the note on the card says why. To
+read the free-text note, so when they find nothing the card is a `WARNING` "Free-text note not
+checked" instead of "No issue found by these checks" (a check that could not check the note must
+not look like a pass; rule findings such as preset B's are shown unchanged). To
 try it, start a second instance:
 `OPENMEDCHECK_OLLAMA_URL=http://127.0.0.1:9 OPENMEDCHECK_PORT=8001 uv run openmedcheck`.
 

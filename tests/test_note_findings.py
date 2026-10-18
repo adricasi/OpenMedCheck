@@ -401,7 +401,8 @@ def test_req_005_invalid_model_output_uses_no_findings() -> None:
     card = run(PRESET_A.request, "not json", "still not json")
 
     assert card.source is Source.RULES
-    assert card.status is Status.NO_ISSUE
+    assert card.status is Status.WARNING  # note not checked (AC-005.3), no findings used
+    assert card.fired_rules == []
 
 
 def test_nfr_002_finding_counts_are_logged_and_quotes_are_not() -> None:
