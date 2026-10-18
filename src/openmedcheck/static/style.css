@@ -1,5 +1,55 @@
-/* OpenMedCheck: a clinical-workstation look. Local CSS only (NFR-001): no web fonts, no CDN.
-   Tokens: ink (text, app bar), teal (actions), paper (page), triage red / amber / green. */
+/* OpenMedCheck: a clinical-workstation look. Local CSS and self-hosted OFL fonts only
+   (NFR-001): no CDN. Atkinson Hyperlegible Next and Mono (Braille Institute) keep easily
+   confused glyphs apart (l / 1 / I, 0 / O), which matters for dose text such as "1 g".
+   The verdict is a triage tag (START colours); motion is used only for status and evidence. */
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/AtkinsonHyperlegibleNext-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("fonts/AtkinsonHyperlegibleNext-Medium.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("fonts/AtkinsonHyperlegibleNext-SemiBold.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fonts/AtkinsonHyperlegibleNext-Bold.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/AtkinsonHyperlegibleMono-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("fonts/AtkinsonHyperlegibleMono-Medium.woff2") format("woff2");
+}
 
 :root {
   --ink: #16232f;
@@ -25,8 +75,13 @@
   --hazard: #6e1612;
   --radius: 4px;
   --shadow: 0 1px 0 rgb(22 35 47 / 6%), 0 1px 3px rgb(22 35 47 / 8%);
-  --sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
-  --mono: "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  --sans: "Atkinson Hyperlegible Next", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+  --mono: "Atkinson Hyperlegible Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+  --tag-amber: #f2b134; /* START "delayed" yellow; ink text on it is about 9:1 */
+  --mark: #ffe08a; /* highlighter for quoted evidence */
+  --ecg-grid: rgb(201 75 75 / 12%);
+  --ecg-grid-major: rgb(201 75 75 / 26%);
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 * {
@@ -534,6 +589,53 @@ textarea:hover:not([readonly]) {
   line-height: 1.55;
 }
 
+/* The note as charted text; Gemma's verified quotes are highlighted in place. */
+.note-view {
+  min-height: 6.5rem;
+  max-height: 16rem;
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  overflow-y: auto;
+  border: 1px dashed var(--line-strong);
+  border-left: 3px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--panel-2);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.note-view:focus-visible {
+  outline: 3px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.note-empty {
+  color: var(--muted);
+  font-family: var(--sans);
+  font-style: italic;
+}
+
+.evidence-mark {
+  padding: 0 0.1em;
+  border-radius: 2px;
+  background: linear-gradient(var(--mark), var(--mark)) no-repeat 0 0 / 100% 100%;
+  color: inherit;
+  text-decoration: underline 2px #7a5900;
+  text-underline-offset: 3px;
+}
+
+@media (forced-colors: active) {
+  .evidence-mark {
+    background: Mark;
+    color: MarkText;
+    forced-color-adjust: none;
+  }
+}
+
 .record textarea[readonly] {
   padding: 0.6rem 0.75rem;
   border: 1px dashed var(--line-strong);
@@ -736,29 +838,34 @@ button:disabled {
   font-weight: 600;
 }
 
-.checking::before {
-  display: inline-block;
-  width: 0.8rem;
-  height: 0.8rem;
-  margin-right: 0.5rem;
-  border: 2px solid var(--line);
-  border-top-color: var(--teal);
-  border-radius: 50%;
-  vertical-align: -0.1rem;
-  content: "";
-  animation: spin 0.9s linear infinite;
+/* Loading: an ECG trace on ECG paper while Gemma reads the note (status, not decoration). */
+.ecg {
+  display: block;
+  width: 100%;
+  height: 46px;
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background-color: #fffdfa;
+  background-image:
+    linear-gradient(var(--ecg-grid-major) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ecg-grid-major) 1px, transparent 1px),
+    linear-gradient(var(--ecg-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ecg-grid) 1px, transparent 1px);
+  background-size:
+    40px 40px,
+    40px 40px,
+    8px 8px,
+    8px 8px;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .checking::before {
-    animation: none;
-  }
+.ecg-line {
+  fill: none;
+  stroke: var(--teal);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
 }
 
 .visually-hidden {
@@ -782,12 +889,29 @@ button:disabled {
   margin-top: 0.85rem;
 }
 
+/* The verdict as a triage tag: coloured band, punched eyelet and a perforated tear line. */
 .card {
+  position: relative;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-left-width: 6px;
-  border-radius: var(--radius);
+  border-radius: 10px 10px 6px 6px;
   background: var(--panel);
+  box-shadow: 0 1px 0 rgb(22 35 47 / 5%), 0 10px 26px -14px rgb(22 35 47 / 35%);
+}
+
+.card::before {
+  position: absolute;
+  z-index: 1;
+  top: 1.05rem;
+  right: 1rem;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: var(--paper);
+  box-shadow:
+    inset 0 1px 2px rgb(0 0 0 / 45%),
+    0 0 0 3px rgb(255 255 255 / 38%);
+  content: "";
 }
 
 .card > :not(.status-badge) {
@@ -799,73 +923,92 @@ button:disabled {
   margin-bottom: 1rem;
 }
 
+.status-badge {
+  position: relative;
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.7rem 2.5rem 0.75rem 1rem;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+/* Perforation between the band and the body. */
+.status-badge::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: repeating-linear-gradient(90deg, var(--panel) 0 7px, transparent 7px 12px);
+  content: "";
+}
+
 .status-blocked {
-  border-color: #e6b7b4;
-  border-left-color: var(--danger);
+  border-color: #e3aaa6;
+}
+
+.status-blocked .status-badge {
+  background: var(--danger);
+  color: #fff;
 }
 
 .status-warning {
-  border-color: #ecd4a6;
-  border-left-color: var(--warn-line);
+  border-color: #e8c27a;
+}
+
+.status-warning .status-badge {
+  background: var(--tag-amber);
+  color: var(--ink);
 }
 
 .status-ok {
   border-color: #b9d9c4;
-  border-left-color: var(--ok);
-}
-
-.status-badge {
-  display: flex;
-  gap: 0.6rem;
-  align-items: center;
-  padding: 0.6rem 1rem;
-  font-size: 0.9375rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.status-blocked .status-badge {
-  background: var(--danger-soft);
-  color: var(--danger);
-}
-
-.status-warning .status-badge {
-  background: var(--warn-soft);
-  color: var(--warn);
 }
 
 .status-ok .status-badge {
-  background: var(--ok-soft);
-  color: var(--ok);
+  background: var(--ok);
+  color: #fff;
+  text-transform: none;
+  letter-spacing: 0.01em;
 }
 
 .status-icon {
   display: grid;
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 1.6rem;
+  height: 1.6rem;
   flex: none;
   place-items: center;
   border-radius: 50%;
-  color: #fff;
-  font-size: 0.85rem;
+  background: rgb(255 255 255 / 94%);
+  font-size: 0.9rem;
+  font-weight: 700;
   line-height: 1;
 }
 
 .status-blocked .status-icon {
-  background: var(--danger);
+  color: var(--danger);
 }
 
 .status-warning .status-icon {
-  border-radius: 3px;
-  background: var(--warn);
+  border-radius: 4px;
+  background: var(--ink);
+  color: var(--tag-amber);
 }
 
 .status-ok .status-icon {
-  background: var(--ok);
+  color: var(--ok);
 }
 
 .card-compact > :last-child {
   margin-bottom: 0;
+}
+
+/* A band with nothing below it has nothing to tear off. */
+.status-badge:last-child::after {
+  display: none;
 }
 
 .card-compact .card-section {
@@ -1005,4 +1148,117 @@ button:disabled {
   font-size: 0.875rem;
   font-weight: 600;
   text-align: center;
+}
+
+/* --- motion ----------------------------------------------------------------------------
+   Reduce-first: nothing moves unless the user allows motion. Every animation carries meaning
+   (the model is reading, the verdict arrived, this is the evidence) and lasts 180-320 ms,
+   except the loading trace, which runs only while a check is in progress. */
+
+@media (prefers-reduced-motion: no-preference) {
+  .ecg-line {
+    stroke-dasharray: 34 66;
+    animation: ecg-sweep 1.6s linear infinite;
+  }
+
+  .model-warming::before {
+    animation: status-pulse 1.4s ease-in-out infinite;
+  }
+
+  .card {
+    animation: tag-in 320ms var(--ease) both;
+    transform-origin: 1.4rem 1.4rem;
+  }
+
+  .card .status-icon {
+    animation: icon-pop 260ms var(--ease) 140ms both;
+  }
+
+  .card > :not(.status-badge) {
+    animation: rise-in 240ms var(--ease) both;
+  }
+
+  .card > :nth-child(3) {
+    animation-delay: 60ms;
+  }
+
+  .card > :nth-child(n + 4) {
+    animation-delay: 120ms;
+  }
+
+  .evidence-mark {
+    animation: highlight 520ms var(--ease) 260ms both;
+  }
+
+  button,
+  .patient-button,
+  input,
+  select,
+  textarea {
+    transition:
+      background-color 180ms ease,
+      border-color 180ms ease,
+      box-shadow 180ms ease,
+      transform 180ms ease;
+  }
+}
+
+@keyframes ecg-sweep {
+  from {
+    stroke-dashoffset: 100;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes status-pulse {
+  50% {
+    box-shadow: 0 0 0 4px rgb(240 179 58 / 25%);
+  }
+}
+
+@keyframes tag-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) rotate(-1.2deg);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes icon-pop {
+  from {
+    transform: scale(0.4);
+  }
+
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes highlight {
+  from {
+    background-size: 0% 100%;
+  }
+
+  to {
+    background-size: 100% 100%;
+  }
 }

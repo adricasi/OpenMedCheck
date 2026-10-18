@@ -48,6 +48,22 @@ def test_nfr_001_static_css_has_no_remote_urls() -> None:
         assert "http" not in sheet.read_text(), sheet.name
 
 
+def test_nfr_001_css_fonts_are_self_hosted_and_licensed(client: TestClient) -> None:
+    sheet = (PACKAGE / "static" / "style.css").read_text()
+    urls = re.findall(r'url\("([^"]+)"\)', sheet)
+
+    assert urls
+    for url in urls:
+        assert url.startswith("fonts/"), url
+        assert url.endswith(".woff2"), url
+        assert (PACKAGE / "static" / url).is_file(), url
+        assert client.get(f"/static/{url}").status_code == 200, url
+    assert sorted(path.name for path in PACKAGE.glob("static/fonts/OFL-*.txt")) == [
+        "OFL-AtkinsonHyperlegibleMono.txt",
+        "OFL-AtkinsonHyperlegibleNext.txt",
+    ]
+
+
 def test_ac_010_2_ui_strings_avoid_banned_wording() -> None:
     for path in _ui_files():
         assert not BANNED_WORDS.search(path.read_text()), path.name

@@ -148,8 +148,9 @@
           <fieldset class="record-fields">
             <legend>Emergency department note (today)</legend>
             <div class="field field-wide">
-              <label for="f-note">Free-text note</label>
-              <textarea id="f-note" rows="6" maxlength="2000" data-path="context.ed_note" data-record aria-describedby="e-note"></textarea>
+              <label id="l-note" for="f-note">Free-text note</label>
+              <div id="note-view" class="note-view" role="group" aria-labelledby="l-note" tabindex="0"></div>
+              <textarea id="f-note" rows="6" maxlength="2000" data-path="context.ed_note" data-record aria-describedby="e-note" hidden></textarea>
               <span id="e-note" class="field-error" hidden></span>
             </div>
           </fieldset>
