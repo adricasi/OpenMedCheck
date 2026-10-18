@@ -4,9 +4,12 @@ Pure data, no I/O. Every entry carries a source citation, a conflict type and a
 specialist-review mark (``reviewed_by`` / ``reviewed_on``). Nothing here has been reviewed by a
 clinical specialist yet (T-006): numeric doses stay hidden until ``reviewed_on`` is set.
 
-The citations name a product and section of the Spanish SmPC (AEMPS CIMA, https://cima.aemps.es)
-or a published guideline. They were written without access to the live documents; the review
-sheet (``docs/clinical-review.md``) asks the specialist to confirm each one.
+The citations name the active ingredient and section of the summary of product characteristics
+(SmPC) as published by the Spanish Agency of Medicines and Medical Devices in its online drug
+information centre (AEMPS CIMA, https://cima.aemps.es), or a published guideline. Rules marked as
+project policy are design choices, not SmPC text. The citations were written without access to the
+live documents; the review sheet (``docs/clinical-review.md``) asks the specialist to confirm each
+one.
 """
 
 from __future__ import annotations
@@ -20,7 +23,16 @@ from openmedcheck.contracts import ConflictType, RiskLevel, Status
 RENAL_FALLBACK_GUIDANCE = "Renal adjustment required — consult SmPC"
 DOSE_FALLBACK_TEXT = "Dose: consult SmPC"
 
-CIMA = "AEMPS CIMA (https://cima.aemps.es)"
+CIMA = "AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es)"
+ESC_HF_2021 = (
+    "McDonagh TA et al., 2021 ESC Guidelines for the diagnosis and treatment of acute and "
+    "chronic heart failure, Eur Heart J 2021;42:3599-3726"
+)
+ISTH_PLATELETS = (
+    "Samuelson Bannow BT et al., Management of anticoagulation for cancer-associated thrombosis "
+    "in patients with thrombocytopenia: guidance from the ISTH SSC, J Thromb Haemost "
+    "2018;16:1246-1249"
+)
 
 
 class RenalBasis(StrEnum):
@@ -59,13 +71,14 @@ class AllergyRule(RuleEntry):
 
 @dataclass(frozen=True)
 class ContextRule(RuleEntry):
-    """Class contraindication given a coded diagnosis (AC-002.3, AC-002.4).
+    """Class conflict given a coded diagnosis and/or a home medication class.
 
-    ``chronic_class`` set: also requires a chronic medication of that class.
+    ``diagnosis`` set: requires that coded diagnosis (AC-002.3, AC-002.4, AC-002.11, AC-002.13).
+    ``chronic_class`` set: also requires a chronic medication of that class (AC-002.9).
     """
 
     applies_to_class: str = ""
-    diagnosis: str = ""
+    diagnosis: str | None = None
     chronic_class: str | None = None
 
 
@@ -78,6 +91,35 @@ class RenalRule(RuleEntry):
     threshold: float = 0.0
     # Numeric adjustment taken from the SmPC; shown only once reviewed (NFR-011, Q-5).
     dose_guidance: str | None = None
+
+
+class LabComparison(StrEnum):
+    """Direction of a lab threshold: the rule fires strictly beyond it."""
+
+    ABOVE = "ABOVE"
+    BELOW = "BELOW"
+
+
+@dataclass(frozen=True)
+class LabRule(RuleEntry):
+    """Fires when a lab is strictly beyond ``threshold`` for a drug class (AC-002.10, AC-002.12).
+
+    Rules on the same lab and classes overlap (warning and block thresholds): only the strictest
+    one that fires is shown.
+    """
+
+    applies_to_classes: tuple[str, ...] = ()
+    lab: str = ""  # a field of contracts.Labs
+    comparison: LabComparison = LabComparison.ABOVE
+    threshold: float = 0.0
+
+
+@dataclass(frozen=True)
+class LabUnknownRule(RuleEntry):
+    """Fires when the lab a drug class needs is missing (AC-002.10)."""
+
+    applies_to_classes: tuple[str, ...] = ()
+    lab: str = ""
 
 
 @dataclass(frozen=True)
@@ -145,6 +187,11 @@ DRUGS: tuple[Drug, ...] = (
     Drug("clopidogrel", "Clopidogrel", "clopidogrel", "ANTIPLATELET"),
     Drug("enoxaparin", "Enoxaparin", "enoxaparin", "LMWH"),
     Drug("metformin", "Metformin", "metformin", "BIGUANIDE"),
+    Drug("acenocoumarol", "Acenocoumarol", "acenocoumarol", "ANTICOAGULANT"),
+    Drug("warfarin", "Warfarin", "warfarin", "ANTICOAGULANT"),
+    Drug("enalapril", "Enalapril", "enalapril", "ACE_INHIBITOR"),
+    Drug("ramipril", "Ramipril", "ramipril", "ACE_INHIBITOR"),
+    Drug("spironolactone", "Spironolactone", "spironolactone", "POTASSIUM_SPARING"),
 )
 
 DRUG_IDS: tuple[str, ...] = tuple(drug.drug_id for drug in DRUGS)
@@ -153,7 +200,7 @@ CLASS_IDS: tuple[str, ...] = tuple(dict.fromkeys(drug.drug_class for drug in DRU
 
 # --- Rules ----------------------------------------------------------------------------------
 
-_NSAID_SMPC = f"{CIMA}: Enantyum (dexketoprofen) summary of product characteristics"
+_NSAID_SMPC = f"{CIMA}: dexketoprofen SmPC"
 
 ALLERGY_RULE = AllergyRule(
     rule_id="ALLERGY_EXACT_MATCH",
@@ -192,6 +239,136 @@ CONTEXT_RULES: tuple[ContextRule, ...] = (
         applies_to_class="NSAID",
         diagnosis="ACTIVE_GI_BLEED",
     ),
+    ContextRule(
+        rule_id="NSAID_ORAL_ANTICOAGULANT",
+        status=Status.BLOCKED,
+        risk_level=RiskLevel.HIGH,
+        conflict_type=ConflictType.BLEEDING,
+        reason="NSAID with an oral anticoagulant (acenocoumarol or warfarin): bleeding risk.",
+        source=f"{CIMA}: acenocoumarol and warfarin SmPCs, section 4.5 (NSAIDs increase the "
+        f"anticoagulant effect and the bleeding risk); {_NSAID_SMPC}, section 4.5",
+        applies_to_class="NSAID",
+        chronic_class="ANTICOAGULANT",
+    ),
+    ContextRule(
+        rule_id="NSAID_HEART_FAILURE",
+        status=Status.WARNING,
+        risk_level=RiskLevel.HIGH,
+        conflict_type=ConflictType.HEART_FAILURE,
+        reason="NSAID with heart failure recorded or suspected by the clinician.",
+        source=f"{_NSAID_SMPC}, section 4.3 (contraindicated in severe heart failure) and "
+        f"section 4.4; {ESC_HF_2021} (NSAIDs are not recommended in heart failure)",
+        applies_to_class="NSAID",
+        diagnosis="HEART_FAILURE",
+    ),
+    ContextRule(
+        rule_id="PREGNANCY_ACE_INHIBITOR",
+        status=Status.BLOCKED,
+        risk_level=RiskLevel.HIGH,
+        conflict_type=ConflictType.PREGNANCY,
+        reason="ACE inhibitor in pregnancy recorded or stated by the clinician.",
+        source=f"{CIMA}: enalapril and ramipril SmPCs, sections 4.3 and 4.6 (contraindicated in "
+        "the second and third trimesters; not recommended in the first)",
+        applies_to_class="ACE_INHIBITOR",
+        diagnosis="PREGNANCY",
+    ),
+    ContextRule(
+        rule_id="PREGNANCY_ORAL_ANTICOAGULANT",
+        status=Status.BLOCKED,
+        risk_level=RiskLevel.HIGH,
+        conflict_type=ConflictType.PREGNANCY,
+        reason="Oral anticoagulant in pregnancy recorded or stated by the clinician.",
+        source=f"{CIMA}: acenocoumarol and warfarin SmPCs, sections 4.3 and 4.6 "
+        "(contraindicated in pregnancy)",
+        applies_to_class="ANTICOAGULANT",
+        diagnosis="PREGNANCY",
+    ),
+    ContextRule(
+        rule_id="PREGNANCY_NSAID",
+        status=Status.WARNING,
+        risk_level=RiskLevel.HIGH,
+        conflict_type=ConflictType.PREGNANCY,
+        reason="NSAID in pregnancy recorded or stated by the clinician (trimester not known).",
+        source=f"{_NSAID_SMPC}, sections 4.3 and 4.6 (contraindicated in the third trimester; "
+        "to be avoided in the first and second unless clearly necessary)",
+        applies_to_class="NSAID",
+        diagnosis="PREGNANCY",
+    ),
+)
+
+_RAAS_CLASSES = ("ACE_INHIBITOR", "POTASSIUM_SPARING")
+_PLATELET_POLICY = (
+    "Project policy aligned with the anticoagulation threshold in "
+    f"{ISTH_PLATELETS}; NSAID SmPCs, section 4.4 (caution in bleeding disorders). The NSAID "
+    "threshold is a design choice, not SmPC text"
+)
+
+LAB_RULES: tuple[LabRule, ...] = (
+    LabRule(
+        rule_id="POTASSIUM_RAAS_ABOVE_5_5",
+        status=Status.BLOCKED,
+        risk_level=RiskLevel.HIGH,
+        conflict_type=ConflictType.HYPERKALAEMIA,
+        reason="ACE inhibitor or potassium-sparing drug with potassium above 5.5 mmol/L.",
+        source=f"{ESC_HF_2021} (potassium above 5.5 mmol/L: reduce or stop); {CIMA}: enalapril, "
+        "ramipril and spironolactone SmPCs, sections 4.3 to 4.5 (hyperkalaemia)",
+        applies_to_classes=_RAAS_CLASSES,
+        lab="potassium_mmol_l",
+        comparison=LabComparison.ABOVE,
+        threshold=5.5,
+    ),
+    LabRule(
+        rule_id="POTASSIUM_RAAS_ABOVE_5_0",
+        status=Status.WARNING,
+        risk_level=RiskLevel.MODERATE,
+        conflict_type=ConflictType.HYPERKALAEMIA,
+        reason="ACE inhibitor or potassium-sparing drug with potassium above 5.0 mmol/L.",
+        source=f"{ESC_HF_2021} (start only with potassium of 5.0 mmol/L or less); {CIMA}: "
+        "enalapril, ramipril and spironolactone SmPCs, section 4.4 (monitor potassium)",
+        applies_to_classes=_RAAS_CLASSES,
+        lab="potassium_mmol_l",
+        comparison=LabComparison.ABOVE,
+        threshold=5.0,
+    ),
+    LabRule(
+        rule_id="PLATELETS_ANTICOAGULANT_BELOW_50000",
+        status=Status.BLOCKED,
+        risk_level=RiskLevel.HIGH,
+        conflict_type=ConflictType.BLEEDING,
+        reason="Anticoagulant with platelets below 50,000 per µL.",
+        source=f"{ISTH_PLATELETS} (full-dose anticoagulation with platelets of 50,000 per µL "
+        f"or more); {CIMA}: enoxaparin, acenocoumarol and warfarin SmPCs, section 4.4",
+        applies_to_classes=("ANTICOAGULANT", "LMWH"),
+        lab="platelets_per_ul",
+        comparison=LabComparison.BELOW,
+        threshold=50_000,
+    ),
+    LabRule(
+        rule_id="PLATELETS_NSAID_BELOW_50000",
+        status=Status.WARNING,
+        risk_level=RiskLevel.HIGH,
+        conflict_type=ConflictType.BLEEDING,
+        reason="NSAID with platelets below 50,000 per µL.",
+        source=_PLATELET_POLICY,
+        applies_to_classes=("NSAID",),
+        lab="platelets_per_ul",
+        comparison=LabComparison.BELOW,
+        threshold=50_000,
+    ),
+)
+
+LAB_UNKNOWN_RULES: tuple[LabUnknownRule, ...] = (
+    LabUnknownRule(
+        rule_id="POTASSIUM_UNKNOWN_RAAS",
+        status=Status.WARNING,
+        risk_level=RiskLevel.MODERATE,
+        conflict_type=ConflictType.HYPERKALAEMIA,
+        reason="Potassium unknown: missing for an ACE inhibitor or potassium-sparing drug.",
+        source="Project policy, like AC-001.5 for renal labs: a missing potassium for these "
+        "drugs gives a warning. This is a design choice, not SmPC text",
+        applies_to_classes=_RAAS_CLASSES,
+        lab="potassium_mmol_l",
+    ),
 )
 
 RENAL_RULES: tuple[RenalRule, ...] = (
@@ -213,7 +390,7 @@ RENAL_RULES: tuple[RenalRule, ...] = (
         risk_level=RiskLevel.MODERATE,
         conflict_type=ConflictType.RENAL,
         reason="Ciprofloxacin and CrCl below 30 mL/min.",
-        source=f"{CIMA}: Ciproxin (ciprofloxacin) SmPC, section 4.2 (dosage in renal "
+        source=f"{CIMA}: ciprofloxacin SmPC, section 4.2 (dosage in renal "
         "impairment, table by creatinine clearance)",
         drug_id="ciprofloxacin",
         basis=RenalBasis.CRCL,
@@ -226,7 +403,7 @@ RENAL_RULES: tuple[RenalRule, ...] = (
         risk_level=RiskLevel.MODERATE,
         conflict_type=ConflictType.RENAL,
         reason="Levofloxacin and CrCl below 50 mL/min.",
-        source=f"{CIMA}: Tavanic (levofloxacin) SmPC, section 4.2 (dosage in renal impairment; "
+        source=f"{CIMA}: levofloxacin SmPC, section 4.2 (dosage in renal impairment; "
         "no adjustment at CrCl of 50 mL/min or more)",
         drug_id="levofloxacin",
         basis=RenalBasis.CRCL,
@@ -262,7 +439,7 @@ RENAL_RULES: tuple[RenalRule, ...] = (
         risk_level=RiskLevel.MODERATE,
         conflict_type=ConflictType.RENAL,
         reason="Enoxaparin and CrCl below 30 mL/min.",
-        source=f"{CIMA}: Clexane (enoxaparin) SmPC, section 4.2 (severe renal impairment, "
+        source=f"{CIMA}: enoxaparin SmPC, section 4.2 (severe renal impairment, "
         "CrCl 15-30 mL/min: dose adjustment)",
         drug_id="enoxaparin",
         basis=RenalBasis.CRCL,
@@ -286,7 +463,7 @@ RENAL_RULES: tuple[RenalRule, ...] = (
         risk_level=RiskLevel.MODERATE,
         conflict_type=ConflictType.RENAL,
         reason="Amoxicillin-clavulanate and CrCl below 30 mL/min.",
-        source=f"{CIMA}: Augmentine (amoxicillin-clavulanate) SmPC, section 4.2 (renal "
+        source=f"{CIMA}: amoxicillin-clavulanate SmPC, section 4.2 (renal "
         "impairment: adjust dose when CrCl is below 30 mL/min)",
         drug_id="amoxicillin_clavulanate",
         basis=RenalBasis.CRCL,
@@ -348,7 +525,13 @@ ALLOWED_ALTERNATIVES: dict[tuple[str, ConflictType], tuple[AllowedAlternative, .
     **{
         (drug_id, conflict_type): (_paracetamol_for(drug_id, conflict_type),)
         for drug_id in _NSAID_IDS
-        for conflict_type in (ConflictType.ANTIPLATELET_ACS, ConflictType.GI_BLEED)
+        for conflict_type in (
+            ConflictType.ANTIPLATELET_ACS,
+            ConflictType.GI_BLEED,
+            ConflictType.BLEEDING,
+            ConflictType.HEART_FAILURE,
+            ConflictType.PREGNANCY,
+        )
     },
     ("dexketoprofen", ConflictType.RENAL): (_paracetamol_for("dexketoprofen", ConflictType.RENAL),),
 }
@@ -428,11 +611,31 @@ SPECIALIST_QUESTIONS: tuple[str, ...] = (
     "shown under a fired rule, labelled as the clinician's words. Is that acceptable?",
     "Preset A card: does 'From the clinician's note: “Suspected ACS”' read as the clinician's "
     "statement and not as a system diagnosis?",
+    "T-014 NSAID_ORAL_ANTICOAGULANT: is BLOCKED / HIGH right for any NSAID with acenocoumarol or "
+    "warfarin, or should a short course be WARNING? Should DOACs be added to the list?",
+    "T-014 potassium: are 5.0 mmol/L (WARNING) and 5.5 mmol/L (BLOCKED) the right thresholds for "
+    "starting an ACE inhibitor or spironolactone in the ED, and is a WARNING right when potassium "
+    "is missing?",
+    "T-014 NSAID_HEART_FAILURE: WARNING / HIGH because severity is unknown; should it be BLOCKED "
+    "when heart failure is coded?",
+    "T-014 platelets: the anticoagulant threshold of 50,000 per µL follows the ISTH guidance for "
+    "cancer-associated thrombosis; the NSAID threshold is project policy. Please confirm or "
+    "change both.",
+    "T-014 pregnancy: ACE inhibitors and oral anticoagulants BLOCKED, NSAIDs WARNING / HIGH "
+    "because the trimester is not recorded. Should the record carry gestational age so the "
+    "NSAID rule can block from 20 weeks?",
     "Missing renal lab gives WARNING 'renal function unknown' (design choice A-5, not SmPC). "
     "Is a warning right, or should some drugs (e.g. metformin) be stricter?",
 )
 
 RULES_BY_ID: dict[str, RuleEntry] = {
     rule.rule_id: rule
-    for rule in (ALLERGY_RULE, *CONTEXT_RULES, *RENAL_RULES, *RENAL_UNKNOWN_RULES.values())
+    for rule in (
+        ALLERGY_RULE,
+        *CONTEXT_RULES,
+        *RENAL_RULES,
+        *RENAL_UNKNOWN_RULES.values(),
+        *LAB_RULES,
+        *LAB_UNKNOWN_RULES,
+    )
 }

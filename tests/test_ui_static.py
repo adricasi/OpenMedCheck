@@ -99,6 +99,8 @@ def test_ac_007_1_record_fields_are_marked_and_order_fields_are_not() -> None:
         "context.reason_for_consult",
         "context.labs.creatinine_mg_dl",
         "context.labs.egfr_ml_min_1_73m2",
+        "context.labs.potassium_mmol_l",
+        "context.labs.platelets_per_ul",
         "context.ed_note",
     }
     assert not re.search(r'data-path="order\.[^"]+" data-record', html)

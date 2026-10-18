@@ -107,6 +107,8 @@ class ModelOutput(ModelVerdict):
 
     note_acs_quote: str | None = None
     note_gi_bleed_quote: str | None = None
+    note_heart_failure_quote: str | None = None
+    note_pregnancy_quote: str | None = None
     note_medications: tuple[NoteMedication, ...] = ()
     note_allergies: tuple[NoteAllergy, ...] = ()
 
@@ -115,6 +117,8 @@ class ModelOutput(ModelVerdict):
         for code, quote in (
             ("ACS", self.note_acs_quote),
             ("ACTIVE_GI_BLEED", self.note_gi_bleed_quote),
+            ("HEART_FAILURE", self.note_heart_failure_quote),
+            ("PREGNANCY", self.note_pregnancy_quote),
         ):
             if quote is not None:
                 found.append(NoteFinding(kind=FindingKind.CONDITION, code=code, quote=quote))

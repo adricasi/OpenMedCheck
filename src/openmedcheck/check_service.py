@@ -39,7 +39,15 @@ MODEL_UNAVAILABLE_NOTE = "Model check unavailable — rules only"
 # Conflicts the rules decide from coded data and kept note findings (AC-003.8, ADR 0006): the
 # model's own escalation with one of these counts only if a rule of that type fired.
 RULE_DECIDED_CONFLICTS = frozenset(
-    {ConflictType.ANTIPLATELET_ACS, ConflictType.GI_BLEED, ConflictType.ALLERGY}
+    {
+        ConflictType.ANTIPLATELET_ACS,
+        ConflictType.GI_BLEED,
+        ConflictType.ALLERGY,
+        ConflictType.BLEEDING,
+        ConflictType.HYPERKALAEMIA,
+        ConflictType.HEART_FAILURE,
+        ConflictType.PREGNANCY,
+    }
 )
 
 BLOCKED_HEADLINE = "Order conflicts with patient context"

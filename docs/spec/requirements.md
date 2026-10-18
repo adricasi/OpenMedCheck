@@ -210,7 +210,10 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
   - AC-006.5: THE SYSTEM SHALL present presets A, B and C as predefined rooms of synthetic ED
     patients (bed, sex, age, reason for consult) rather than as preset letters, and selecting a
     room SHALL show its context as the patient's record (simulated).
-  - AC-006.6: THE SYSTEM SHALL offer six synthetic template patients: A, B, C and three more,
+  - AC-006.6: THE SYSTEM SHALL offer synthetic template patients: A, B, C, the three below, and
+    G (warfarin + ibuprofen → rules `BLOCKED`), H (potassium 5.8 mmol/L + enalapril → rules
+    `BLOCKED`) and I (pregnancy only in the note + ibuprofen → rules `NO_ISSUE`, the model's quote
+    decides) for the conflict breadth of AC-002.9 to AC-002.13. The first six are:
     each with a deterministic rules conflict and a demo prescription:
     D (coded active GI bleed, ibuprofen → rules `BLOCKED`, alternative paracetamol),
     E (penicillin allergy, amoxicillin-clavulanate → rules `BLOCKED`, no alternative),

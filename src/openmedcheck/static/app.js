@@ -8,6 +8,8 @@ const RANGES = {
   "context.weight_kg": { label: "Weight", min: 30, max: 250, required: true },
   "context.labs.creatinine_mg_dl": { label: "Creatinine", min: 0.1, max: 20 },
   "context.labs.egfr_ml_min_1_73m2": { label: "eGFR", min: 0, max: 200 },
+  "context.labs.potassium_mmol_l": { label: "Potassium", min: 1.5, max: 9 },
+  "context.labs.platelets_per_ul": { label: "Platelets", min: 1000, max: 2000000 },
 };
 const REQUIRED_TEXT = {
   "order.drug_id": "Drug",
@@ -22,6 +24,8 @@ const STATUS_VIEW = {
 const CONDITION_LABELS = {
   ACS: "acute coronary syndrome",
   ACTIVE_GI_BLEED: "active gastrointestinal bleed",
+  HEART_FAILURE: "heart failure",
+  PREGNANCY: "pregnancy",
 };
 const NO_MODEL_NOTE = "Model check unavailable — rules only";
 const VERIFYING_TEXT = "Verifying the prescription with Gemma…";
@@ -150,6 +154,8 @@ function fillContext(context) {
   $("f-reason").value = context.reason_for_consult;
   $("f-creatinine").value = context.labs.creatinine_mg_dl ?? "";
   $("f-egfr").value = context.labs.egfr_ml_min_1_73m2 ?? "";
+  $("f-potassium").value = context.labs.potassium_mmol_l ?? "";
+  $("f-platelets").value = context.labs.platelets_per_ul ?? "";
   $("f-note").value = context.ed_note;
   state.hidden = {
     patient_id: context.patient_id,
@@ -212,6 +218,8 @@ function buildRequest() {
       labs: {
         creatinine_mg_dl: numberOrNull($("f-creatinine").value),
         egfr_ml_min_1_73m2: numberOrNull($("f-egfr").value),
+        potassium_mmol_l: numberOrNull($("f-potassium").value),
+        platelets_per_ul: numberOrNull($("f-platelets").value),
       },
     },
     order: {
@@ -734,7 +742,12 @@ function customRoom() {
       diagnoses: [],
       chronic_medications: [],
       allergies: [],
-      labs: { creatinine_mg_dl: null, egfr_ml_min_1_73m2: null },
+      labs: {
+        creatinine_mg_dl: null,
+        egfr_ml_min_1_73m2: null,
+        potassium_mmol_l: null,
+        platelets_per_ul: null,
+      },
     },
     demoOrder: null,
   };

@@ -6,7 +6,7 @@ from openmedcheck.presets import PRESETS, SYNTHETIC_LABEL
 
 
 def test_ac_006_4_every_preset_is_labelled_synthetic() -> None:
-    assert set(PRESETS) == {"A", "B", "C", "D", "E", "F"}
+    assert set(PRESETS) == set("ABCDEFGHI")
     for preset in PRESETS.values():
         assert preset.synthetic_label == SYNTHETIC_LABEL
         assert preset.request.context.patient_id.startswith("SYN-")
@@ -76,3 +76,15 @@ def test_ac_006_5_only_presets_a_b_c_are_predefined_rooms() -> None:
     rooms = {pid for pid, preset in PRESETS.items() if preset.bed is not None}
 
     assert rooms == {"A", "B", "C"}
+
+
+def test_ac_006_6_breadth_templates_fire_the_new_rules() -> None:
+    assert [r.rule_id for r in rules_card(PRESETS["G"].request).fired_rules] == [
+        "NSAID_ORAL_ANTICOAGULANT"
+    ]
+    assert [r.rule_id for r in rules_card(PRESETS["H"].request).fired_rules] == [
+        "POTASSIUM_RAAS_ABOVE_5_5"
+    ]
+    # I: the pregnancy is only in the note, so the rules alone stay silent (the model decides).
+    assert rules_card(PRESETS["I"].request).status is Status.NO_ISSUE
+    assert "PREGNANCY" not in PRESETS["I"].request.context.diagnoses

@@ -5,7 +5,7 @@ from dataclasses import replace
 from datetime import date
 
 from openmedcheck import rule_table
-from openmedcheck.contracts import ConflictType
+from openmedcheck.contracts import ConflictType, Labs
 from openmedcheck.rule_table import (
     ALLERGY_RULE,
     ALLOWED_ALTERNATIVES,
@@ -14,6 +14,8 @@ from openmedcheck.rule_table import (
     DOSE_FALLBACK_TEXT,
     DRUG_IDS,
     DRUGS,
+    LAB_RULES,
+    LAB_UNKNOWN_RULES,
     RENAL_FALLBACK_GUIDANCE,
     RENAL_RULES,
     RENAL_UNKNOWN_RULES,
@@ -90,10 +92,10 @@ def test_nfr_011_alternative_dose_hidden_until_reviewed() -> None:
     assert shown_alternative_dose(replace(base, **_SIGNED)) == "1 g, PO, every 8 hours"
 
 
-def test_drug_list_has_fifteen_known_drugs() -> None:
-    assert len(DRUGS) == 15
-    assert len(set(DRUG_IDS)) == 15
-    assert "NSAID" in CLASS_IDS
+def test_drug_list_has_twenty_known_drugs() -> None:
+    assert len(DRUGS) == 20
+    assert len(set(DRUG_IDS)) == 20
+    assert {"NSAID", "ANTICOAGULANT", "ACE_INHIBITOR", "POTASSIUM_SPARING"} <= set(CLASS_IDS)
 
 
 def test_rules_reference_known_drugs_and_classes() -> None:
@@ -104,6 +106,9 @@ def test_rules_reference_known_drugs_and_classes() -> None:
         assert rule.applies_to_class in CLASS_IDS
         assert rule.chronic_class is None or rule.chronic_class in CLASS_IDS
     assert set(RENAL_UNKNOWN_RULES) == {r.basis for r in RENAL_RULES}
+    for lab in (*LAB_RULES, *LAB_UNKNOWN_RULES):
+        assert lab.lab in Labs.model_fields
+        assert set(lab.applies_to_classes) <= set(CLASS_IDS)
 
 
 def test_allowed_alternatives_are_on_the_drug_list_and_outside_the_class() -> None:

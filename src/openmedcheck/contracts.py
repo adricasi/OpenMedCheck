@@ -46,6 +46,10 @@ class ConflictType(StrEnum):
     RENAL = "RENAL"
     ANTIPLATELET_ACS = "ANTIPLATELET_ACS"
     GI_BLEED = "GI_BLEED"
+    BLEEDING = "BLEEDING"
+    HYPERKALAEMIA = "HYPERKALAEMIA"
+    HEART_FAILURE = "HEART_FAILURE"
+    PREGNANCY = "PREGNANCY"
     OTHER = "OTHER"
 
 
@@ -80,7 +84,9 @@ class PatientContext(_Strict):
     weight_kg: float = Field(ge=30, le=250)
     reason_for_consult: str = Field(default="", max_length=200)
     ed_note: str = Field(default="", max_length=2_000)
-    diagnoses: list[Literal["ACS", "ACTIVE_GI_BLEED"]] = Field(default_factory=list, max_length=10)
+    diagnoses: list[Literal["ACS", "ACTIVE_GI_BLEED", "HEART_FAILURE", "PREGNANCY"]] = Field(
+        default_factory=list, max_length=10
+    )
     chronic_medications: list[IdText] = Field(default_factory=list, max_length=50)
     allergies: list[IdText] = Field(default_factory=list, max_length=50)
     labs: Labs = Field(default_factory=Labs)

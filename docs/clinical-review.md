@@ -45,24 +45,39 @@ How to read the sheet:
 | clopidogrel | Clopidogrel | ANTIPLATELET |
 | enoxaparin | Enoxaparin | LMWH |
 | metformin | Metformin | BIGUANIDE |
+| acenocoumarol | Acenocoumarol | ANTICOAGULANT |
+| warfarin | Warfarin | ANTICOAGULANT |
+| enalapril | Enalapril | ACE_INHIBITOR |
+| ramipril | Ramipril | ACE_INHIBITOR |
+| spironolactone | Spironolactone | POTASSIUM_SPARING |
 
 ## Rules
 
 | Rule ID | Applies to | Condition | Status / tier | Conflict | Card reason | Source | Review |
 |---|---|---|---|---|---|---|---|
-| ALLERGY_EXACT_MATCH | Any drug | Drug ID, active ingredient or class equals a recorded allergy (exact match) | BLOCKED / CRITICAL | ALLERGY | The proposed drug matches a recorded allergy. | AEMPS CIMA (https://cima.aemps.es): section 4.3 (hypersensitivity to the active substance is a contraindication) of the SmPC of every drug on the list | not reviewed |
-| NSAID_ANTIPLATELET_ACS | Class NSAID | Coded diagnosis ACS, or a quoted note finding, and a chronic medication of class ANTIPLATELET | BLOCKED / CRITICAL | ANTIPLATELET_ACS | NSAID with an antiplatelet agent and ACS recorded or suspected by the clinician. | AEMPS CIMA (https://cima.aemps.es): Enantyum (dexketoprofen) summary of product characteristics, section 4.5 (NSAIDs with antiplatelet agents: higher bleeding risk) and section 4.4 (cardiovascular risk); Antman EM et al., Use of nonsteroidal antiinflammatory drugs: an update for clinicians, AHA scientific statement, Circulation 2007;115:1634-1642 | not reviewed |
-| NSAID_ACTIVE_GI_BLEED | Class NSAID | Coded diagnosis ACTIVE_GI_BLEED, or a quoted note finding | BLOCKED / CRITICAL | GI_BLEED | NSAID with active gastrointestinal bleeding recorded by the clinician. | AEMPS CIMA (https://cima.aemps.es): Enantyum (dexketoprofen) summary of product characteristics, section 4.3 (active gastrointestinal bleeding or ulceration is a contraindication); the same contraindication appears in the SmPCs of ibuprofen, naproxen and diclofenac | not reviewed |
-| RENAL_DEXKETOPROFEN_CRCL_60 | dexketoprofen | CRCL < 60 | BLOCKED / HIGH | RENAL | Dexketoprofen and CrCl below 60 mL/min (moderate to severe renal impairment). | AEMPS CIMA (https://cima.aemps.es): Enantyum (dexketoprofen) summary of product characteristics, sections 4.2 and 4.3 (contraindicated when creatinine clearance is 59 mL/min or lower) | not reviewed |
-| RENAL_CIPROFLOXACIN_CRCL_30 | ciprofloxacin | CRCL < 30 | WARNING / MODERATE | RENAL | Ciprofloxacin and CrCl below 30 mL/min. | AEMPS CIMA (https://cima.aemps.es): Ciproxin (ciprofloxacin) SmPC, section 4.2 (dosage in renal impairment, table by creatinine clearance) | not reviewed |
-| RENAL_LEVOFLOXACIN_CRCL_50 | levofloxacin | CRCL < 50 | WARNING / MODERATE | RENAL | Levofloxacin and CrCl below 50 mL/min. | AEMPS CIMA (https://cima.aemps.es): Tavanic (levofloxacin) SmPC, section 4.2 (dosage in renal impairment; no adjustment at CrCl of 50 mL/min or more) | not reviewed |
-| RENAL_METFORMIN_EGFR_30 | metformin | EGFR < 30 | BLOCKED / HIGH | RENAL | Metformin and eGFR below 30 mL/min/1.73 m² (contraindicated). | AEMPS CIMA (https://cima.aemps.es): metformin SmPC, sections 4.2 and 4.3 (contraindicated when GFR is below 30 mL/min) | not reviewed |
-| RENAL_METFORMIN_EGFR_45 | metformin | EGFR < 45 | WARNING / MODERATE | RENAL | Metformin and eGFR below 45 mL/min/1.73 m². | AEMPS CIMA (https://cima.aemps.es): metformin SmPC, section 4.2 (not to be started when GFR is 30-44 mL/min; dose reduction if already taking it) | not reviewed |
-| RENAL_ENOXAPARIN_CRCL_30 | enoxaparin | CRCL < 30 | WARNING / MODERATE | RENAL | Enoxaparin and CrCl below 30 mL/min. | AEMPS CIMA (https://cima.aemps.es): Clexane (enoxaparin) SmPC, section 4.2 (severe renal impairment, CrCl 15-30 mL/min: dose adjustment) | not reviewed |
-| RENAL_TRAMADOL_CRCL_30 | tramadol | CRCL < 30 | WARNING / MODERATE | RENAL | Tramadol and CrCl below 30 mL/min. | AEMPS CIMA (https://cima.aemps.es): tramadol SmPC, section 4.2 (renal impairment: longer dosing interval when CrCl is below 30 mL/min) | not reviewed |
-| RENAL_AMOXICILLIN_CLAVULANATE_CRCL_30 | amoxicillin_clavulanate | CRCL < 30 | WARNING / MODERATE | RENAL | Amoxicillin-clavulanate and CrCl below 30 mL/min. | AEMPS CIMA (https://cima.aemps.es): Augmentine (amoxicillin-clavulanate) SmPC, section 4.2 (renal impairment: adjust dose when CrCl is below 30 mL/min) | not reviewed |
+| ALLERGY_EXACT_MATCH | Any drug | Drug ID, active ingredient or class equals a recorded allergy (exact match) | BLOCKED / CRITICAL | ALLERGY | The proposed drug matches a recorded allergy. | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): section 4.3 (hypersensitivity to the active substance is a contraindication) of the SmPC of every drug on the list | not reviewed |
+| NSAID_ANTIPLATELET_ACS | Class NSAID | Coded diagnosis ACS, or a quoted note finding, and a chronic medication of class ANTIPLATELET | BLOCKED / CRITICAL | ANTIPLATELET_ACS | NSAID with an antiplatelet agent and ACS recorded or suspected by the clinician. | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): dexketoprofen SmPC, section 4.5 (NSAIDs with antiplatelet agents: higher bleeding risk) and section 4.4 (cardiovascular risk); Antman EM et al., Use of nonsteroidal antiinflammatory drugs: an update for clinicians, AHA scientific statement, Circulation 2007;115:1634-1642 | not reviewed |
+| NSAID_ACTIVE_GI_BLEED | Class NSAID | Coded diagnosis ACTIVE_GI_BLEED, or a quoted note finding | BLOCKED / CRITICAL | GI_BLEED | NSAID with active gastrointestinal bleeding recorded by the clinician. | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): dexketoprofen SmPC, section 4.3 (active gastrointestinal bleeding or ulceration is a contraindication); the same contraindication appears in the SmPCs of ibuprofen, naproxen and diclofenac | not reviewed |
+| NSAID_ORAL_ANTICOAGULANT | Class NSAID | a chronic medication of class ANTICOAGULANT | BLOCKED / HIGH | BLEEDING | NSAID with an oral anticoagulant (acenocoumarol or warfarin): bleeding risk. | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): acenocoumarol and warfarin SmPCs, section 4.5 (NSAIDs increase the anticoagulant effect and the bleeding risk); AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): dexketoprofen SmPC, section 4.5 | not reviewed |
+| NSAID_HEART_FAILURE | Class NSAID | Coded diagnosis HEART_FAILURE, or a quoted note finding | WARNING / HIGH | HEART_FAILURE | NSAID with heart failure recorded or suspected by the clinician. | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): dexketoprofen SmPC, section 4.3 (contraindicated in severe heart failure) and section 4.4; McDonagh TA et al., 2021 ESC Guidelines for the diagnosis and treatment of acute and chronic heart failure, Eur Heart J 2021;42:3599-3726 (NSAIDs are not recommended in heart failure) | not reviewed |
+| PREGNANCY_ACE_INHIBITOR | Class ACE_INHIBITOR | Coded diagnosis PREGNANCY, or a quoted note finding | BLOCKED / HIGH | PREGNANCY | ACE inhibitor in pregnancy recorded or stated by the clinician. | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): enalapril and ramipril SmPCs, sections 4.3 and 4.6 (contraindicated in the second and third trimesters; not recommended in the first) | not reviewed |
+| PREGNANCY_ORAL_ANTICOAGULANT | Class ANTICOAGULANT | Coded diagnosis PREGNANCY, or a quoted note finding | BLOCKED / HIGH | PREGNANCY | Oral anticoagulant in pregnancy recorded or stated by the clinician. | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): acenocoumarol and warfarin SmPCs, sections 4.3 and 4.6 (contraindicated in pregnancy) | not reviewed |
+| PREGNANCY_NSAID | Class NSAID | Coded diagnosis PREGNANCY, or a quoted note finding | WARNING / HIGH | PREGNANCY | NSAID in pregnancy recorded or stated by the clinician (trimester not known). | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): dexketoprofen SmPC, sections 4.3 and 4.6 (contraindicated in the third trimester; to be avoided in the first and second unless clearly necessary) | not reviewed |
+| RENAL_DEXKETOPROFEN_CRCL_60 | dexketoprofen | CRCL < 60 | BLOCKED / HIGH | RENAL | Dexketoprofen and CrCl below 60 mL/min (moderate to severe renal impairment). | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): dexketoprofen SmPC, sections 4.2 and 4.3 (contraindicated when creatinine clearance is 59 mL/min or lower) | not reviewed |
+| RENAL_CIPROFLOXACIN_CRCL_30 | ciprofloxacin | CRCL < 30 | WARNING / MODERATE | RENAL | Ciprofloxacin and CrCl below 30 mL/min. | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): ciprofloxacin SmPC, section 4.2 (dosage in renal impairment, table by creatinine clearance) | not reviewed |
+| RENAL_LEVOFLOXACIN_CRCL_50 | levofloxacin | CRCL < 50 | WARNING / MODERATE | RENAL | Levofloxacin and CrCl below 50 mL/min. | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): levofloxacin SmPC, section 4.2 (dosage in renal impairment; no adjustment at CrCl of 50 mL/min or more) | not reviewed |
+| RENAL_METFORMIN_EGFR_30 | metformin | EGFR < 30 | BLOCKED / HIGH | RENAL | Metformin and eGFR below 30 mL/min/1.73 m² (contraindicated). | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): metformin SmPC, sections 4.2 and 4.3 (contraindicated when GFR is below 30 mL/min) | not reviewed |
+| RENAL_METFORMIN_EGFR_45 | metformin | EGFR < 45 | WARNING / MODERATE | RENAL | Metformin and eGFR below 45 mL/min/1.73 m². | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): metformin SmPC, section 4.2 (not to be started when GFR is 30-44 mL/min; dose reduction if already taking it) | not reviewed |
+| RENAL_ENOXAPARIN_CRCL_30 | enoxaparin | CRCL < 30 | WARNING / MODERATE | RENAL | Enoxaparin and CrCl below 30 mL/min. | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): enoxaparin SmPC, section 4.2 (severe renal impairment, CrCl 15-30 mL/min: dose adjustment) | not reviewed |
+| RENAL_TRAMADOL_CRCL_30 | tramadol | CRCL < 30 | WARNING / MODERATE | RENAL | Tramadol and CrCl below 30 mL/min. | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): tramadol SmPC, section 4.2 (renal impairment: longer dosing interval when CrCl is below 30 mL/min) | not reviewed |
+| RENAL_AMOXICILLIN_CLAVULANATE_CRCL_30 | amoxicillin_clavulanate | CRCL < 30 | WARNING / MODERATE | RENAL | Amoxicillin-clavulanate and CrCl below 30 mL/min. | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): amoxicillin-clavulanate SmPC, section 4.2 (renal impairment: adjust dose when CrCl is below 30 mL/min) | not reviewed |
 | RENAL_UNKNOWN_EGFR | Drugs with a renal rule using this lab | Lab for EGFR is missing | WARNING / MODERATE | RENAL | Renal function unknown: eGFR is missing for a drug with a renal rule. | Project policy, docs/spec/requirements.md AC-001.5 / assumption A-5: a missing lab for a drug with a renal rule gives at least a warning. This is a design choice, not SmPC text | not reviewed |
 | RENAL_UNKNOWN_CRCL | Drugs with a renal rule using this lab | Lab for CRCL is missing | WARNING / MODERATE | RENAL | Renal function unknown: creatinine is missing for a drug with a renal rule. | Project policy, docs/spec/requirements.md AC-001.5 / assumption A-5: a missing lab for a drug with a renal rule gives at least a warning. This is a design choice, not SmPC text | not reviewed |
+| POTASSIUM_RAAS_ABOVE_5_5 | Classes ACE_INHIBITOR, POTASSIUM_SPARING | potassium_mmol_l > 5.5 (strictest rule on this lab shown) | BLOCKED / HIGH | HYPERKALAEMIA | ACE inhibitor or potassium-sparing drug with potassium above 5.5 mmol/L. | McDonagh TA et al., 2021 ESC Guidelines for the diagnosis and treatment of acute and chronic heart failure, Eur Heart J 2021;42:3599-3726 (potassium above 5.5 mmol/L: reduce or stop); AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): enalapril, ramipril and spironolactone SmPCs, sections 4.3 to 4.5 (hyperkalaemia) | not reviewed |
+| POTASSIUM_RAAS_ABOVE_5_0 | Classes ACE_INHIBITOR, POTASSIUM_SPARING | potassium_mmol_l > 5 (strictest rule on this lab shown) | WARNING / MODERATE | HYPERKALAEMIA | ACE inhibitor or potassium-sparing drug with potassium above 5.0 mmol/L. | McDonagh TA et al., 2021 ESC Guidelines for the diagnosis and treatment of acute and chronic heart failure, Eur Heart J 2021;42:3599-3726 (start only with potassium of 5.0 mmol/L or less); AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): enalapril, ramipril and spironolactone SmPCs, section 4.4 (monitor potassium) | not reviewed |
+| PLATELETS_ANTICOAGULANT_BELOW_50000 | Classes ANTICOAGULANT, LMWH | platelets_per_ul < 50000 (strictest rule on this lab shown) | BLOCKED / HIGH | BLEEDING | Anticoagulant with platelets below 50,000 per µL. | Samuelson Bannow BT et al., Management of anticoagulation for cancer-associated thrombosis in patients with thrombocytopenia: guidance from the ISTH SSC, J Thromb Haemost 2018;16:1246-1249 (full-dose anticoagulation with platelets of 50,000 per µL or more); AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): enoxaparin, acenocoumarol and warfarin SmPCs, section 4.4 | not reviewed |
+| PLATELETS_NSAID_BELOW_50000 | Classes NSAID | platelets_per_ul < 50000 (strictest rule on this lab shown) | WARNING / HIGH | BLEEDING | NSAID with platelets below 50,000 per µL. | Project policy aligned with the anticoagulation threshold in Samuelson Bannow BT et al., Management of anticoagulation for cancer-associated thrombosis in patients with thrombocytopenia: guidance from the ISTH SSC, J Thromb Haemost 2018;16:1246-1249; NSAID SmPCs, section 4.4 (caution in bleeding disorders). The NSAID threshold is a design choice, not SmPC text | not reviewed |
+| POTASSIUM_UNKNOWN_RAAS | Classes ACE_INHIBITOR, POTASSIUM_SPARING | potassium_mmol_l is missing | WARNING / MODERATE | HYPERKALAEMIA | Potassium unknown: missing for an ACE inhibitor or potassium-sparing drug. | Project policy, like AC-001.5 for renal labs: a missing potassium for these drugs gives a warning. This is a design choice, not SmPC text | not reviewed |
 
 ## Numeric renal dose guidance (hidden until you sign it off)
 
@@ -74,15 +89,27 @@ How to read the sheet:
 
 | Proposed drug / conflict | Alternative | Proposed dose | Shown now | Source | Review |
 |---|---|---|---|---|---|
-| dexketoprofen / ANTIPLATELET_ACS | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
-| dexketoprofen / GI_BLEED | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
-| ibuprofen / ANTIPLATELET_ACS | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
-| ibuprofen / GI_BLEED | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
-| naproxen / ANTIPLATELET_ACS | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
-| naproxen / GI_BLEED | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
-| diclofenac / ANTIPLATELET_ACS | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
-| diclofenac / GI_BLEED | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
-| dexketoprofen / RENAL | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
+| dexketoprofen / ANTIPLATELET_ACS | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
+| dexketoprofen / GI_BLEED | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
+| dexketoprofen / BLEEDING | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
+| dexketoprofen / HEART_FAILURE | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
+| dexketoprofen / PREGNANCY | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
+| ibuprofen / ANTIPLATELET_ACS | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
+| ibuprofen / GI_BLEED | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
+| ibuprofen / BLEEDING | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
+| ibuprofen / HEART_FAILURE | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
+| ibuprofen / PREGNANCY | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
+| naproxen / ANTIPLATELET_ACS | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
+| naproxen / GI_BLEED | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
+| naproxen / BLEEDING | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
+| naproxen / HEART_FAILURE | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
+| naproxen / PREGNANCY | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
+| diclofenac / ANTIPLATELET_ACS | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
+| diclofenac / GI_BLEED | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
+| diclofenac / BLEEDING | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
+| diclofenac / HEART_FAILURE | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
+| diclofenac / PREGNANCY | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
+| dexketoprofen / RENAL | paracetamol | 1 g, PO, every 8 hours | Dose: consult SmPC | AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es): paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); dose to be confirmed by the specialist | not reviewed |
 
 ## Preset cases and their rules cards
 
@@ -200,6 +227,63 @@ Rules card (Layer 1 only):
   - `RENAL_DEXKETOPROFEN_CRCL_60`: Dexketoprofen and CrCl below 60 mL/min (moderate to severe renal impairment).
 - Source: `rules`; alternative: Paracetamol, Dose: consult SmPC
 
+### Preset G: Atrial fibrillation on warfarin; ibuprofen proposed
+
+*Synthetic patient — invented data, not a real person.*
+
+- Patient: 76 years, sex M, 79 kg; creatinine 1.0 mg/dL, eGFR 72.0
+- Coded diagnoses: none; chronic medication: warfarin; allergies: none
+- Note: 76-year-old man with left knee pain after a fall at home. Atrial fibrillation on long-term anticoagulation. No head injury.
+- Proposed order: ibuprofen 600 mg PO every 8 hours
+
+Rules card (Layer 1 only):
+
+- Status / tier: **BLOCKED** / HIGH
+- Headline: Order conflicts with patient context
+- Rationale: NSAID with an oral anticoagulant (acenocoumarol or warfarin): bleeding risk.
+- Renal adjustment flag: False; Cockcroft-Gault: not computed
+- Fired rules:
+  - `NSAID_ORAL_ANTICOAGULANT`: NSAID with an oral anticoagulant (acenocoumarol or warfarin): bleeding risk.
+- Source: `rules`; alternative: Paracetamol, Dose: consult SmPC
+
+### Preset H: Hypertension with high potassium; enalapril proposed
+
+*Synthetic patient — invented data, not a real person.*
+
+- Patient: 68 years, sex F, 71 kg; creatinine 1.1 mg/dL, eGFR 55.0
+- Coded diagnoses: none; chronic medication: none; allergies: none
+- Note: 68-year-old woman referred for a blood pressure of 182/104 mmHg, no chest pain or neurological symptoms. Potassium 5.8 mmol/L on today's labs.
+- Proposed order: enalapril 5 mg PO once daily
+
+Rules card (Layer 1 only):
+
+- Status / tier: **BLOCKED** / HIGH
+- Headline: Order conflicts with patient context
+- Rationale: ACE inhibitor or potassium-sparing drug with potassium above 5.5 mmol/L.
+- Renal adjustment flag: False; Cockcroft-Gault: not computed
+- Fired rules:
+  - `POTASSIUM_RAAS_ABOVE_5_5`: ACE inhibitor or potassium-sparing drug with potassium above 5.5 mmol/L.
+- Source: `rules`; alternative: none on the rules card
+
+### Preset I: Pregnancy stated only in the note; ibuprofen proposed
+
+*Synthetic patient — invented data, not a real person.*
+
+- Patient: 31 years, sex F, 70 kg; creatinine 0.6 mg/dL, eGFR 118.0
+- Coded diagnoses: none; chronic medication: none; allergies: none
+- Note: 31-year-old woman with low back pain since yesterday, no trauma, no red flags. She is 30 weeks pregnant.
+- Proposed order: ibuprofen 400 mg PO every 8 hours
+
+Rules card (Layer 1 only):
+
+- Status / tier: **NO_ISSUE** / LOW
+- Headline: No issue found by these checks
+- Rationale: No rule in the current table conflicts with this order and context.
+- Renal adjustment flag: False; Cockcroft-Gault: not computed
+- Fired rules:
+  - none
+- Source: `rules`; alternative: none on the rules card
+
 ## Preset A: expected final card text
 
 On the coded record alone the rules say `NO_ISSUE`: the suspected ACS is only in the free-text note. The local model reads the note and returns the finding with a quote; once the quote is found word for word, the rules run again and `NSAID_ANTIPLATELET_ACS` fires, shown with the clinician's words, for example `From the clinician's note: “Suspected ACS; ECG and troponin pending.”` (ADR 0006). The wording below is illustrative, and the alternative must pass the rules again before it is shown.
@@ -237,7 +321,12 @@ On the coded record alone the rules say `NO_ISSUE`: the suspected ACS is only in
 24. Note findings: should an allergy written only in the note (template E without the coded allergy) block the order the same way as a recorded allergy?
 25. Card display: a verbatim note quote (which may contain dose text or other drug names) is shown under a fired rule, labelled as the clinician's words. Is that acceptable?
 26. Preset A card: does 'From the clinician's note: “Suspected ACS”' read as the clinician's statement and not as a system diagnosis?
-27. Missing renal lab gives WARNING 'renal function unknown' (design choice A-5, not SmPC). Is a warning right, or should some drugs (e.g. metformin) be stricter?
+27. T-014 NSAID_ORAL_ANTICOAGULANT: is BLOCKED / HIGH right for any NSAID with acenocoumarol or warfarin, or should a short course be WARNING? Should DOACs be added to the list?
+28. T-014 potassium: are 5.0 mmol/L (WARNING) and 5.5 mmol/L (BLOCKED) the right thresholds for starting an ACE inhibitor or spironolactone in the ED, and is a WARNING right when potassium is missing?
+29. T-014 NSAID_HEART_FAILURE: WARNING / HIGH because severity is unknown; should it be BLOCKED when heart failure is coded?
+30. T-014 platelets: the anticoagulant threshold of 50,000 per µL follows the ISTH guidance for cancer-associated thrombosis; the NSAID threshold is project policy. Please confirm or change both.
+31. T-014 pregnancy: ACE inhibitors and oral anticoagulants BLOCKED, NSAIDs WARNING / HIGH because the trimester is not recorded. Should the record carry gestational age so the NSAID rule can block from 20 weeks?
+32. Missing renal lab gives WARNING 'renal function unknown' (design choice A-5, not SmPC). Is a warning right, or should some drugs (e.g. metformin) be stricter?
 
 ## Sign-off
 

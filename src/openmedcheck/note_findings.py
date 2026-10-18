@@ -24,11 +24,11 @@ from openmedcheck.contracts import (
 )
 from openmedcheck.rule_table import ContextRule
 
-MAX_FINDINGS = 8  # the prompt asks for at most 2 conditions, 3 medications and 3 allergies
+MAX_FINDINGS = 10  # the prompt asks for at most 4 conditions, 3 medications and 3 allergies
 MIN_QUOTE_CHARS = 3
 MAX_QUOTE_CHARS = 120
 
-CONDITION_CODES: tuple[str, ...] = ("ACS", "ACTIVE_GI_BLEED")
+CONDITION_CODES: tuple[str, ...] = ("ACS", "ACTIVE_GI_BLEED", "HEART_FAILURE", "PREGNANCY")
 MEDICATION_CODES: tuple[str, ...] = rule_table.DRUG_IDS
 ALLERGY_CODES: tuple[str, ...] = tuple(
     dict.fromkeys(
@@ -61,6 +61,8 @@ CONDITION_TERMS: dict[str, tuple[str, ...]] = {
         "haemorrhage",
         "hemorrhage",
     ),
+    "HEART_FAILURE": ("heart failure", "cardiac failure", "hfref", "hfpef", "chf", "ccf"),
+    "PREGNANCY": ("pregnan", "gestation", "weeks pregnant"),
 }
 # Negation is local (safety review): a cue counts only inside the clause of the matched term,
 # a few words before it ("no GI bleeding", "history of ACS", "not on aspirin") or right after it
@@ -185,7 +187,9 @@ def _context_quotes(rule: ContextRule, findings: Sequence[NoteFinding]) -> list[
     quotes = [
         finding.quote
         for finding in findings
-        if finding.kind is FindingKind.CONDITION and finding.code == rule.diagnosis
+        if rule.diagnosis is not None
+        and finding.kind is FindingKind.CONDITION
+        and finding.code == rule.diagnosis
     ]
     if rule.chronic_class is not None:
         quotes += [
