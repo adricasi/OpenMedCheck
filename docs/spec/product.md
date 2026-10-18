@@ -134,17 +134,27 @@ safety invariant in a self-hosted deployment.
 | ACS / SCA | Acute coronary syndrome / síndrome coronario agudo |
 
 ## Open questions
-- [ ] Q-1: Cloud Run L4 price in europe-west1 (check https://cloud.google.com/run/pricing),
-  for the documented cost estimate only.
+- [x] Q-1: ~~Cloud Run L4 price in europe-west1.~~ Closed with a caveat (2026-10-17): NVIDIA L4
+  US$0.0001867 per second without zonal redundancy (US$0.672/h), US$0.0002909 with, per
+  https://cloud.google.com/run/pricing (instance-based billing, default region table; the
+  europe-west1 row could not be selected, see design.md Cost estimate). For the documented
+  estimate only.
 - [x] Q-2: ~~L4 GPU quota in the GCP project.~~ Not needed: no deployment (2026-10-17).
 - [ ] Q-3: Exact Gemma 4 size naming (E4B) and Ollama tag `gemma4:e4b`, from the model card.
 - [x] Q-4: Local hardware → NVIDIA GPU with ≥ 8 GB VRAM (answered 2026-10-17); targets in
   NFR-004.
 - [ ] Q-5: Preset B dose: numeric (CrCl-based, SmPC-cited) only if the specialist signs it off
   today; otherwise "renal adjustment required — consult SmPC".
-- [ ] Q-6: Do the Week 2 "Side Hustle" / "Best Use of Gemma" rules require a live hosted demo,
-  or is a repo + video accepted? (The idea brief assumed "deployed product".) Check
-  https://dev.to/challenges/hf26 before submission.
+- [x] Q-6: ~~Do the Week 2 "Side Hustle" / "Best Use of Gemma" rules require a live hosted demo?~~
+  Closed (2026-10-17): no. Source: DEV Events API `full_details` for event 80 "Hacktoberfest
+  Open-Source AI Challenge: Week 2" (https://dev.to/challenges/hf26), read 2026-10-17. A hosted
+  demo is not required; a demo video or GIF suffices. The post must say what was built and who
+  would pay for it, show a demo and explain why open innovation matters; required tag
+  `#hf26challenge`; a first user is a bonus. Judging: Writing Quality (weighted most),
+  Relevance, Creativity, Technical Execution, optional partner technology; featured category
+  "Best Use of Gemma". Submissions are due **Oct 18, 11:59 PM PDT (= Oct 19, 08:59 CEST)**, which
+  is later than the 22:00 CEST anchor used in G-4 and Constraints; 22:00 CEST stays as the
+  project's own, earlier target.
 
 ## Assumptions
 - A-1: UI in English; drug names as used in Spain (e.g. Enantyum, Adiro) with active

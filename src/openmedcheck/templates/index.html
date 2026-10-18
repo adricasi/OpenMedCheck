@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OpenMedCheck</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <div class="banner" role="note">Not for clinical use — synthetic patients. Not a medical device.</div>
+  <header class="page-header">
+    <h1>OpenMedCheck</h1>
+    <p>Prescribing check for emergency department orders. Synthetic patients only.</p>
+    <p id="model-status" class="model-status" role="status">Model status: checking…</p>
+  </header>
+  <main class="layout">
+    <section class="chart" aria-labelledby="chart-heading">
+      <h2 id="chart-heading">Patient chart</h2>
+      <div class="presets" role="group" aria-label="Synthetic patient presets">
+        <button type="button" class="preset-button" data-preset="A">Preset A</button>
+        <button type="button" class="preset-button" data-preset="B">Preset B</button>
+        <button type="button" class="preset-button" data-preset="C">Preset C</button>
+      </div>
+      <p id="preset-title" class="preset-title"></p>
+      <p id="synthetic-label" class="synthetic-label"></p>
+
+      <form id="check-form" novalidate>
+        <p id="form-error" class="field-error" role="alert" hidden></p>
+        <fieldset>
+          <legend>Patient</legend>
+          <div class="field">
+            <label for="f-age">Age (years, 18–110, required)</label>
+            <input id="f-age" aria-required="true" type="number" inputmode="numeric" step="1" data-path="context.age" aria-describedby="e-age">
+            <span id="e-age" class="field-error" hidden></span>
+          </div>
+          <div class="field">
+            <label for="f-sex">Sex</label>
+            <select id="f-sex" data-path="context.sex" aria-describedby="e-sex">
+              <option value="M">Male</option>
+              <option value="F">Female</option>
+            </select>
+            <span id="e-sex" class="field-error" hidden></span>
+          </div>
+          <div class="field">
+            <label for="f-weight">Weight (kg, 30–250, required)</label>
+            <input id="f-weight" aria-required="true" type="number" inputmode="decimal" step="any" data-path="context.weight_kg" aria-describedby="e-weight">
+            <span id="e-weight" class="field-error" hidden></span>
+          </div>
+          <div class="field">
+            <label for="f-reason">Reason for consult</label>
+            <input id="f-reason" type="text" maxlength="200" data-path="context.reason_for_consult" aria-describedby="e-reason">
+            <span id="e-reason" class="field-error" hidden></span>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Labs</legend>
+          <div class="field">
+            <label for="f-creatinine">Creatinine (mg/dL, 0.1–20)</label>
+            <input id="f-creatinine" type="number" inputmode="decimal" step="any" data-path="context.labs.creatinine_mg_dl" aria-describedby="e-creatinine">
+            <span id="e-creatinine" class="field-error" hidden></span>
+          </div>
+          <div class="field">
+            <label for="f-egfr">eGFR (mL/min/1.73 m², 0–200)</label>
+            <input id="f-egfr" type="number" inputmode="decimal" step="any" data-path="context.labs.egfr_ml_min_1_73m2" aria-describedby="e-egfr">
+            <span id="e-egfr" class="field-error" hidden></span>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Emergency department note</legend>
+          <div class="field field-wide">
+            <label for="f-note">Free-text note</label>
+            <textarea id="f-note" rows="6" maxlength="2000" data-path="context.ed_note" aria-describedby="e-note"></textarea>
+            <span id="e-note" class="field-error" hidden></span>
+          </div>
+          <p class="read-only">Recorded conditions: <span id="ro-conditions">none</span></p>
+          <p class="read-only">Chronic medication: <span id="ro-chronic">none</span></p>
+          <p class="read-only">Recorded allergies: <span id="ro-allergies">none</span></p>
+        </fieldset>
+
+        <fieldset>
+          <legend>Proposed order</legend>
+          <div class="field">
+            <label for="f-drug">Drug</label>
+            <select id="f-drug" data-path="order.drug_id" aria-describedby="e-drug"></select>
+            <span id="e-drug" class="field-error" hidden></span>
+          </div>
+          <div class="field">
+            <label for="f-dose">Dose (required)</label>
+            <input id="f-dose" aria-required="true" type="text" maxlength="100" data-path="order.dose_text" aria-describedby="e-dose">
+            <span id="e-dose" class="field-error" hidden></span>
+          </div>
+          <div class="field">
+            <label for="f-route">Route</label>
+            <select id="f-route" data-path="order.route" aria-describedby="e-route">
+              <option value="PO">PO (oral)</option>
+              <option value="IV">IV</option>
+              <option value="IM">IM</option>
+              <option value="SC">SC</option>
+            </select>
+            <span id="e-route" class="field-error" hidden></span>
+          </div>
+          <div class="field">
+            <label for="f-frequency">Frequency (required)</label>
+            <input id="f-frequency" aria-required="true" type="text" maxlength="100" data-path="order.frequency" aria-describedby="e-frequency">
+            <span id="e-frequency" class="field-error" hidden></span>
+          </div>
+        </fieldset>
+
+        <button type="submit" id="check-button" class="primary" disabled>Check order</button>
+      </form>
+    </section>
+
+    <section class="result" aria-labelledby="result-heading">
+      <h2 id="result-heading" tabindex="-1">Check result</h2>
+      <div id="card-area" class="card-area" aria-live="polite" aria-busy="false">
+        <p class="placeholder">Load a preset, then press “Check order”.</p>
+      </div>
+      <div class="sign">
+        <button type="button" id="sign-button" class="primary" aria-describedby="sign-hint" disabled>Sign order</button>
+        <p id="sign-hint" class="hint"></p>
+        <p id="sign-result" class="sign-result" role="status"></p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,10 +1,16 @@
 [project]
 name = "openmedcheck"
 version = "0.1.0"
-description = "TODO: one-line description of openmedcheck."
+description = "Open-source prescribing check for ED doctors (synthetic patients only; not a medical device)."
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "fastapi>=0.143.3",
+    "httpx>=0.28.1",
+    "jinja2>=3.1.6",
+    "pydantic>=2.14.1",
+    "uvicorn>=0.54.0",
+]
 
 [dependency-groups]
 dev = [
@@ -13,7 +19,11 @@ dev = [
   "ruff>=0.6",
   "mypy>=1.11",
   "pip-audit>=2.7",
+  "hypothesis>=6.170.1",
 ]
+
+[project.scripts]
+openmedcheck = "openmedcheck.__main__:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -40,8 +50,11 @@ mypy_path = "src"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra --strict-markers"
-markers = ["integration: tests that need external services"]
+addopts = "-ra --strict-markers -m 'not ollama'"
+markers = [
+  "integration: tests that need external services",
+  "ollama: real-model tests against a local Ollama (local only, not in CI)",
+]
 
 [tool.coverage.run]
 source = ["src"]

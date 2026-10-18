@@ -17,7 +17,7 @@ All tasks: `uv run ruff check . && uv run ruff format --check . && uv run mypy s
 pytest --cov` pass and CI is green, unless stated otherwise.
 
 ## Milestone 1: Walking skeleton
-- [ ] T-001: Spike: local Gemma 4 latency and JSON validity
+- [x] T-001: Spike: local Gemma 4 latency and JSON validity
   - Requirements: REQ-003, NFR-004, NFR-012 (risk: model naming Q-3, speed, schema reliability)
   - Depends on: —
   - Scope: `scripts/spike_ollama.py` (throwaway allowed, but typed); `docs/measurements/`.
@@ -26,7 +26,7 @@ pytest --cov` pass and CI is green, unless stated otherwise.
   - Done when: `docs/measurements/2026-10-17-spike.md` records the model tag, GPU, warm p50/p95
     and valid-output rate; a go/no-go against NFR-004 (p95 < 3 s) and NFR-012 (≥ 95%) is
     written down, with the fallback chosen if either misses (E2B or few-shot, ADR 0004).
-- [ ] T-002: App skeleton: contracts, config, rules-only check end to end
+- [x] T-002: App skeleton: contracts, config, rules-only check end to end
   - Requirements: REQ-001 (AC-001.1, AC-001.4), REQ-010 (AC-010.1), REQ-011 (AC-011.3)
   - Depends on: —
   - Scope: replace the scaffold `core.py`/`test_core.py`; `contracts` (Pydantic models and
@@ -40,7 +40,7 @@ pytest --cov` pass and CI is green, unless stated otherwise.
     `uv run openmedcheck` serves `http://127.0.0.1:8000`; CI green.
 
 ## Milestone 2: Safety core
-- [ ] T-003: Rule table, Cockcroft-Gault, full rules engine, presets, review sheet
+- [~] T-003: Rule table, Cockcroft-Gault, full rules engine, presets, review sheet
   - Requirements: REQ-002 (AC-002.1 … AC-002.8), REQ-001 (AC-001.5), REQ-006 (data, AC-006.4),
     NFR-009, NFR-011
   - Depends on: T-002
@@ -54,7 +54,7 @@ pytest --cov` pass and CI is green, unless stated otherwise.
     `NO_ISSUE`, preset B is `WARNING` with the renal flag, preset C is `NO_ISSUE`;
     `docs/clinical-review.md` (rule table + the 3 rules cards + preset A's expected final card
     text) is generated and **sent to the specialist** (before Sat 22:00).
-- [ ] T-004: Escalate-only combiner and alternative re-check
+- [x] T-004: Escalate-only combiner and alternative re-check
   - Requirements: REQ-004 (AC-004.1 … AC-004.9), REQ-001 (AC-001.3), NFR-009
   - Depends on: T-003
   - Scope: `combiner` (pure merge, text-source selection, flag union, `downgrade_rejected`),
@@ -64,7 +64,7 @@ pytest --cov` pass and CI is green, unless stated otherwise.
     final BLOCKED", "renal flag never cleared", "renal flag ⇒ ≥ WARNING", "shown alternative
     always passes AC-004.6"; tests for AC-004.5 … AC-004.7, AC-004.9 and AC-001.3 pass (incl.
     preset A: no NSAID can be the alternative); combiner has 100% line + branch coverage.
-- [ ] T-005: Model client, prompt, check service, fail-safe and logging
+- [x] T-005: Model client, prompt, check service, fail-safe and logging
   - Requirements: REQ-003 (AC-003.1 … AC-003.3, AC-003.5), REQ-005, REQ-001, AC-004.8,
     NFR-002, NFR-003, NFR-004 (timeout), NFR-007
   - Depends on: T-001, T-004
@@ -94,7 +94,7 @@ pytest --cov` pass and CI is green, unless stated otherwise.
     Sunday final-card check; Q-5 closed in product.md.
 
 ## Milestone 3: User interface
-- [ ] T-007: Chart, presets, progressive card, actions
+- [~] T-007: Chart, presets, progressive card, actions
   - Requirements: REQ-006 (AC-006.1 … AC-006.3 in the UI), REQ-007, REQ-008, REQ-009,
     REQ-011 (AC-011.2), REQ-014 (Could), NFR-010
   - Depends on: T-005
@@ -111,7 +111,7 @@ pytest --cov` pass and CI is green, unless stated otherwise.
     paracetamol → `NO_ISSUE`), AC-008.2 (Sign disabled on `BLOCKED`), AC-008.7 (Sign disabled
     while checking; stale responses dropped after an edit), AC-008.8, keyboard-only and with
     Ollama stopped; a usability review finds no blocking issue.
-- [ ] T-008: Hardening: local exposure, XSS, wording, concurrency
+- [x] T-008: Hardening: local exposure, XSS, wording, concurrency
   - Requirements: NFR-001, NFR-005, NFR-008, REQ-010 (AC-010.2)
   - Depends on: T-007
   - Scope: trusted-host middleware, 16 KB body limit (413), JSON-only (415), no CORS,
@@ -122,7 +122,7 @@ pytest --cov` pass and CI is green, unless stated otherwise.
     blocking issue.
 
 ## Milestone 4: Evidence, docs and submission
-- [ ] T-009: Measurement script and real-model integration test
+- [x] T-009: Measurement script and real-model integration test
   - Requirements: REQ-012, AC-003.4, NFR-004, NFR-012
   - Depends on: T-006, T-007
   - Scope: `scripts/measure.py` (≥ 20 calls over presets, p50/p95 rules card and final card,
@@ -132,7 +132,7 @@ pytest --cov` pass and CI is green, unless stated otherwise.
   - Done when: `uv run pytest -m ollama` passes locally; `docs/measurements/<date>.md` is
     written; NFR-004 and NFR-012 met, or the miss and its cause are recorded honestly.
     **Feature freeze after this task (Sun 12:00).**
-- [ ] T-010: README, licence and fresh-clone run-through
+- [x] T-010: README, licence and fresh-clone run-through
   - Requirements: REQ-011 (AC-011.1), NFR-008, REQ-010 (AC-010.2)
   - Depends on: T-009
   - Scope: README (what it is, disclaimer, install Ollama + `ollama pull`, `uv sync`,
@@ -141,7 +141,7 @@ pytest --cov` pass and CI is green, unless stated otherwise.
     `pyproject.toml`.
   - Done when: a fresh clone in a temp directory followed step by step serves the UI and
     evaluates presets A, B, C; wording test passes on the README.
-- [ ] T-011: GCP reference architecture and deployment plan finalised (documentation only)
+- [x] T-011: GCP reference architecture and deployment plan finalised (documentation only)
   - Requirements: REQ-013 (AC-013.1 … AC-013.3)
   - Depends on: T-009
   - Scope: review design.md § GCP reference architecture and § Deployment plan against what
@@ -149,7 +149,7 @@ pytest --cov` pass and CI is green, unless stated otherwise.
     mark "Not implemented". No changes under `infra/`.
   - Done when: design.md sections are complete and sourced; Q-1 closed or marked unverified;
     `git diff --stat main -- infra/` is empty.
-- [ ] T-012: Demo video and DEV post
+- [~] T-012: Demo video and DEV post
   - Requirements: G-4 (supports REQ-006, REQ-010)
   - Depends on: T-010 (T-011 for the architecture section)
   - Scope: 60 s demo GIF/video of presets A → alternative, B, C, and the model-down fallback;
