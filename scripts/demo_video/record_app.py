@@ -1,7 +1,9 @@
 """Record the running app for the demo video (T-012): Bed 3, then Bed 5.
 
-Bed 3: suspected ACS in today's note -> verify -> BLOCKED -> alternative -> re-check.
-Bed 5: a past GI bleed in the past medical history -> verify -> WARNING with the quote.
+Bed 3: scroll the whole record (note and history) -> back to the top -> verify -> BLOCKED ->
+accept the alternative -> the prescription changes and is re-checked.
+Bed 5: scroll the whole record (the long past medical history) -> back to the top -> verify ->
+WARNING with the quote.
 
 Drives the real UI with Playwright against a running instance (default http://127.0.0.1:8000,
 e.g. `docker compose up` with the GPU override) and writes a video plus the timestamps of each
@@ -42,6 +44,35 @@ def open_room(page: Page, bed: str, mark: Callable[[str], None], name: str) -> N
     mark(name)
 
 
+# Smooth scroll in page JavaScript, so the recording shows a steady, readable movement.
+_SCROLL_JS = """([target, ms]) => new Promise((done) => {
+  const start = window.scrollY, distance = target - start, t0 = performance.now();
+  function step(now) {
+    const k = Math.min((now - t0) / ms, 1);
+    const eased = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    window.scrollTo(0, start + distance * eased);
+    if (k < 1) requestAnimationFrame(step); else done();
+  }
+  requestAnimationFrame(step);
+})"""
+
+
+def scroll_to(page: Page, target: float | str, ms: int) -> None:
+    """Scroll to a y position, or to "bottom", over ``ms`` milliseconds."""
+    if target == "bottom":
+        target = page.evaluate("document.documentElement.scrollHeight - window.innerHeight")
+    page.evaluate(_SCROLL_JS, [target, ms])
+
+
+def read_record(page: Page) -> None:
+    """Top to bottom through the whole record, a pause on the free text, then back to the top."""
+    page.wait_for_timeout(1200)
+    scroll_to(page, "bottom", 7000)
+    page.wait_for_timeout(1800)
+    scroll_to(page, 0, 1500)
+    page.wait_for_timeout(600)
+
+
 def verify(page: Page, mark: Callable[[str], None], suffix: str, card_timeout_s: float) -> None:
     page.locator("#autofill-button").click()
     mark(f"autofill{suffix}")
@@ -79,30 +110,25 @@ def record(url: str, out_dir: Path, ready_timeout_s: float, card_timeout_s: floa
         mark("open")
 
         open_room(page, "Bed 3", mark, "room3")
-        page.wait_for_timeout(4000)  # time to read today's note
+        read_record(page)
 
         verify(page, mark, "3", card_timeout_s)
-        page.wait_for_timeout(6500)  # the verdict, the quoted evidence and the alternative
+        page.wait_for_timeout(7000)  # the verdict, the quoted evidence and the alternative
 
         page.locator("#use-alternative").click()
         mark("alternative")
         page.locator("#card-area article.card.card-compact").wait_for(timeout=card_timeout_s * 1000)
         mark("recheck")
-        page.locator("#card-area").scroll_into_view_if_needed()
-        page.wait_for_timeout(4000)
+        # Show the changed prescription (now paracetamol) and its re-check together.
+        page.locator("#order-fields").scroll_into_view_if_needed()
+        scroll_to(page, 0, 800)
+        page.wait_for_timeout(5500)
 
         open_room(page, "Bed 5", mark, "room5")
-        page.wait_for_timeout(2500)
-        # Show the long past medical history: the line that matters is in the middle of it.
-        page.locator("#past-history-view").scroll_into_view_if_needed()
-        page.wait_for_timeout(4500)
+        read_record(page)
 
         verify(page, mark, "5", card_timeout_s)
-        # The quote is now highlighted in the history; show it, then the card.
-        page.locator("#past-history-view mark").first.scroll_into_view_if_needed()
-        page.wait_for_timeout(4000)
-        page.locator("#card-area article.card").scroll_into_view_if_needed()
-        page.wait_for_timeout(5000)
+        page.wait_for_timeout(8000)  # the warning and the quoted line of the history
         mark("end")
 
         video = page.video

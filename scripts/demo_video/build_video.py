@@ -116,6 +116,7 @@ def build_segment(
     marks: dict[str, float],
     draft_label: str | None,
     work: Path,
+    burn_captions: bool,
 ) -> Path:
     captions = work / f"{scene.scene_id}.srt"
     write_captions(scene.narration, LEAD_S, voice_s, captions)
@@ -153,11 +154,9 @@ def build_segment(
                 "box=1:boxcolor=0xf2b134:boxborderw=10:x=44:y=62"
             )
     fade_out = max(duration - FADE_S, 0)
-    style = CAPTION_STYLE
-    video_filter += (
-        f",fade=t=in:st=0:d={FADE_S},fade=t=out:st={fade_out:.3f}:d={FADE_S},"
-        f"subtitles={captions}:force_style='{style}'"
-    )
+    video_filter += f",fade=t=in:st=0:d={FADE_S},fade=t=out:st={fade_out:.3f}:d={FADE_S}"
+    if burn_captions:
+        video_filter += f",subtitles={captions}:force_style='{CAPTION_STYLE}'"
     ffmpeg(
         *video_in,
         "-i", str(voice_wav),
@@ -183,6 +182,9 @@ def main() -> None:
         "--out", type=Path, default=None, help="default: <recording>/openmedcheck-demo.mp4"
     )
     parser.add_argument("--draft-label", default=None, help="text burned into the app scenes")
+    parser.add_argument(
+        "--captions", action="store_true", help="burn in captions and write a sidecar .srt"
+    )
     args = parser.parse_args()
 
     voice, speed, scenes = load_scenes(args.scenes)
@@ -201,7 +203,7 @@ def main() -> None:
         wav = work / f"{scene.scene_id}.wav"
         voice_s = speak(tts, voice, speed, scene.narration, wav)
         segment = build_segment(
-            scene, wav, voice_s, slides, recording, marks, args.draft_label, work
+            scene, wav, voice_s, slides, recording, marks, args.draft_label, work, args.captions
         )
         segments.append(segment)
         captions_all.append((clock + LEAD_S, voice_s, scene.narration))
@@ -216,8 +218,9 @@ def main() -> None:
         "-c:a", "aac", "-b:a", "160k", "-ar", "48000",
         "-movflags", "+faststart", str(out),
     )  # fmt: skip
-    _write_full_captions(captions_all, out.with_suffix(".srt"))
-    print(f"wrote {out} ({clock:.1f} s) and {out.with_suffix('.srt')}")
+    if args.captions:
+        _write_full_captions(captions_all, out.with_suffix(".srt"))
+    print(f"wrote {out} ({clock:.1f} s)")
 
 
 def _probe_duration(path: Path) -> str:

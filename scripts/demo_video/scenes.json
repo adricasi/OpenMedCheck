@@ -1,7 +1,7 @@
 {
-  "comment": "Demo video (T-012). Each scene is a slide from slides.html or a cut of the app recording between two marks written by record_app.py. Narration is spoken as written: spell out abbreviations that should not be read as words.",
+  "comment": "Demo video (T-012), under 2 minutes. Each scene is a slide from slides.html or a cut of the app recording between two marks written by record_app.py. Narration is spoken as written: spell out abbreviations that should not be read as words.",
   "voice": "af_heart",
-  "speed": 1.08,
+  "speed": 1.1,
   "scenes": [
     {
       "id": "intro",
@@ -11,72 +11,42 @@
     {
       "id": "problem",
       "slide": "problem",
-      "narration": "Emergency doctors write orders under time pressure. Two things are easy to miss: a suspicion written only in today's note, before anything is coded, and one past event buried in a long medical history. Most coded-data checks we looked at don't read free text, and clinicians override between about half and ninety-six percent of medication alerts, so a real one can get lost."
-    },
-    {
-      "id": "solution",
-      "slide": "solution",
-      "narration": "Open Med Check runs Gemma 4, an open-weight model that can run on a hospital's own hardware. Gemma finds the facts in the note and the history, and a rule table written from drug labels makes the decision. When nothing conflicts, it stays silent. Let's see two synthetic patients."
+      "narration": "Emergency orders are written under time pressure. The key fact is often only in free text: a suspicion in today's note, or one line in a long history. Most coded-data checks we looked at don't read it, and clinicians override about half to ninety-six percent of medication alerts."
     },
     {
       "id": "bed3-open",
-      "clip": [
-        "start",
-        "verify3"
-      ],
-      "narration": "Bed three: chest pain, a suspected acute coronary syndrome written in today's note, and daily aspirin. The doctor orders dexketoprofen, an anti-inflammatory. The suspected A C S is not coded yet, so the rules alone see no problem."
+      "clip": ["start", "verify3"],
+      "narration": "Bed three: chest pain, and daily aspirin in the record. A suspected acute coronary syndrome is written only in today's note. The doctor orders dexketoprofen, an anti-inflammatory."
     },
     {
       "id": "bed3-verdict",
-      "clip": [
-        "verify3",
-        "alternative"
-      ],
-      "narration": "Gemma reads the note and quotes it. Code checks every quote word for word, and the rules decide: blocked, with the doctor's own words as the evidence, and an alternative the rules have already re-checked."
+      "clip": ["verify3", "alternative"],
+      "narration": "Gemma 4 reads the note and quotes it. Code checks the quote word for word, and a rule written from the drug label decides: blocked, with the doctor's own words as evidence."
     },
     {
-      "id": "bed3-recheck",
-      "clip": [
-        "alternative",
-        "room5"
-      ],
-      "narration": "One click re-checks paracetamol: no issue found by these checks."
+      "id": "bed3-alternative",
+      "clip": ["alternative", "room5"],
+      "narration": "Accepting the suggestion changes the prescription to paracetamol, and the rules check it again: no issue found by these checks."
     },
     {
       "id": "bed5-open",
-      "clip": [
-        "room5",
-        "verify5"
-      ],
-      "narration": "Bed five: a wrist sprain after a bicycle fall, normal labs, and ibuprofen for the pain. Today's visit looks routine. But one line in his long past medical history matters: an upper G I bleed from a duodenal ulcer, in twenty twenty-one."
+      "clip": ["room5", "verify5"],
+      "narration": "Bed five: a wrist sprain and ibuprofen. One line in his long past medical history matters: an upper G I bleed from a duodenal ulcer."
     },
     {
       "id": "bed5-verdict",
-      "clip": [
-        "verify5",
-        "end"
-      ],
-      "narration": "Gemma finds that line, and code checks the quote word for word. A new rule, not yet specialist-reviewed, raises an amber warning that quotes the history, highlighted where it was written. Paracetamol is offered, with no dose until that review. The prescriber still decides."
-    },
-    {
-      "id": "how",
-      "slide": "how",
-      "narration": "So what are the rules? A table written by people, not learned by the model. Each rule comes from a drug's label or a guideline: for example, an anti-inflammatory, with a suspected acute coronary syndrome and aspirin, is blocked. Gemma only supplies the facts, with quotes that code checks word for word. The table makes the call, the same way every time. Gemma can make a verdict stricter, never softer, and if the model is down, the card says the free text was not checked."
-    },
-    {
-      "id": "results",
-      "slide": "results",
-      "narration": "On seventy-six synthetic cases we wrote ourselves, a development set and not a clinical validation, reading the note lifts the match from seventy-two to ninety-seven percent, with no false alarm on the cases that should stay silent. These figures were measured before we added the history step, which is not yet measured."
+      "clip": ["verify5", "end"],
+      "narration": "Gemma finds that line, code checks it, and a new rule, not yet specialist-reviewed, raises a warning. The prescriber still decides."
     },
     {
       "id": "open",
       "slide": "open",
-      "narration": "Because Gemma's weights are open, the note never has to leave the building. We think the buyer is the hospital's medication-safety team, paying for a maintained rule table, integration and support. That is a hypothesis we have yet to test."
+      "narration": "Gemma's weights are open, so it can run on the hospital's own hardware and the note never has to leave the building. We think the buyer is the medication-safety team, paying for a maintained rule table, integration and support: a hypothesis we have yet to test."
     },
     {
       "id": "end",
       "slide": "end",
-      "narration": "Open Med Check: Gemma reads the note and the history; the rules decide. Today it is a demonstrator on synthetic patients, not a medical device. Next, we are looking for a clinical pilot with a hospital pharmacy. It's open source, on GitHub."
+      "narration": "Open Med Check is a demonstrator on synthetic patients, not a medical device. Next: a clinical pilot. It's open source, on GitHub."
     }
   ]
 }

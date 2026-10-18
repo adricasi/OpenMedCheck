@@ -1,13 +1,17 @@
 # Demo video (T-012)
 
-Builds the promotional demo video (about 3 minutes): an introduction, the problems, the solution,
-a screen recording of the app on two synthetic patients, and a promotional ending, with a
-synthetic narration voice, burned-in captions and a sidecar `.srt`.
+Builds the promotional demo video (under 2 minutes): an introduction, the main problems, the app
+on two synthetic patients with Gemma in action, why open weights and who would pay, and a close,
+with a synthetic narration voice. No captions by default (`--captions` burns them in and writes a
+sidecar `.srt`).
 
-- **Bed 3** (preset A): a suspected ACS written only in today's note, home aspirin, dexketoprofen
-  → `BLOCKED` with the note's words, then "Use alternative" → paracetamol `NO_ISSUE`.
-- **Bed 5** (preset L): a wrist sprain today, "Upper GI bleed from a duodenal ulcer in 2021" in a
-  long past medical history, ibuprofen → `WARNING` quoting the history, highlighted in place. Synthetic
+- **Bed 3** (preset A): the record is scrolled from top to bottom and back, then the check runs:
+  a suspected ACS written only in today's note, home aspirin, dexketoprofen → `BLOCKED` with the
+  note's words; "Use alternative" changes the prescription to paracetamol 1 g, re-checked →
+  "No issue found by these checks".
+- **Bed 5** (preset L): the record is scrolled from top to bottom and back, then the check runs:
+  a wrist sprain today, "Upper GI bleed from a duodenal ulcer in 2021" in a long past medical
+  history, ibuprofen → `WARNING` quoting the history, highlighted in place. Synthetic
 patients only; every slide and every app frame carries the "Not for clinical use — synthetic
 patients. Not a medical device." banner.
 
@@ -48,8 +52,7 @@ uv run --with playwright==1.56.0 --with kokoro-onnx --with soundfile \
   --kokoro-model kokoro-v1.0.onnx --kokoro-voices voices-v1.0.bin
 ```
 
-Output: `build/demo/openmedcheck-demo.mp4` (1920x1080, 30 fps, H.264/AAC, about 2 minutes) and
-`build/demo/openmedcheck-demo.srt`. It needs `ffmpeg` with libass on `PATH`. The voice and speed
+Output: `build/demo/openmedcheck-demo.mp4` (1920x1080, 30 fps, H.264/AAC, under 2 minutes). It needs `ffmpeg` with libass on `PATH`. The voice and speed
 are set in `scenes.json` (`"voice"`, `"speed"`); other Kokoro voices include `am_michael` and
 `bf_emma`.
 
