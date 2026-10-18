@@ -91,6 +91,13 @@ flowchart LR
 If the model times out, is unreachable, or returns invalid output twice, the app returns the
 rules-only card instead of an error. See [design.md](docs/spec/design.md) for the details.
 
+> **Why Layer 2 isn't a footnote:** on the 76-case evaluation set below, rules alone match the
+> expected outcome on 72% of cases and miss half of everything that's only in the free-text note
+> (21/42). Reading that note is Gemma's job, not the rules': adding it lifts the match rate to
+> **97%** and the misses to **1/42**. Preset A — a suspected ACS visible only in the note — is
+> `NO_ISSUE` from rules alone and `BLOCKED` only once Gemma reads it. Full numbers: see
+> [Evaluation set](#-evaluation-set).
+
 ## 🚀 Try it
 
 OpenMedCheck is built to **run on-premises inside the hospital**, so patient context never leaves
