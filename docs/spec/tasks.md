@@ -203,6 +203,9 @@ pytest --cov` pass and CI is green, unless stated otherwise.
     note = `BLOCKED`) rather than on the UI tour — that one case is the clearest, fastest way to
     show why Layer 2 exists, and the post draft's "76 synthetic cases" section backs it with the
     aggregate 72%→97% figure. Gemma's role is the headline, not a footnote after the rules.
+  - Note (2026-10-18): video tooling in `scripts/demo_video/` (slides, narration, Playwright
+    recording, Kokoro voice, ffmpeg build); the final cut must be recorded where the real model
+    runs (`record_app.py`), see `scripts/demo_video/README.md`.
   - Done when: video is linked from the README; the post draft passes the wording rules
     (REQ-010); Q-6 answered; the user publishes and submits before Sun 22:00 CEST (human step).
 
