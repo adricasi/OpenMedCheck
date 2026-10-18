@@ -544,3 +544,18 @@ def test_ac_016_7_the_label_does_not_reach_the_next_sentence() -> None:
     item = NoteFinding(kind=FindingKind.CONDITION, code="ACTIVE_GI_BLEED", quote="melaena")
     note = "PMH: hypertension. Today two episodes of melaena."
     assert note_findings.verify([item], context(ed_note=note)) == (item,)
+
+
+def test_ac_016_7_a_pregnancy_in_the_past_history_text_is_not_current() -> None:
+    ctx = context(past_history="Pregnancy in 2015, caesarean section. Asthma.")
+    pregnancy = NoteFinding(kind=FindingKind.CONDITION, code="PREGNANCY", quote="Pregnancy in 2015")
+
+    assert note_findings.verify([pregnancy], ctx) == ()
+
+
+def test_ac_016_1_a_coded_history_is_shown_read_only_when_present() -> None:
+    html = (PACKAGE / "templates" / "index.html").read_text()
+    script = (PACKAGE / "static" / "app.js").read_text()
+
+    assert 'id="ro-history-line" hidden' in html
+    assert '$("ro-history-line").hidden = history.length === 0;' in script

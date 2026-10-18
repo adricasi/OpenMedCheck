@@ -27,6 +27,11 @@ const CONDITION_LABELS = {
   HEART_FAILURE: "heart failure",
   PREGNANCY: "pregnancy",
 };
+// Coded past history from a record system's problem list; the demo record keeps it as text.
+const HISTORY_LABELS = {
+  PAST_GI_BLEED: "previous gastrointestinal bleeding, peptic ulcer or perforation",
+  ISCHAEMIC_HEART_DISEASE: "ischaemic heart disease",
+};
 const NO_MODEL_NOTE = "Model check unavailable — rules only";
 const VERIFYING_TEXT = "Verifying the prescription with Gemma…";
 // AC-005.3: same fixed text as the server's fallback; the note was not read, so no green card.
@@ -182,8 +187,10 @@ function fillOrder(order) {
 }
 
 function showHistory() {
-  const { diagnoses, chronic_medications: chronic, allergies } = state.hidden;
+  const { diagnoses, history, chronic_medications: chronic, allergies } = state.hidden;
   $("ro-conditions").textContent = listText(diagnoses, (code) => CONDITION_LABELS[code] || code);
+  $("ro-history").textContent = listText(history, (code) => HISTORY_LABELS[code] || code);
+  $("ro-history-line").hidden = history.length === 0;
   $("ro-chronic").textContent = listText(chronic, drugName);
   $("ro-allergies").textContent = listText(allergies);
   for (const box of document.querySelectorAll(".conditions input")) {

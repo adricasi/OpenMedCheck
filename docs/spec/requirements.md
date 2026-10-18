@@ -428,7 +428,7 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
     SHALL also accept a coded past history for a record system's problem list (`history`:
     `PAST_GI_BLEED` for previous gastrointestinal bleeding, peptic ulcer or perforation;
     `ISCHAEMIC_HEART_DISEASE` for a previous ACS or MI, coronary stent or angina), default empty;
-    the demo record does not edit it. (Amended 2026-10-18: the demo first edited the coded
+    the demo record shows it read-only when present and does not edit it. (Amended 2026-10-18: the demo first edited the coded
     history with checkboxes.)
   - AC-016.2: WHEN an NSAID is ordered for a patient with `PAST_GI_BLEED` THE SYSTEM SHALL fire
     `NSAID_HISTORY_GI_BLEED` (WARNING, HIGH, conflict `PAST_GI_BLEED`); WHEN an NSAID is ordered
@@ -463,7 +463,7 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
   - AC-016.7: A current ACS or active GI bleed finding SHALL be dropped when a past-history label
     ("past medical history:", "PMH:", "medical history:", "background:") comes earlier in its
     sentence: an acute event in a past-history list is not a current one (ADR 0009). The same
-    holds for an ACS or active GI bleed quoted from the past medical history text. Chronic
+    holds for an ACS, active GI bleed or pregnancy quoted from the past medical history text. Chronic
     conditions and pregnancy in such a list or text (heart failure, "Background: 28 weeks
     pregnant") SHALL still count as current.
 

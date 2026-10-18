@@ -155,6 +155,9 @@ _FAMILY = re.compile(r"\b(?:family|fhx|fh|f/h)\b", re.IGNORECASE)
 # a chronic condition or a pregnancy in such a list ("Background: COPD, heart failure") still
 # holds today.
 _PAST_LIST_EVENT_CODES = frozenset({"ACS", "ACTIVE_GI_BLEED"})
+# The record's past medical history text is all past: a pregnancy written there ("Pregnancy in
+# 2015, caesarean section") is not a current one either; a chronic condition still holds.
+_PAST_HISTORY_TEXT_CODES = _PAST_LIST_EVENT_CODES | {"PREGNANCY"}
 _PAST_HISTORY_LABEL = re.compile(
     r"\b(?:past\s+medical\s+history|past\s+history|medical\s+history|pmhx?|background)\s*:",
     re.IGNORECASE,
@@ -318,12 +321,12 @@ def _verified(finding: NoteFinding, context: PatientContext) -> NoteFinding | No
         match = _find(finding.quote, text)
         if match is None:
             continue
-        # The record's past medical history holds past events: an ACS or a GI bleed written
-        # there is never a current one; a chronic condition there still holds (AC-016.7).
+        # The record's past medical history holds past events: an ACS, a GI bleed or a pregnancy
+        # written there is never a current one; a chronic condition there still holds (AC-016.7).
         if (
             is_past_history
             and finding.kind is FindingKind.CONDITION
-            and finding.code in _PAST_LIST_EVENT_CODES
+            and finding.code in _PAST_HISTORY_TEXT_CODES
         ):
             return None
         span = match.group()
