@@ -88,6 +88,6 @@ def test_ac_006_5_presets_carry_distinct_bed_labels(client: TestClient) -> None:
     presets = client.get("/api/presets").json()
 
     beds = [preset["bed"] for preset in presets if preset["bed"] is not None]
-    assert len(beds) == 4
+    assert len(beds) == 5
     assert all(bed.startswith("Bed ") for bed in beds)
     assert len(set(beds)) == len(beds)

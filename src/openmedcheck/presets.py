@@ -1,9 +1,10 @@
 """Synthetic template patients A-L (REQ-006). All data is invented; no real patient (AC-006.4).
 
-A, B, C and L are the predefined rooms (``bed`` set); D to K are only offered as templates when
+A, B, C, K and L are the predefined rooms (``bed`` set); D to J are only offered as templates when
 a room is added (AC-006.6, AC-006.7). G, H and I show the conflict breadth of T-014; in I the
 pregnancy is only in the note, so the rules alone say NO_ISSUE and the model's quote decides. J
-and K carry a coded past medical history; in L the past GI bleed is one item of a long history
+and K carry a coded past medical history (K: an unrelated injury today, so the order is written
+without the history in mind); in L the past GI bleed is one item of a long history
 in the note, so again only the model's quote reveals it (REQ-016, AC-016.6).
 """
 
@@ -289,8 +290,9 @@ PRESET_J = Preset(
 
 PRESET_K = Preset(
     preset_id="K",
-    title="Ischaemic heart disease in the past medical history; ibuprofen proposed",
-    bed=None,
+    title="Knee injury after a fall; ischaemic heart disease in the past medical history; "
+    "ibuprofen proposed",
+    bed="Bed 14",
     expected_rules_status=Status.WARNING,
     request=CheckRequest(
         context=PatientContext(

@@ -79,10 +79,20 @@ NSAID_ACS_GUIDANCE = """\
   ACS alone is not a conflict.
 """
 
+# Past medical history (REQ-016): the same NSAID-only fact decides whether these apply.
+NSAID_HISTORY_GUIDANCE = """\
+- PAST_GI_BLEED: the proposed drug is an NSAID and the past medical history (recorded, or in
+  note_history) includes previous gastrointestinal bleeding, peptic ulcer or perforation. Use
+  WARNING, tier HIGH, even when today's visit is unrelated.
+- ISCHAEMIC_HEART_DISEASE: the proposed drug is an NSAID and the past medical history includes a
+  previous ACS or myocardial infarction, a coronary stent or angina. Use WARNING, tier HIGH.
+"""
+
 NOT_NSAID_GUIDANCE = """\
 - ANTIPLATELET_ACS does not apply: the proposed drug is not an NSAID. Never report it and do
   not call the proposed drug an NSAID. For this order a suspected ACS or a home antiplatelet is
-  not an ANTIPLATELET_ACS conflict; still report any other conflict the context supports.
+  not an ANTIPLATELET_ACS conflict, and PAST_GI_BLEED and ISCHAEMIC_HEART_DISEASE do not apply
+  either; still report any other conflict the context supports.
 """
 
 COMMON_GUIDANCE = """\
@@ -98,8 +108,8 @@ def is_nsaid(drug_id: str) -> bool:
 
 
 def guidance_for(drug_id: str) -> str:
-    """Clinical guidance for one proposed drug; ANTIPLATELET_ACS only for an NSAID."""
-    acs = NSAID_ACS_GUIDANCE if is_nsaid(drug_id) else NOT_NSAID_GUIDANCE
+    """Clinical guidance for one proposed drug; ANTIPLATELET_ACS and history only for an NSAID."""
+    acs = NSAID_ACS_GUIDANCE + NSAID_HISTORY_GUIDANCE if is_nsaid(drug_id) else NOT_NSAID_GUIDANCE
     return "Clinical conflict guidance:\n" + acs + COMMON_GUIDANCE
 
 

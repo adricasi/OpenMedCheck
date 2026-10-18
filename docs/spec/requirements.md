@@ -222,10 +222,10 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
     analgesic) and its demo prescription is verified THE SYSTEM SHALL show a `NO_ISSUE` card with no alternative and no
     modal or blocking element.
   - AC-006.4: All patient data in presets SHALL be synthetic and labelled as such.
-  - AC-006.5: THE SYSTEM SHALL present presets A, B, C and L as predefined rooms of synthetic ED
+  - AC-006.5: THE SYSTEM SHALL present presets A, B, C, K and L as predefined rooms of synthetic ED
     patients (bed, sex, age, reason for consult) rather than as preset letters, and selecting a
-    room SHALL show its context as the patient's record (simulated). (Amended 2026-10-18: L
-    added, AC-016.6.)
+    room SHALL show its context as the patient's record (simulated). (Amended 2026-10-18: K and
+    L added, AC-016.6.)
   - AC-006.6: THE SYSTEM SHALL offer synthetic template patients: A, B, C, the three below, and
     G (warfarin + ibuprofen → rules `BLOCKED`), H (potassium 5.8 mmol/L + enalapril → rules
     `BLOCKED`) and I (pregnancy only in the note + ibuprofen → rules `NO_ISSUE`, the model's quote
@@ -448,7 +448,10 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
     shown as evidence (AC-003.7).
   - AC-016.5: The evaluation set SHALL include cases for coded history, history only in the note,
     denied history and family history, with family and denied history expected to stay silent.
-  - AC-016.6: THE SYSTEM SHALL offer a predefined room (preset L, Bed 15) where today's visit
+  - AC-016.6: THE SYSTEM SHALL offer a predefined room with a coded past history and an unrelated
+    visit (preset K, Bed 14: knee injury after a fall, ischaemic heart disease in the record, an
+    NSAID proposed → rules `WARNING`, and the model is told to report the same history conflict),
+    and a predefined room (preset L, Bed 15) where today's visit
     looks routine (a minor injury, normal labs, an empty coded history) and a past GI bleed is
     one item in a long past-medical-history list in the note, with an NSAID proposed: the rules
     alone give `NO_ISSUE`, and the final card is `WARNING` with the note's words as evidence once

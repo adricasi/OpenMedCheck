@@ -202,9 +202,9 @@ uv sync                     # install the Python environment
 uv run openmedcheck         # serve the app (leave it running)
 ```
 
-Then open <http://127.0.0.1:8000> in a browser. The page shows the disclaimer banner and four
-rooms with synthetic ED patients (Bed 3, Bed 7, Bed 12 and Bed 15, which are presets A, B, C and
-L).
+Then open <http://127.0.0.1:8000> in a browser. The page shows the disclaimer banner and five
+rooms with synthetic ED patients (Bed 3, Bed 7, Bed 12, Bed 14 and Bed 15, which are presets A,
+B, C, K and L).
 
 ## Using the demo
 
@@ -218,7 +218,7 @@ bleed, a penicillin allergy, reduced kidney function, warfarin, high potassium, 
 stated only in the note, a previous GI bleed and ischaemic heart disease in the past medical
 history). "Add patient" opens an empty record to
 fill in, including conditions, past medical history, chronic medication and allergies; "Save patient" keeps it. Added
-rooms and patients exist only in the open page: nothing is stored, and a reload shows the four
+rooms and patients exist only in the open page: nothing is stored, and a reload shows the five
 predefined rooms again. "Edit scenario (demo only)" unlocks a record so you can try other cases,
 and "What the record system would send" shows the request body. When the page loads it asks the
 server to warm the model up. A first check right after Ollama starts can take longer than the
@@ -241,7 +241,7 @@ the model ready (the rules column is what `/api/check/rules` returns):
 | H (added room) | `BLOCKED`: ACE inhibitor (enalapril) with potassium above 5.5 mmol/L | `BLOCKED`, no alternative |
 | I (added room) | `NO_ISSUE`: the pregnancy is stated only in the note | `WARNING` (PREGNANCY_NSAID) once Gemma's quoted finding is kept; not measured on this preset |
 | J (added room) | `WARNING`: NSAID with a previous GI bleed in the past medical history (rule not reviewed yet) | `WARNING`; alternative: Paracetamol, "Dose: consult SmPC"; not measured on this preset |
-| K (added room) | `WARNING`: NSAID with ischaemic heart disease in the past medical history (rule not reviewed yet) | `WARNING`; alternative: Paracetamol, "Dose: consult SmPC"; not measured on this preset |
+| K (Bed 14) | `WARNING`: NSAID with ischaemic heart disease in the past medical history (rule not reviewed yet) | `WARNING`; alternative: Paracetamol, "Dose: consult SmPC"; not measured on this preset |
 
 "Use alternative" on preset A fills in the specialist-reviewed rule-table dose (paracetamol 1 g,
 PO, every 8 hours) and verifies the changed order again on the same patient; that second check

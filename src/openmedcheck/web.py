@@ -197,6 +197,9 @@ def create_app(config: Config | None = None, model_client: ModelClient | None = 
         response.headers.update(SECURITY_HEADERS)
         if request.url.path.startswith("/api/"):
             response.headers["Cache-Control"] = "no-store"
+        elif request.url.path.startswith("/static/"):
+            # Revalidate with the ETag on every load: an upgraded app never runs stale CSS or JS.
+            response.headers["Cache-Control"] = "no-cache"
         return response
 
     templates = Jinja2Templates(directory=_PACKAGE_DIR / "templates")

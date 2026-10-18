@@ -310,7 +310,7 @@ Rules card (Layer 1 only):
   - `NSAID_HISTORY_GI_BLEED`: NSAID with a recorded history of gastrointestinal bleeding, peptic ulcer or perforation.
 - Source: `rules`; alternative: Paracetamol, Dose: consult SmPC
 
-### Preset K: Ischaemic heart disease in the past medical history; ibuprofen proposed
+### Preset K: Knee injury after a fall; ischaemic heart disease in the past medical history; ibuprofen proposed
 
 *Synthetic patient — invented data, not a real person.*
 

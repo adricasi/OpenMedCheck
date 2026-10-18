@@ -72,10 +72,10 @@ def test_ac_006_6_template_f_low_crcl_blocks_dexketoprofen_with_renal_flag() -> 
     assert card.alternative.drug_id == "paracetamol"
 
 
-def test_ac_006_5_only_presets_a_b_c_l_are_predefined_rooms() -> None:
+def test_ac_006_5_only_presets_a_b_c_k_l_are_predefined_rooms() -> None:
     rooms = {pid for pid, preset in PRESETS.items() if preset.bed is not None}
 
-    assert rooms == {"A", "B", "C", "L"}
+    assert rooms == {"A", "B", "C", "K", "L"}
 
 
 def test_ac_006_6_breadth_templates_fire_the_new_rules() -> None:
