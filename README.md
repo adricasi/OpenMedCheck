@@ -124,7 +124,7 @@ model.
 ## Measurements
 
 Measured on one machine (NVIDIA RTX 3000 Ada Laptop GPU, 8188 MiB; Ollama 0.35.1; `gemma4:e4b`,
-`think: false`, temperature 0), model step only, warm:
+`think: false`, temperature 0), model step, warm, unless stated:
 
 - [T-001 spike](docs/measurements/2026-10-17-spike.md): 30/30 valid on the first try in both
   runs; model-step p95 1.73 s (draft prompt) and 2.40 s (with conflict guidance), against the
@@ -139,11 +139,18 @@ Measured on one machine (NVIDIA RTX 3000 Ada Laptop GPU, 8188 MiB; Ollama 0.35.1
   15/15, preset A re-checked with paracetamol `NO_ISSUE` 15/15, B `WARNING` with the renal flag,
   C `NO_ISSUE`; model-step p95 at most 1.50 s.
 
-At temperature 0 repeated calls on one fixed preset are nearly deterministic, so these figures
-show stability on three presets, not robustness to other wordings. Both documents list their
-caveats.
+- [English presets and prompt v4](docs/measurements/2026-10-18-prompt-v4.md) (current): after
+  the presets were translated to English, prompt v3 blocked the paracetamol re-check 15/15. v4
+  sends the ANTIPLATELET_ACS guidance only when the order is an NSAID (a fact from the drug
+  list). Then 60/60 valid on the first try; preset A `BLOCKED` 15/15, paracetamol re-check
+  `NO_ISSUE` 15/15, B `WARNING`, C `NO_ISSUE`; end to end rules card p95 2.0 ms, final card
+  p95 1.45 s (40 calls); cold first check 6.9 s with the model's reading (one sample).
 
-- [End-to-end measurement (T-009)](docs/measurements/2026-10-17.md), as a client sees the app over
+At temperature 0 repeated calls on one fixed preset are nearly deterministic, so these figures
+show stability on three presets, not robustness to other wordings. Each measurement file lists
+its caveats.
+
+- Earlier (prompt v3, Spanish notes): [end-to-end measurement (T-009)](docs/measurements/2026-10-17.md), as a client sees the app over
   HTTP: rules card p50 1.3 ms, p95 3.8 ms (200 calls, budget 200 ms); final card, warm, p50
   1.51 s, p95 1.72 s (40 calls over presets A, B, C and A with paracetamol, budget 3 s); 40/40
   cards had valid model output; preset A `BLOCKED` and A with paracetamol `NO_ISSUE` in every
