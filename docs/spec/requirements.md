@@ -145,12 +145,12 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
     (`ANTIPLATELET_ACS`, `GI_BLEED`, `ALLERGY`, `BLEEDING`, `HYPERKALAEMIA`, `HEART_FAILURE`,
     `PREGNANCY`, `PAST_GI_BLEED`, `ISCHAEMIC_HEART_DISEASE`) and no rule of that type fired on
     the coded context plus the kept findings THEN THE SYSTEM SHALL set that escalation aside
-    (the rules decide these conflicts) and log `model_escalation_gated`; IF a rule of that type
-    fired THEN the escalation SHALL count only up to the highest status and tier of those rules
-    (a `WARNING` rule does not become `BLOCKED` because the model says so) and the capping is
-    logged the same way. Escalations of other types still count. The final status SHALL never be
-    below the verdict on the coded context alone (REQ-004). (Amended 2026-10-18, ADR 0009:
-    previously seven types and no cap.)
+    (the rules decide these conflicts) and log `model_escalation_gated`; IF the type is
+    `PAST_GI_BLEED` or `ISCHAEMIC_HEART_DISEASE` and a rule of that type fired THEN the escalation
+    SHALL count only up to the highest status and tier of those rules (a `WARNING` history rule
+    does not become `BLOCKED` because the model says so), logged the same way. Escalations of other
+    types still count. The final status SHALL never be below the verdict on the coded context
+    alone (REQ-004). (Amended 2026-10-18, ADR 0009: previously seven types and no cap.)
 
 ### REQ-004: Escalate-only safety invariant
 - Story: As a hospital pharmacist, I want a guarantee that the model can only make the verdict

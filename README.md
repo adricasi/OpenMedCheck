@@ -110,8 +110,8 @@ flowchart LR
    record plus the kept findings, so the reviewed allergy, diagnosis and home-medication rules also
    apply to what is only written in free text (lab-based rules use the record's labs only), and the
    card shows the doctor's own words as evidence. Gemma's own verdict is a second, escalate-only
-   signal; for the conflict types the rules decide, it counts only if a rule of that type fired,
-   and never above that rule's level. It can never lower a verdict. Alternatives are suggested by name only, drawn from the drug list;
+   signal; for the conflict types the rules decide, it counts only if a rule of that type fired
+   (and, for the past-history rules, never above their level). It can never lower a verdict. Alternatives are suggested by name only, drawn from the drug list;
    doses come only from the rule table (never from the model), and until a specialist has signed off
    an entry the card shows "Dose: consult SmPC" instead of a number. Every alternative is re-checked
    by Layer 1 before it is shown, and "Use alternative" in the UI sends the changed order through

@@ -154,7 +154,7 @@ pytest --cov` pass and CI is green, unless stated otherwise.
   - Scope: `PatientContext.history`; `ContextRule.history`; rules `NSAID_HISTORY_GI_BLEED` and
     `NSAID_HISTORY_ISCHAEMIC_HEART_DISEASE` (WARNING, unreviewed) with their own conflict types
     and unreviewed paracetamol alternatives; the AC-003.8 gate caps a confirmed model escalation
-    at the rules' level; the recorded history in the
+    for the history types at the rules' level; the recorded history in the
     model's user message (prompt v8); "Past medical history" in the UI; templates J and K;
     review sheet; evaluation cases; AC-named and property tests. ADR 0009.
   - Done when: tests pass with the rules engine at 100% coverage; reviews of the escalate-only

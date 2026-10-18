@@ -140,8 +140,8 @@ non-loopback host or Ollama URL unless set; AC-011.4).
 3a. Note findings (ADR 0006, ADR 0009): `note_findings` keeps the verified findings (current
    conditions, medications, allergies, past history), adds them to the context and re-runs
    Layer 1; that verdict is the rules verdict from here on. Gate (AC-003.8): a model escalation
-   with a rule-decided conflict type is set aside unless a rule of that type fired, and is capped
-   at the status and tier of those rules when one did.
+   with a rule-decided conflict type is set aside unless a rule of that type fired; for the two
+   past-history types it is also capped at the status and tier of those rules.
 4. Combiner (pure):
    - status = max(rules, model); risk = max(rules, model); renal flag = rules OR model; if the
      renal flag is set, status = max(status, `WARNING`).

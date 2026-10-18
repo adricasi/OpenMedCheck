@@ -53,9 +53,11 @@ heart disease) is a question for the specialist.
 The rules have their own conflict types (`PAST_GI_BLEED`, `ISCHAEMIC_HEART_DISEASE`). Reusing
 `GI_BLEED` or `ANTIPLATELET_ACS` would let a WARNING history rule confirm the model's `BLOCKED`
 for a current bleed or ACS that the rules did not find (AC-003.8). Both types are rule-decided,
-and the gate now also caps a confirmed model escalation at the status and tier of the rules of
-that type: the rules, not the model, decide how strict a rule-decided conflict is. This also
-applies to the existing WARNING rules (`HEART_FAILURE`, `PREGNANCY`). The paracetamol alternative
+and for them the gate also caps a confirmed model escalation at the status and tier of the
+history rules: the rules, not the model, decide how strict a past event is. The cap is not
+applied to the current types: lab values in the note never become findings, so a model `BLOCKED`
+for a potassium of 6.9 written only in the note would otherwise drop to the missing-lab
+`WARNING` (safety review). The paracetamol alternative
 for the new types is unreviewed, so the card shows "Dose: consult SmPC" (NFR-011).
 
 ## Consequences

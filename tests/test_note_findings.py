@@ -12,6 +12,7 @@ from openmedcheck import note_findings, rules_engine
 from openmedcheck.check_service import final_card
 from openmedcheck.contracts import (
     CheckRequest,
+    ConflictType,
     FindingKind,
     NoteFinding,
     Order,
@@ -339,9 +340,7 @@ def test_req_004_findings_never_make_the_rules_verdict_less_strict(
 _model_status = st.sampled_from(["NO_ISSUE", "WARNING", "BLOCKED"])
 
 
-_conflicts = st.sampled_from(
-    ["ANTIPLATELET_ACS", "GI_BLEED", "ALLERGY", "RENAL", "PAST_GI_BLEED", "OTHER"]
-)
+_conflicts = st.sampled_from([item.value for item in ConflictType])
 _tiers = st.sampled_from(["LOW", "MODERATE", "HIGH", "CRITICAL"])
 
 
@@ -617,16 +616,38 @@ def test_ac_003_8_unconfirmed_escalation_is_set_aside_for_each_type(conflict: st
 
 
 @pytest.mark.parametrize("conflict", sorted(_GATE_CASES))
-def test_ac_003_8_escalation_confirmed_by_a_rule_is_capped_at_its_level(conflict: str) -> None:
-    """A same-type rule confirms the conflict; its level, not the model's, decides the card."""
+def test_ac_003_8_escalation_confirmed_by_a_rule_counts_for_each_type(conflict: str) -> None:
+    """A same-type rule confirms the conflict; only the past-history types are capped at the
+    rule's level (ADR 0009)."""
     _, confirmed = _GATE_CASES[conflict]
     coded = rules_engine.evaluate(confirmed.context, confirmed.order)
-    same_type = [r for r in coded.fired_rules if r.conflict_type.value == conflict]
-    assert same_type
+    assert any(r.conflict_type.value == conflict for r in coded.fired_rules)
 
     card = run(confirmed, model_json(**_escalation(conflict)))
 
-    assert card.status is coded.status
+    capped = conflict in {"PAST_GI_BLEED", "ISCHAEMIC_HEART_DISEASE"}
+    assert card.status is (coded.status if capped else Status.BLOCKED)
+
+
+def test_ac_003_8_note_lab_escalation_is_not_capped_by_the_missing_lab_rule() -> None:
+    """Note lab values are never findings: a model BLOCKED for "K 6.9" in the note stays BLOCKED
+    although only the missing-potassium WARNING fired (safety review)."""
+    request = CheckRequest(
+        context=PRESET_C.request.context.model_copy(
+            update={
+                "ed_note": "Repeat K 6.9 on the blood gas.",
+                "labs": PRESET_C.request.context.labs.model_copy(update={"potassium_mmol_l": None}),
+            }
+        ),
+        order=Order(drug_id="enalapril", dose_text="x", route="PO", frequency="x"),
+    )
+    coded = rules_engine.evaluate(request.context, request.order)
+    assert coded.status is Status.WARNING
+    assert {r.conflict_type for r in coded.fired_rules} == {ConflictType.HYPERKALAEMIA}
+
+    card = run(request, model_json(**_escalation("HYPERKALAEMIA")))
+
+    assert card.status is Status.BLOCKED
 
 
 @pytest.mark.parametrize(
