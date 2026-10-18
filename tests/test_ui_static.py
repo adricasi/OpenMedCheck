@@ -261,7 +261,11 @@ def test_ac_003_7_card_shows_note_evidence_as_text() -> None:
     body = _function_body((PACKAGE / "static" / "app.js").read_text(), "renderWhy")
 
     assert "rule.evidence" in body
-    assert "From the clinician's note: “${quote}”" in body
+    assert "${evidenceSource(quote)}: “${quote}”" in body
+    script = (PACKAGE / "static" / "app.js").read_text()
+    source = _function_body(script, "evidenceSource")
+    assert '"From the past medical history"' in source
+    assert '"From the clinician\'s note"' in source
 
 
 def test_ac_005_3_client_fallback_never_shows_a_green_card_and_matches_the_server() -> None:

@@ -1,0 +1,66 @@
+{
+  "comment": "Demo video (T-012). Each scene is a slide from slides.html or a cut of the app recording between two marks written by record_app.py. Narration is spoken as written: spell out abbreviations that should not be read as words.",
+  "voice": "af_heart",
+  "speed": 1.08,
+  "scenes": [
+    {
+      "id": "problem",
+      "slide": "problem",
+      "narration": "Emergency doctors sign orders under time pressure. Most prescribing checks look at drug pairs and coded data; the ones we looked at don't read the free-text note. And clinicians override between half and over ninety percent of medication alerts."
+    },
+    {
+      "id": "case",
+      "slide": "case",
+      "narration": "Take this synthetic patient: chest pain, on daily aspirin, and a note that says suspected acute coronary syndrome. The order is dexketoprofen, an anti-inflammatory. The coded record is still empty, so the rules alone find no issue."
+    },
+    {
+      "id": "solution",
+      "slide": "solution",
+      "narration": "This is what Open Med Check is for. Gemma 4 reads the note, and reviewed rules decide."
+    },
+    {
+      "id": "app-open",
+      "clip": [
+        "start",
+        "verify"
+      ],
+      "narration": "Here is the app. We open bed three, and fill in the test prescription."
+    },
+    {
+      "id": "app-verdict",
+      "clip": [
+        "verify",
+        "alternative"
+      ],
+      "narration": "Gemma reads the note and quotes it. The rules decide from those quotes: blocked, with the doctor's own words as the evidence, and an alternative the rules have already re-checked."
+    },
+    {
+      "id": "app-recheck",
+      "clip": [
+        "alternative",
+        "end"
+      ],
+      "narration": "One click re-checks paracetamol: no issue found by these checks. The prescriber still decides."
+    },
+    {
+      "id": "how",
+      "slide": "how",
+      "narration": "Every quote is checked word for word against the note. The model can raise a verdict, never lower it. And if the model is down or answers badly, the card says the free-text note was not checked."
+    },
+    {
+      "id": "results",
+      "slide": "results",
+      "narration": "On seventy-six synthetic cases we wrote ourselves, a development set and not a clinical validation: seventy-two percent with the rules alone, ninety-seven percent with Gemma, and no false alarm on the thirty-four cases that should stay silent."
+    },
+    {
+      "id": "open",
+      "slide": "open",
+      "narration": "Gemma 4 is open-weight, so it can run on a hospital's own G P U, and the note never has to leave the building. We think the buyer is the medication-safety team, paying for a maintained rule table, integration and support. That is a hypothesis we have yet to test."
+    },
+    {
+      "id": "end",
+      "slide": "end",
+      "narration": "Today, Open Med Check is a demonstrator on synthetic patients, not a medical device. The next step we're looking for is a clinical pilot with a hospital pharmacy. It's open source, on GitHub."
+    }
+  ]
+}

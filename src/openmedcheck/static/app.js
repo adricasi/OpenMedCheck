@@ -351,6 +351,18 @@ function renderTextView(view, text, emptyText, quotes) {
   if (at < text.length) view.appendChild(document.createTextNode(text.slice(at)));
 }
 
+function squash(text) {
+  return text.replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+function evidenceSource(quote) {
+  // The server looks in the note and the reason for consult first, then the past history.
+  const words = squash(quote);
+  const inNote = [$("f-note").value, $("f-reason").value].some((text) => squash(text).includes(words));
+  if (!inNote && squash($("f-past-history").value).includes(words)) return "From the past medical history";
+  return "From the clinician's note";
+}
+
 function evidenceOf(card) {
   return card.fired_rules.flatMap((rule) => rule.evidence || []);
 }
@@ -563,10 +575,10 @@ function renderWhy(card) {
     }
     section.appendChild(list);
   }
-  // Rules that fired because Gemma found the fact in the note show the doctor's words (AC-003.7).
+  // Rules that fired because Gemma found the fact in the free text show its words (AC-003.7).
   for (const rule of card.fired_rules) {
     for (const quote of rule.evidence || []) {
-      section.appendChild(el("p", { cls: "note-evidence", text: `From the clinician's note: “${quote}”` }));
+      section.appendChild(el("p", { cls: "note-evidence", text: `${evidenceSource(quote)}: “${quote}”` }));
     }
   }
   if (card.fired_rules.length) {
