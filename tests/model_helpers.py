@@ -58,6 +58,9 @@ def verdict_json(**overrides: Any) -> dict[str, Any]:
         "renal_adjustment_required": False,
         "conflict_type": "ANTIPLATELET_ACS",
         "alternative_drug_id": "paracetamol",
+        # Like the real model (prompt v5): the escalation comes with the note's own words. The
+        # rules decide ANTIPLATELET_ACS from this quote (AC-003.7, AC-003.8).
+        "note_acs_quote": "Suspected ACS",
     }
     data.update(overrides)
     return data

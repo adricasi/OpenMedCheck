@@ -16,11 +16,13 @@ from enum import StrEnum
 from typing import Any, Protocol
 
 import httpx
-from pydantic import ValidationError, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, ValidationError, field_validator, model_validator
 
 from openmedcheck import prompt
 from openmedcheck.contracts import (
+    FindingKind,
     ModelVerdict,
+    NoteFinding,
     Order,
     PatientContext,
     RulesVerdict,
@@ -34,7 +36,8 @@ MAX_HEADLINE_WORDS = 8
 MAX_HEADLINE_CHARS = 60
 MAX_RATIONALE_CHARS = 300
 MAX_RATIONALE_SENTENCES = 2
-OLLAMA_OPTIONS: dict[str, Any] = {"temperature": 0, "num_predict": 400}
+# 600 tokens: the verdict plus up to four note findings with quotes (prompt v5, ADR 0006).
+OLLAMA_OPTIONS: dict[str, Any] = {"temperature": 0, "num_predict": 600}
 OLLAMA_KEEP_ALIVE = "10m"
 CONNECT_TIMEOUT_S = 2.0
 HEALTH_TIMEOUT_S = 2.0
@@ -76,8 +79,57 @@ class InvalidModelOutput(ValueError):  # noqa: N818 - domain name, not an error 
         self.reason = reason
 
 
+class NoteMedication(BaseModel):
+    """A medication the note says the patient takes, as the model returns it (AC-003.6)."""
+
+    model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
+
+    drug_id: str
+    quote: str
+
+
+class NoteAllergy(BaseModel):
+    """An allergy the note records, as the model returns it (AC-003.6)."""
+
+    model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
+
+    code: str
+    quote: str
+
+
 class ModelOutput(ModelVerdict):
-    """``ModelVerdict`` plus the model-output limits of AC-001.2 (parsed from the model only)."""
+    """``ModelVerdict`` plus the model-output limits of AC-001.2 (parsed from the model only).
+
+    The model answers the note questions in their own fields (one quote or null per
+    condition, short lists for medications and allergies: prompt v5); ``to_verdict`` turns them
+    into ``note_findings``. Asking per condition avoids forcing any condition into a code.
+    """
+
+    note_acs_quote: str | None = None
+    note_gi_bleed_quote: str | None = None
+    note_medications: tuple[NoteMedication, ...] = ()
+    note_allergies: tuple[NoteAllergy, ...] = ()
+
+    def to_verdict(self) -> ModelVerdict:
+        found = list(self.note_findings)
+        for code, quote in (
+            ("ACS", self.note_acs_quote),
+            ("ACTIVE_GI_BLEED", self.note_gi_bleed_quote),
+        ):
+            if quote is not None:
+                found.append(NoteFinding(kind=FindingKind.CONDITION, code=code, quote=quote))
+        found += [
+            NoteFinding(kind=FindingKind.MEDICATION, code=item.drug_id, quote=item.quote)
+            for item in self.note_medications
+        ]
+        found += [
+            NoteFinding(kind=FindingKind.ALLERGY, code=item.code, quote=item.quote)
+            for item in self.note_allergies
+        ]
+        return ModelVerdict(
+            **self.model_dump(include=set(ModelVerdict.model_fields) - {"note_findings"}),
+            note_findings=tuple(found),
+        )
 
     @field_validator("headline")
     @classmethod
@@ -261,7 +313,7 @@ def parse_model_output(raw: str, request: ModelRequest) -> ModelVerdict:
         )
         if reason is not None:
             raise InvalidModelOutput(reason)
-    return verdict
+    return verdict.to_verdict()
 
 
 # --- attempt / retry / deadline ----------------------------------------------------------

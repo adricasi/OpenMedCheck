@@ -88,9 +88,9 @@ def _rule_section() -> str:
         ]
     )
     for rule in rule_table.CONTEXT_RULES:
-        condition = f"Coded diagnosis {rule.diagnosis}"
+        condition = f"Coded diagnosis {rule.diagnosis}, or a quoted note finding"
         if rule.chronic_class:
-            condition += f" and a chronic medication of class {rule.chronic_class}"
+            condition += f", and a chronic medication of class {rule.chronic_class}"
         rows.append(
             [
                 rule.rule_id,
@@ -216,10 +216,13 @@ def _final_card_section() -> str:
     expected = PRESET_A_EXPECTED_FINAL_CARD
     return (
         "## Preset A: expected final card text\n\n"
-        "The rules alone say `NO_ISSUE` because the suspected ACS is only in the free-text note. "
-        "The local model reads the note and may only raise the verdict. The wording below is "
-        "illustrative: the model writes the real text at run time, and the alternative must pass "
-        "the rules again before it is shown.\n\n"
+        "On the coded record alone the rules say `NO_ISSUE`: the suspected ACS is only in the "
+        "free-text note. The local model reads the note and returns the finding with a quote; "
+        "once the quote is found word for word, the rules run again and `NSAID_ANTIPLATELET_ACS` "
+        "fires, shown with the clinician's words, for example "
+        "`From the clinician's note: “Suspected ACS; ECG and troponin pending.”` "
+        "(ADR 0006). The wording below is illustrative, and the alternative must pass the rules "
+        "again before it is shown.\n\n"
         f"- Status: **{expected['status']}**\n"
         f"- Headline: {expected['headline']}\n"
         f"- Rationale: {expected['rationale']}\n"

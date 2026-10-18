@@ -25,7 +25,7 @@ def _inside_note(user: str) -> str:
 
 
 def test_prompt_version_is_set() -> None:
-    assert prompt.PROMPT_VERSION == "4"
+    assert prompt.PROMPT_VERSION == "5"
 
 
 def test_ac_009_2_antiplatelet_acs_guidance_is_conjunctive_for_an_nsaid() -> None:
