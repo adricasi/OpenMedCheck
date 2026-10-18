@@ -24,7 +24,7 @@ class DrugItem(BaseModel):
 class PresetItem(BaseModel):
     preset_id: str
     title: str
-    bed: str
+    bed: str | None
     synthetic_label: str
     request: CheckRequest
 

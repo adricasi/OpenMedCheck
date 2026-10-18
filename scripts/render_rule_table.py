@@ -175,6 +175,12 @@ def _alternative_section() -> str:
     )
 
 
+def _alternative_text(card: DecisionCard) -> str:
+    if card.alternative is None:
+        return "none on the rules card"
+    return f"{card.alternative.name}, {card.alternative.dose_text}"
+
+
 def _card_block(card: DecisionCard) -> str:
     rules = "\n".join(f"  - `{r.rule_id}`: {r.reason}" for r in card.fired_rules) or "  - none"
     crcl = "not computed" if card.crcl_ml_min is None else f"{card.crcl_ml_min:g} mL/min"
@@ -184,7 +190,7 @@ def _card_block(card: DecisionCard) -> str:
         f"- Rationale: {card.rationale}\n"
         f"- Renal adjustment flag: {card.renal_adjustment_required}; Cockcroft-Gault: {crcl}\n"
         f"- Fired rules:\n{rules}\n"
-        f"- Source: `{card.source}`; alternative: none (the model layer chooses one later)"
+        f"- Source: `{card.source}`; alternative: {_alternative_text(card)}"
     )
 
 

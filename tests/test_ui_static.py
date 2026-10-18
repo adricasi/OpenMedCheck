@@ -68,7 +68,7 @@ def test_ac_008_8_ui_contains_required_fixed_texts() -> None:
     script = (PACKAGE / "static" / "app.js").read_text()
 
     assert "Order signed (demo — nothing stored)" in script
-    assert "Checking context…" in script
+    assert "Verifying the prescription with Gemma…" in script
     assert "Acknowledge and keep order" in script
     assert "Use alternative" in script
     assert "No issue found by these checks" in script
@@ -129,7 +129,7 @@ def test_ac_007_4_request_panel_is_text_only_and_collapsed(client: TestClient) -
 def test_ac_006_5_page_lists_patients_instead_of_preset_letters(client: TestClient) -> None:
     html = client.get("/").text
 
-    assert "ED patients (synthetic)" in html
+    assert "Rooms (synthetic patients)" in html
     assert 'id="patient-list"' in html
     assert "Preset A" not in html
 
@@ -144,15 +144,17 @@ def test_ac_008_7_leaving_edit_scenario_restores_record_and_drops_the_card() -> 
     script = (PACKAGE / "static" / "app.js").read_text()
 
     body = _function_body(script, "toggleScenarioEditing")
-    assert "fillForm({ context: state.record.context, order })" in body
+    assert "fillContext(state.record.context);" in body
     assert "invalidate();" in body
     assert 'if (input.hasAttribute("data-record")) state.scenarioEdited = true;' in script
 
 
-def test_ac_008_7_loading_a_patient_invalidates_before_evaluating() -> None:
-    body = _function_body((PACKAGE / "static" / "app.js").read_text(), "loadPreset")
+def test_ac_008_1_selecting_a_room_hides_results_and_does_not_verify() -> None:
+    body = _function_body((PACKAGE / "static" / "app.js").read_text(), "selectRoom")
 
-    assert body.index("invalidate();") < body.index("await evaluate();")
+    assert "hideResults();" in body
+    assert "fillOrder(EMPTY_ORDER);" in body
+    assert "evaluate(" not in body
 
 
 def test_ac_007_1_order_controls_outside_the_form_are_bound_to_it() -> None:
@@ -162,3 +164,73 @@ def test_ac_007_1_order_controls_outside_the_form_are_bound_to_it() -> None:
     assert len(order_controls) == 4
     assert all('form="check-form"' in control for control in order_controls)
     assert 'type="submit" form="check-form" id="check-button"' in html
+
+
+def test_ac_008_1_verify_calls_only_the_final_check_and_shows_a_loading_state(
+    client: TestClient,
+) -> None:
+    html = client.get("/").text
+    body = _function_body((PACKAGE / "static" / "app.js").read_text(), "evaluate")
+
+    assert ">Verify prescription</button>" in html
+    assert "Check order" not in html
+    assert '<div id="result-panel" hidden>' in html
+    assert 'renderMessage(VERIFYING_TEXT, "checking")' in body
+    assert 'postJson("/api/check", request)' in body
+    assert "/api/check/rules" not in body
+
+
+def test_ac_006_7_and_ac_007_5_room_and_patient_actions_exist(client: TestClient) -> None:
+    html = client.get("/").text
+    script = (PACKAGE / "static" / "app.js").read_text()
+
+    for text in ("Add room", "Add patient", "Template patient", "Save patient"):
+        assert text in html
+    assert "Auto-fill test prescription" in html
+    # Rooms live in page memory only (NFR-002): no browser storage anywhere in the script.
+    assert "localStorage" not in script
+    assert "sessionStorage" not in script
+    assert "indexedDB" not in script
+
+
+def test_ac_008_7_every_await_in_verify_and_fallback_rechecks_the_sequence() -> None:
+    script = (PACKAGE / "static" / "app.js").read_text()
+
+    evaluate = _function_body(script, "evaluate")
+    assert evaluate.count("if (mine !== state.seq) return;") >= 3
+    fallback = _function_body(script, "settleWithRulesOnly")
+    assert fallback.index("if (mine !== state.seq) return;") < fallback.index("setModelStatus(")
+    invalidate = _function_body(script, "invalidate")
+    assert "state.seq += 1;" in invalidate
+    assert "state.checking = false;" in invalidate
+
+
+def test_ac_008_2_sign_stays_disabled_on_an_unresolved_blocked_card() -> None:
+    body = _function_body((PACKAGE / "static" / "app.js").read_text(), "updateSign")
+
+    assert 'card.status === "BLOCKED" && !state.resolved' in body
+    assert "!state.checking && !blockedUnresolved" in body
+
+
+def test_req_005_client_fallback_note_matches_the_server_note() -> None:
+    from openmedcheck.check_service import MODEL_UNAVAILABLE_NOTE
+
+    script = (PACKAGE / "static" / "app.js").read_text()
+
+    assert f'const NO_MODEL_NOTE = "{MODEL_UNAVAILABLE_NOTE}";' in script
+    assert 'postJson("/api/check/rules", request)' in _function_body(script, "settleWithRulesOnly")
+
+
+def test_ac_009_1_unreviewed_alternative_waits_for_the_dose_and_does_not_verify() -> None:
+    body = _function_body((PACKAGE / "static" / "app.js").read_text(), "useAlternative")
+    unreviewed = body[body.index("if (!alt.route || !alt.frequency)") : body.index("return;")]
+
+    assert '$("f-dose").value = "";' in unreviewed
+    assert "invalidate();" in unreviewed
+    assert "evaluate(" not in unreviewed
+
+
+def test_ac_007_6_autofill_says_doses_are_test_input() -> None:
+    html = (PACKAGE / "templates" / "index.html").read_text()
+
+    assert "the doses are test input, not recommendations" in html

@@ -10,6 +10,7 @@ const RANGES = {
   "context.labs.egfr_ml_min_1_73m2": { label: "eGFR", min: 0, max: 200 },
 };
 const REQUIRED_TEXT = {
+  "order.drug_id": "Drug",
   "order.dose_text": "Dose",
   "order.frequency": "Frequency",
 };
@@ -23,6 +24,10 @@ const CONDITION_LABELS = {
   ACTIVE_GI_BLEED: "active gastrointestinal bleed",
 };
 const NO_MODEL_NOTE = "Model check unavailable — rules only";
+const VERIFYING_TEXT = "Verifying the prescription with Gemma…";
+// Test helper for custom patients (AC-007.6): an NSAID so the check has something to look at.
+const SAMPLE_ORDER = { drug_id: "ibuprofen", dose_text: "400 mg", route: "PO", frequency: "every 8 hours" };
+const EMPTY_ORDER = { drug_id: "", dose_text: "", route: "PO", frequency: "" };
 const HEALTH_POLL_MS = 3000;
 const HEALTH_POLL_MAX = 40;
 
@@ -35,6 +40,10 @@ const state = {
   drugs: [],
   record: null,
   scenarioEdited: false,
+  templates: [],
+  rooms: [],
+  activeRoom: null,
+  roomCounter: 0,
   hidden: { patient_id: "", diagnoses: [], chronic_medications: [], allergies: [] },
 };
 
@@ -115,8 +124,13 @@ async function warmUp() {
 function populateDrugs(drugs) {
   const select = $("f-drug");
   clear(select);
+  select.appendChild(el("option", { text: "Select a drug", attrs: { value: "" } }));
+  const chronic = $("f-chronic");
+  clear(chronic);
   for (const drug of drugs) {
     select.appendChild(el("option", { text: drug.name, attrs: { value: drug.drug_id } }));
+    const box = el("input", { attrs: { type: "checkbox", value: drug.drug_id, "data-history": "" } });
+    chronic.appendChild(el("label", {}, [box, document.createTextNode(` ${drug.name}`)]));
   }
 }
 
@@ -129,31 +143,54 @@ function listText(items, mapper = (item) => item) {
   return items.length ? items.map(mapper).join(", ") : "none";
 }
 
-function fillForm(request) {
-  const { context, order } = request;
-  $("f-age").value = context.age;
+function fillContext(context) {
+  $("f-age").value = context.age ?? "";
   $("f-sex").value = context.sex;
-  $("f-weight").value = context.weight_kg;
+  $("f-weight").value = context.weight_kg ?? "";
   $("f-reason").value = context.reason_for_consult;
   $("f-creatinine").value = context.labs.creatinine_mg_dl ?? "";
   $("f-egfr").value = context.labs.egfr_ml_min_1_73m2 ?? "";
   $("f-note").value = context.ed_note;
+  state.hidden = {
+    patient_id: context.patient_id,
+    diagnoses: [...context.diagnoses],
+    chronic_medications: [...context.chronic_medications],
+    allergies: [...context.allergies],
+  };
+  showHistory();
+}
+
+function fillOrder(order) {
   $("f-drug").value = order.drug_id;
   $("f-dose").value = order.dose_text;
   $("f-route").value = order.route;
   $("f-frequency").value = order.frequency;
-  state.hidden = {
-    patient_id: context.patient_id,
-    diagnoses: context.diagnoses,
-    chronic_medications: context.chronic_medications,
-    allergies: context.allergies,
-  };
-  $("ro-conditions").textContent = listText(
-    context.diagnoses,
-    (code) => CONDITION_LABELS[code] || code,
-  );
-  $("ro-chronic").textContent = listText(context.chronic_medications, drugName);
-  $("ro-allergies").textContent = listText(context.allergies);
+}
+
+function showHistory() {
+  const { diagnoses, chronic_medications: chronic, allergies } = state.hidden;
+  $("ro-conditions").textContent = listText(diagnoses, (code) => CONDITION_LABELS[code] || code);
+  $("ro-chronic").textContent = listText(chronic, drugName);
+  $("ro-allergies").textContent = listText(allergies);
+  for (const box of document.querySelectorAll(".conditions input")) {
+    box.checked = diagnoses.includes(box.value);
+  }
+  for (const box of $("f-chronic").querySelectorAll("input")) box.checked = chronic.includes(box.value);
+  $("f-allergies").value = allergies.join(", ");
+}
+
+function readHistory() {
+  // History editors write into state.hidden, which buildRequest sends (AC-007.5).
+  state.hidden.diagnoses = Array.from(document.querySelectorAll(".conditions input"))
+    .filter((box) => box.checked)
+    .map((box) => box.value);
+  state.hidden.chronic_medications = Array.from($("f-chronic").querySelectorAll("input"))
+    .filter((box) => box.checked)
+    .map((box) => box.value);
+  state.hidden.allergies = $("f-allergies")
+    .value.split(",")
+    .map((item) => item.trim())
+    .filter((item) => item !== "");
 }
 
 function numberOrNull(value) {
@@ -190,6 +227,9 @@ function buildRequest() {
 
 const RECORD_SOURCE = "From the patient record (simulated)";
 const EDITED_SOURCE = "Edited scenario (demo only) — not the record";
+const NEW_PATIENT_SOURCE = "New custom patient (demo only) — enter the record, then save";
+const CUSTOM_SOURCE = "Custom patient (demo only) — entered in this page";
+const AUTOFILL_STATUS = "Test prescription filled";
 
 const SEX_LABELS = { M: "Male", F: "Female" };
 
@@ -201,17 +241,25 @@ function setRecordEditable(editable) {
   }
   $("f-sex-text").value = SEX_LABELS[$("f-sex").value] || "";
   $("f-sex-text").hidden = editable;
+  document.querySelector(".history-view").hidden = editable;
+  document.querySelector(".history-edit").hidden = !editable;
   $("edit-scenario").checked = editable;
   $("record").classList.toggle("record-editing", editable);
-  document.querySelector(".record-source").textContent = editable ? EDITED_SOURCE : RECORD_SOURCE;
+  const room = state.activeRoom;
+  const unsaved = room !== null && room.custom && !room.saved;
+  let source = editable ? EDITED_SOURCE : RECORD_SOURCE;
+  if (room !== null && room.custom) source = unsaved ? NEW_PATIENT_SOURCE : CUSTOM_SOURCE;
+  if (room !== null && room.custom && editable && !unsaved) source = EDITED_SOURCE;
+  document.querySelector(".record-source").textContent = source;
+  for (const button of document.querySelectorAll(".save-patient-button")) button.hidden = !unsaved;
+  document.querySelector(".edit-toggle").hidden = unsaved;
 }
 
 function toggleScenarioEditing() {
   const editable = $("edit-scenario").checked;
   if (!editable && state.record && state.scenarioEdited) {
     // Leaving edit mode restores the record; the drafted order is kept.
-    const order = buildRequest().order;
-    fillForm({ context: state.record.context, order });
+    fillContext(state.record.context);
     clearErrors();
     state.scenarioEdited = false;
     invalidate();
@@ -227,10 +275,19 @@ function showPayload(request = buildRequest()) {
   $("payload").hidden = false;
 }
 
-function patientSummary(preset) {
-  const { context } = preset.request;
+function contextSummary(context) {
   const sex = SEX_LABELS[context.sex] || context.sex;
-  return `${preset.bed} · ${sex}, ${context.age} · ${context.reason_for_consult}`;
+  const reason = context.reason_for_consult || "no reason recorded";
+  return `${sex}, ${context.age} · ${reason}`;
+}
+
+function roomSummary(room) {
+  if (room.custom && !room.saved) return `${room.name} · new custom patient`;
+  return `${room.name} · ${contextSummary(room.context)}`;
+}
+
+function templateLabel(preset) {
+  return `${contextSummary(preset.request.context)} — ${preset.title}`;
 }
 
 // ---------- inline validation (AC-007.3) ----------
@@ -260,8 +317,27 @@ function clearErrors() {
     node.hidden = true;
     input.removeAttribute("aria-invalid");
   }
+  $("order-error").textContent = "";
+  $("order-error").hidden = true;
+  $("e-allergies").textContent = "";
+  $("e-allergies").hidden = true;
+  $("f-allergies").removeAttribute("aria-invalid");
   $("form-error").hidden = true;
   $("form-error").textContent = "";
+}
+
+function showOrderError(message) {
+  $("order-error").textContent = message;
+  $("order-error").hidden = false;
+}
+
+function announce(message) {
+  $("verify-status").textContent = message;
+}
+
+function moveFocusOutOfCard() {
+  // The card is about to be replaced; keep keyboard focus nearby (WCAG 2.4.3).
+  if ($("card-area").contains(document.activeElement)) $("result-heading").focus();
 }
 
 function showFormError(message) {
@@ -269,15 +345,18 @@ function showFormError(message) {
   $("form-error").hidden = false;
 }
 
-function validate() {
+function validate(scope = "all") {
+  // scope "record" checks only the patient fields (saving a custom patient, AC-007.5).
   clearErrors();
   let first = null;
+  const inScope = (path) => scope === "all" || path.startsWith("context.");
   const fail = (path, message) => {
     const input = fieldFor(path);
     setFieldError(input, message);
     first = first || input;
   };
   for (const [path, rule] of Object.entries(RANGES)) {
+    if (!inScope(path)) continue;
     const raw = fieldFor(path).value.trim();
     if (fieldFor(path).validity && fieldFor(path).validity.badInput) {
       fail(path, `${rule.label} must be a number.`);
@@ -295,7 +374,14 @@ function validate() {
     }
   }
   for (const [path, label] of Object.entries(REQUIRED_TEXT)) {
-    if (fieldFor(path).value.trim() === "") fail(path, `${label} is required.`);
+    if (inScope(path) && fieldFor(path).value.trim() === "") fail(path, `${label} is required.`);
+  }
+  if (state.hidden.allergies.some((item) => item.length > 64)) {
+    const input = $("f-allergies");
+    $("e-allergies").textContent = "Each allergy must be at most 64 characters.";
+    $("e-allergies").hidden = false;
+    input.setAttribute("aria-invalid", "true");
+    first = first || input;
   }
   if (first) first.focus();
   return first === null;
@@ -400,16 +486,13 @@ function renderActions(card) {
   return wrapper;
 }
 
-function renderCard(card, { checking }) {
+function renderCard(card) {
   const area = $("card-area");
   const hadFocus = area.contains && area.contains(document.activeElement);
   clear(area);
-  area.setAttribute("aria-busy", checking ? "true" : "false");
+  area.setAttribute("aria-busy", "false");
   const view = STATUS_VIEW[card.status];
   const container = el("article", { cls: `card ${view.cls}` });
-  if (checking) {
-    container.appendChild(el("p", { cls: "checking", text: "Checking context…" }));
-  }
   container.appendChild(renderStatusHeader(card));
   if (card.status === "NO_ISSUE") {
     container.classList.add("card-compact");
@@ -420,8 +503,8 @@ function renderCard(card, { checking }) {
     container.appendChild(el("p", { cls: "action-required", text: actionText(card) }));
     container.appendChild(el("h3", { cls: "headline", text: card.headline }));
     container.appendChild(renderWhy(card));
-    if (card.alternative && !checking) container.appendChild(renderAlternative(card));
-    if (card.status === "BLOCKED" && !checking) container.appendChild(renderActions(card));
+    if (card.alternative) container.appendChild(renderAlternative(card));
+    if (card.status === "BLOCKED") container.appendChild(renderActions(card));
   }
   if (card.model_note) {
     container.appendChild(el("p", { cls: "model-note", text: card.model_note }));
@@ -484,15 +567,29 @@ function invalidate() {
   state.seq += 1;
   state.checking = false;
   resetOutcome();
-  $("check-button").disabled = state.hidden.patient_id === "";
-  if (state.record) showPayload();
-  if (!$("card-area").textContent.startsWith("Inputs changed")) {
-    renderMessage("Inputs changed. Press “Check order” to evaluate.", "placeholder");
+  const room = state.activeRoom;
+  const unsaved = room !== null && room.custom && !room.saved;
+  $("check-button").disabled = room === null || unsaved;
+  $("check-hint").textContent = unsaved ? "Save the patient first." : "";
+  if (room && !$("payload").hidden) showPayload();
+  const message = "Inputs changed. Press “Verify prescription” to check again.";
+  if (!$("result-panel").hidden && $("card-area").textContent !== message) {
+    moveFocusOutOfCard();
+    renderMessage(message, "placeholder");
   }
   updateSign();
 }
 
+function hideResults() {
+  $("payload").hidden = true;
+  invalidate();
+  clear($("card-area"));
+  $("result-panel").hidden = true;
+  announce("");
+}
+
 async function evaluate() {
+  if (!document.querySelector(".history-edit").hidden) readHistory();
   if (!validate()) return;
   const request = buildRequest();
   showPayload(request);
@@ -501,77 +598,65 @@ async function evaluate() {
   resetOutcome();
   state.checking = true;
   updateSign();
-  renderMessage("Checking context…", "checking");
+  $("result-panel").hidden = false;
+  moveFocusOutOfCard();
+  renderMessage(VERIFYING_TEXT, "checking");
+  announce(VERIFYING_TEXT);
   $("card-area").setAttribute("aria-busy", "true");
 
-  const finalRequest = runFinal(request, mine);
-  let rules;
-  try {
-    const response = await postJson("/api/check/rules", request);
-    if (mine !== state.seq) return;
-    if (response.status === 422) {
-      state.seq += 1; // drop the pending final request
-      showServerErrors(await response.json());
-      finishWithMessage("Fix the highlighted fields, then check again.");
-      return;
-    }
-    if (!response.ok) throw new Error(`rules check failed: ${response.status}`);
-    rules = await response.json();
-  } catch (_error) {
-    // Other rules failures: let the final request settle the card (or the fallback).
-    return;
-  }
-  if (mine !== state.seq) return;
-  if (!state.card) {
-    state.card = rules;
-    renderCard(rules, { checking: true });
-    updateSign();
-  }
-  await finalRequest;
-}
-
-function finishWithMessage(text) {
-  state.checking = false;
-  state.card = null;
-  renderMessage(text, "placeholder");
-  updateSign();
-}
-
-async function runFinal(request, mine) {
+  // One request: the final card (rules + model, or rules only on fallback, AC-008.1, REQ-005).
   let card = null;
   try {
     const response = await postJson("/api/check", request);
+    if (mine !== state.seq) return;
+    if (response.status === 422) {
+      const problem = await response.json();
+      if (mine !== state.seq) return;
+      showServerErrors(problem);
+      finishWithMessage("Fix the highlighted fields, then verify again.");
+      return;
+    }
     if (response.ok) card = await response.json();
   } catch (_error) {
     card = null;
   }
   if (mine !== state.seq) return;
-  // Rules card must have arrived or the final card stands alone; either way it is final.
   if (card === null) {
     await settleWithRulesOnly(request, mine);
     return;
   }
   state.card = card;
   state.checking = false;
-  renderCard(card, { checking: false });
+  renderCard(card);
+  announceCard(card);
   if (card.source === "rules") setModelStatus(NO_MODEL_NOTE, "model-unavailable");
   else refreshHealth();
   updateSign();
 }
 
+function announceCard(card) {
+  announce(`Verification complete: ${STATUS_VIEW[card.status].label}.`);
+}
+
+function finishWithMessage(text) {
+  state.checking = false;
+  state.card = null;
+  renderMessage(text, "placeholder");
+  announce(text);
+  updateSign();
+}
+
 async function settleWithRulesOnly(request, mine) {
-  // /api/check missing or failing: keep the rules card and say the model is unavailable.
-  setModelStatus(NO_MODEL_NOTE, "model-unavailable");
-  let rules = state.card;
-  if (!rules) {
-    try {
-      const response = await postJson("/api/check/rules", request);
-      if (response.ok) rules = await response.json();
-    } catch (_error) {
-      rules = null;
-    }
-    if (mine !== state.seq) return;
+  // /api/check missing or failing: fall back to the rules card and say the model is unavailable.
+  let rules = null;
+  try {
+    const response = await postJson("/api/check/rules", request);
+    if (response.ok) rules = await response.json();
+  } catch (_error) {
+    rules = null;
   }
+  if (mine !== state.seq) return;
+  setModelStatus(NO_MODEL_NOTE, "model-unavailable");
   if (!rules) {
     finishWithMessage("The check could not be completed. Nothing was evaluated.");
     return;
@@ -579,7 +664,8 @@ async function settleWithRulesOnly(request, mine) {
   rules.model_note = rules.model_note || NO_MODEL_NOTE;
   state.card = rules;
   state.checking = false;
-  renderCard(rules, { checking: false });
+  renderCard(rules);
+  announceCard(rules);
   updateSign();
 }
 
@@ -590,7 +676,9 @@ function useAlternative(alt) {
     $("f-dose").value = "";
     $("f-frequency").value = "";
     invalidate();
-    showFormError(`${alt.name} selected. Enter the dose and frequency per SmPC, then press “Check order”.`);
+    showOrderError(
+      `${alt.name} selected. Enter the dose and frequency per SmPC, check the route, then press “Verify prescription”.`,
+    );
     $("f-dose").focus();
     return;
   }
@@ -600,54 +688,182 @@ function useAlternative(alt) {
   evaluate();
 }
 
-// ---------- presets and start-up ----------
+// ---------- rooms, templates and start-up (AC-006.5, AC-006.7, AC-007.5, AC-007.6) ----------
 
-async function loadPreset(presetId) {
-  try {
-    await drugsReady;
-    const response = await fetch(`/api/presets/${encodeURIComponent(presetId)}`);
-    if (!response.ok) throw new Error(String(response.status));
-    const preset = await response.json();
-    clearErrors();
-    state.record = preset.request;
-    state.scenarioEdited = false;
-    fillForm(preset.request);
-    setRecordEditable(false);
-    $("record-status").textContent = "";
-    $("record").hidden = false;
-    $("order-fields").hidden = false;
-    $("order-empty").hidden = true;
-    $("preset-title").textContent = `${patientSummary(preset)} — demo case: ${preset.title}`;
-    $("synthetic-label").textContent = preset.synthetic_label;
-    for (const button of document.querySelectorAll(".patient-button")) {
-      button.setAttribute("aria-pressed", String(button.dataset.preset === preset.preset_id));
-    }
-    $("check-button").disabled = false;
-    invalidate(); // never leave the previous patient's card signable
-    $("chart-heading").focus();
-    await evaluate();
-  } catch (_error) {
-    showFormError("The preset could not be loaded.");
+function copyContext(context) {
+  return JSON.parse(JSON.stringify(context));
+}
+
+function roomFromTemplate(preset, name) {
+  state.roomCounter += 1;
+  return {
+    id: `room-${state.roomCounter}`,
+    name,
+    custom: false,
+    saved: true,
+    title: preset.title,
+    syntheticLabel: preset.synthetic_label,
+    context: copyContext(preset.request.context),
+    demoOrder: { ...preset.request.order },
+  };
+}
+
+function customRoom() {
+  state.roomCounter += 1;
+  const number = state.rooms.filter((room) => room.custom).length + 1;
+  return {
+    id: `room-${state.roomCounter}`,
+    name: `Custom patient ${number}`,
+    custom: true,
+    saved: false,
+    title: "",
+    syntheticLabel: "Custom patient (demo only) — enter invented data, never a real person's",
+    context: {
+      patient_id: `SYN-CUSTOM-${number}`,
+      age: null,
+      sex: "F",
+      weight_kg: null,
+      reason_for_consult: "",
+      ed_note: "",
+      diagnoses: [],
+      chronic_medications: [],
+      allergies: [],
+      labs: { creatinine_mg_dl: null, egfr_ml_min_1_73m2: null },
+    },
+    demoOrder: null,
+  };
+}
+
+function renderRooms() {
+  const list = $("patient-list");
+  clear(list);
+  for (const room of state.rooms) {
+    const pressed = state.activeRoom !== null && state.activeRoom.id === room.id;
+    const button = el("button", {
+      cls: "patient-button",
+      text: roomSummary(room),
+      attrs: { type: "button", "data-room": room.id },
+    });
+    if (pressed) button.setAttribute("aria-current", "true");
+    button.addEventListener("click", () => selectRoom(room));
+    list.appendChild(el("li", {}, [button]));
   }
 }
 
-async function loadPatients() {
+function selectRoom(room) {
+  state.activeRoom = room;
+  state.record = { context: room.context };
+  state.scenarioEdited = false;
+  clearErrors();
+  fillContext(room.context);
+  fillOrder(EMPTY_ORDER);
+  setRecordEditable(room.custom && !room.saved);
+  $("record-status").textContent = "";
+  $("record").hidden = false;
+  $("order-fields").hidden = false;
+  $("order-empty").hidden = true;
+  $("preset-title").textContent = room.custom
+    ? roomSummary(room)
+    : `${roomSummary(room)} — demo case: ${room.title}`;
+  $("synthetic-label").textContent = room.syntheticLabel;
+  renderRooms();
+  hideResults(); // results stay hidden until "Verify prescription" (AC-008.1)
+  $("chart-heading").focus();
+}
+
+function saveCustomPatient() {
+  const room = state.activeRoom;
+  readHistory();
+  showHistory();
+  if (!validate("record")) return;
+  room.context = buildRequest().context;
+  room.saved = true;
+  state.record = { context: room.context };
+  state.scenarioEdited = false;
+  setRecordEditable(false);
+  $("preset-title").textContent = roomSummary(room);
+  $("record-status").textContent = "Patient saved for this page.";
+  renderRooms();
+  invalidate();
+  announce("Patient saved for this page. Write the prescription next.");
+  $("f-drug").focus();
+}
+
+function autofillPrescription() {
+  const room = state.activeRoom;
+  if (room === null) return;
+  const order = room.demoOrder || SAMPLE_ORDER;
+  fillOrder(order);
+  clearErrors();
+  invalidate();
+  announce(`${AUTOFILL_STATUS}: ${drugName(order.drug_id)} ${order.dose_text}, ${order.route}, ${order.frequency}.`);
+  $("check-button").focus();
+}
+
+function nextRoomName() {
+  const used = new Set(state.rooms.map((room) => room.name));
+  let number = 1;
+  while (used.has(`Bed ${number}`)) number += 1;
+  return `Bed ${number}`;
+}
+
+function toggleAddRoom(open) {
+  $("add-room-form").hidden = !open;
+  $("add-room-button").setAttribute("aria-expanded", String(open));
+  if (open) {
+    $("room-name").value = nextRoomName();
+    $("e-room-name").hidden = true;
+    $("room-name").removeAttribute("aria-invalid");
+    $("room-name").focus();
+  } else {
+    $("add-room-button").focus();
+  }
+}
+
+function createRoom(event) {
+  event.preventDefault();
+  const name = $("room-name").value.trim();
+  if (name === "") {
+    $("e-room-name").textContent = "Room name is required.";
+    $("e-room-name").hidden = false;
+    $("room-name").setAttribute("aria-invalid", "true");
+    $("room-name").focus();
+    return;
+  }
+  const preset = state.templates.find((item) => item.preset_id === $("room-template").value);
+  if (!preset) return;
+  const room = roomFromTemplate(preset, name);
+  state.rooms.push(room);
+  $("add-room-form").hidden = true;
+  $("add-room-button").setAttribute("aria-expanded", "false");
+  selectRoom(room);
+}
+
+function addPatient() {
+  if (!$("add-room-form").hidden) toggleAddRoom(false);
+  const room = customRoom();
+  state.rooms.push(room);
+  selectRoom(room);
+  $("f-age").focus();
+}
+
+async function loadRooms() {
   try {
+    await drugsReady;
     const response = await fetch("/api/presets");
     if (!response.ok) throw new Error(String(response.status));
-    const list = $("patient-list");
-    clear(list);
-    for (const preset of await response.json()) {
-      const button = el("button", {
-        cls: "patient-button",
-        text: patientSummary(preset),
-        attrs: { type: "button", "data-preset": preset.preset_id, "aria-pressed": "false" },
-      });
-      button.addEventListener("click", () => loadPreset(preset.preset_id));
-      list.appendChild(el("li", {}, [button]));
+    state.templates = await response.json();
+    const select = $("room-template");
+    clear(select);
+    for (const preset of state.templates) {
+      select.appendChild(el("option", { text: templateLabel(preset), attrs: { value: preset.preset_id } }));
     }
+    state.rooms = state.templates
+      .filter((preset) => preset.bed !== null)
+      .map((preset) => roomFromTemplate(preset, preset.bed));
+    renderRooms();
   } catch (_error) {
-    showFormError("The patient list could not be loaded.");
+    showFormError("The rooms could not be loaded.");
   }
 }
 
@@ -665,6 +881,20 @@ async function loadDrugs() {
 }
 
 function init() {
+  // Delegated: the chronic-medication checkboxes are created after the drug list loads.
+  const historyEditor = document.querySelector(".history-edit");
+  historyEditor.addEventListener("change", (event) => {
+    if (!event.target.hasAttribute("data-history")) return;
+    readHistory();
+    showHistory();
+    state.scenarioEdited = true;
+    invalidate();
+  });
+  $("f-allergies").addEventListener("input", () => {
+    // Typing makes the shown card stale at once, before the field loses focus (AC-008.7).
+    state.scenarioEdited = true;
+    invalidate();
+  });
   for (const input of fields()) {
     const edited = () => {
       if (input.hasAttribute("data-record")) state.scenarioEdited = true;
@@ -682,8 +912,19 @@ function init() {
   });
   $("sign-button").addEventListener("click", signOrder);
   $("edit-scenario").addEventListener("change", toggleScenarioEditing);
+  for (const button of document.querySelectorAll(".save-patient-button")) {
+    button.addEventListener("click", saveCustomPatient);
+  }
+  $("add-room-form").addEventListener("keydown", (event) => {
+    if (event.key === "Escape") toggleAddRoom(false);
+  });
+  $("autofill-button").addEventListener("click", autofillPrescription);
+  $("add-room-button").addEventListener("click", () => toggleAddRoom($("add-room-form").hidden));
+  $("add-room-cancel").addEventListener("click", () => toggleAddRoom(false));
+  $("add-room-form").addEventListener("submit", createRoom);
+  $("add-patient-button").addEventListener("click", addPatient);
   drugsReady = loadDrugs();
-  loadPatients();
+  loadRooms();
   warmUp().then(() => refreshHealth(true));
   refreshHealth(true);
 }

@@ -393,13 +393,29 @@ SPECIALIST_QUESTIONS: tuple[str, ...] = (
     "(class ANTIPLATELET, not NSAID here) also be flagged with an active GI bleed?",
     "Risk tiers (CRITICAL, HIGH, MODERATE) are the authors' judgment, not from a source. Please "
     "confirm or change them.",
-    "Allergy matching is exact (ignoring upper or lower case) on the drug ID or "
-    "class ID (NSAID, PENICILLIN, FLUOROQUINOLONE, "
+    "Allergy matching is exact (ignoring upper or lower case) on the drug ID, the active "
+    "ingredient or the class ID (NSAID, PENICILLIN, FLUOROQUINOLONE, "
     "OPIOID, PYRAZOLONE, ANTIPLATELET, LMWH, BIGUANIDE, ANALGESIC_ANTIPYRETIC). Spanish brand "
     "or ingredient names ('ibuprofeno', 'Adiro') do not match. Is that acceptable for a demo?",
-    "Allergy cross-reactivity is not modelled (an aspirin or penicillin allergy does not flag "
-    "NSAIDs or amoxicillin-clavulanate, and 'amoxicillin' does not match the class "
-    "PENICILLIN). Which cross-reactions, if any, should the rules cover?",
+    "Allergy cross-reactivity is not modelled: an aspirin allergy does not flag NSAIDs, and "
+    "'amoxicillin' alone does not match (only the drug ID, the active ingredient or the class "
+    "PENICILLIN does). Which cross-reactions, if any, should the rules cover?",
+    "Template D (coded active GI bleed, ibuprofen): the record has a coded active GI bleed and "
+    "the note says it was recorded today. Is that a realistic case, and is paracetamol the right "
+    "alternative?",
+    "Template E (penicillin allergy, amoxicillin-clavulanate for suspected pneumonia): should a "
+    "recorded penicillin allergy offer an alternative (for example levofloxacin, on the drug "
+    "list)? At the moment there is none.",
+    "Template F (72 M, 70 kg, creatinine 1.6 mg/dL, Cockcroft-Gault CrCl 41 mL/min, eGFR 43; "
+    "renal colic, dexketoprofen): is BLOCKED right, and is paracetamol the right alternative, "
+    "or should another analgesic on the list (for example metamizole) be offered? Should age "
+    "65 or over add its own dexketoprofen warning?",
+    "Demo order text (test input, not recommendations): ibuprofen 600 mg PO every 8 hours (D), "
+    "amoxicillin-clavulanate 875/125 mg PO every 8 hours (E), dexketoprofen 50 mg IV every 12 "
+    "hours (F), ibuprofen 400 mg PO every 8 hours (custom-patient sample). Do any read as "
+    "implausible for an ED order?",
+    "The paracetamol alternative now appears for presets A (ANTIPLATELET_ACS), D (GI_BLEED) and "
+    "F (RENAL). Please confirm one dose that applies to all three.",
     "Missing renal lab gives WARNING 'renal function unknown' (design choice A-5, not SmPC). "
     "Is a warning right, or should some drugs (e.g. metformin) be stricter?",
 )

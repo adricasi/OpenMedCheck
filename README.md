@@ -62,24 +62,39 @@ uv run openmedcheck         # serve the app (leave it running)
 ```
 
 Then open <http://127.0.0.1:8000> in a browser. The page shows the banner "Not for clinical use —
-synthetic patients. Not a medical device." and a list of three synthetic ED patients (Bed 3, Bed 7 and Bed 12, which are
-presets A, B and C). Selecting one opens its simulated record read-only, with a drafted order you
-can change, and checks that order; "Edit scenario (demo only)" unlocks the record fields so you
-can try other cases, and "What the record system would send" shows the request body. When
-the page loads it asks the server to warm the model up. A first check right after Ollama starts
-can take longer than the 10 s model deadline; the card then falls back to rules only (see
-below). Wait for the model status to read ready and check again.
+synthetic patients. Not a medical device." and three rooms with synthetic ED patients (Bed 3,
+Bed 7 and Bed 12, which are presets A, B and C).
 
-What each preset shows with the model ready:
+1. Select a room: its simulated record opens read-only and the prescription is empty.
+2. Write a prescription, or press "Auto-fill test prescription" for the case's demo order.
+3. Press "Verify prescription": the page shows "Verifying the prescription with Gemma…", then
+   one card (rules and Gemma combined, or rules only if the model is unavailable).
 
-| Preset (patient) | Rules card (instant) | Final card |
+"Add room" creates a room from one of six template patients (A–F; D, E and F add a coded GI
+bleed, a penicillin allergy and reduced kidney function). "Add patient" opens an empty record to
+fill in, including conditions, chronic medication and allergies; "Save patient" keeps it. Added
+rooms and patients exist only in the open page: nothing is stored, and a reload shows the three
+predefined rooms again. "Edit scenario (demo only)" unlocks a record so you can try other cases,
+and "What the record system would send" shows the request body. When the page loads it asks the
+server to warm the model up. A first check right after Ollama starts can take longer than the
+10 s model deadline; the card then falls back to rules only (see below). Wait for the model
+status to read ready and verify again.
+
+What each template shows after "Auto-fill test prescription" and "Verify prescription", with
+the model ready (the rules column is what `/api/check/rules` returns):
+
+| Template (room) | Rules card | Final card |
 |---|---|---|
 | A (Bed 3) | `NO_ISSUE` ("No issue found by these checks") | `BLOCKED` after the model reads the note; alternative: Paracetamol, "Dose: consult SmPC" |
 | B (Bed 7) | `WARNING` with the renal-adjustment flag | `WARNING`, renal flag kept, "Renal adjustment required — consult SmPC", no alternative |
 | C (Bed 12) | `NO_ISSUE` | `NO_ISSUE`, no alternative |
+| D (added room) | `BLOCKED`: NSAID with a coded active GI bleed | `BLOCKED`; alternative: Paracetamol, "Dose: consult SmPC" |
+| E (added room) | `BLOCKED`: recorded penicillin allergy | `BLOCKED`, no alternative |
+| F (added room) | `BLOCKED`: dexketoprofen with estimated CrCl below 60 mL/min, renal flag | `BLOCKED`, renal flag kept; alternative: Paracetamol, "Dose: consult SmPC" |
 
-"Use alternative" on preset A swaps the order for the alternative and runs the full check again
-on the same patient; in the recorded runs that second check gives `NO_ISSUE` ("No issue found
+"Use alternative" on preset A selects paracetamol and clears the dose, because the dose is not
+specialist-reviewed; enter a dose (the recorded runs used the demo order text 1 g every 8 hours;
+this is not a recommendation) and verify again on the same patient; in the recorded runs that second check gives `NO_ISSUE` ("No issue found
 by these checks"). The prescriber always decides.
 
 If Ollama or the model is missing, or does not answer in time, the app still starts and returns
@@ -88,7 +103,7 @@ read the free-text note, so preset A then stays `NO_ISSUE`; the note on the card
 try it, start a second instance:
 `OPENMEDCHECK_OLLAMA_URL=http://127.0.0.1:9 OPENMEDCHECK_PORT=8001 uv run openmedcheck`.
 
-The checks are also available over HTTP: `GET /api/presets/{A|B|C}` returns a request body
+The checks are also available over HTTP: `GET /api/presets/{A–F}` returns a request body
 that you can `POST` as JSON to `/api/check/rules` (rules only) or `/api/check` (final card), and
 `GET /api/model/health` reports `ready`, `warming` or `unavailable`.
 TODO(T-012): link the demo video.

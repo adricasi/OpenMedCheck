@@ -103,7 +103,7 @@ Rules card (Layer 1 only):
 - Renal adjustment flag: False; Cockcroft-Gault: 96.2 mL/min
 - Fired rules:
   - none
-- Source: `rules`; alternative: none (the model layer chooses one later)
+- Source: `rules`; alternative: none on the rules card
 
 ### Preset B: Reduced renal function; ciprofloxacin proposed
 
@@ -122,7 +122,7 @@ Rules card (Layer 1 only):
 - Renal adjustment flag: True; Cockcroft-Gault: 18.9 mL/min
 - Fired rules:
   - `RENAL_CIPROFLOXACIN_CRCL_30`: Ciprofloxacin and CrCl below 30 mL/min. Renal adjustment required — consult SmPC.
-- Source: `rules`; alternative: none (the model layer chooses one later)
+- Source: `rules`; alternative: none on the rules card
 
 ### Preset C: Benign condition, normal renal function, standard analgesic
 
@@ -141,7 +141,64 @@ Rules card (Layer 1 only):
 - Renal adjustment flag: False; Cockcroft-Gault: not computed
 - Fired rules:
   - none
-- Source: `rules`; alternative: none (the model layer chooses one later)
+- Source: `rules`; alternative: none on the rules card
+
+### Preset D: Coded active GI bleed; ibuprofen proposed
+
+*Synthetic patient — invented data, not a real person.*
+
+- Patient: 58 years, sex M, 85 kg; creatinine 1.0 mg/dL, eGFR 82.0
+- Coded diagnoses: ACTIVE_GI_BLEED; chronic medication: none; allergies: none
+- Note: 58-year-old man with two episodes of melena since yesterday and epigastric pain. Upper GI bleed recorded today; haemoglobin pending. Asks for something for his back pain.
+- Proposed order: ibuprofen 600 mg PO every 8 hours
+
+Rules card (Layer 1 only):
+
+- Status / tier: **BLOCKED** / CRITICAL
+- Headline: Order conflicts with patient context
+- Rationale: NSAID with a coded diagnosis of active gastrointestinal bleeding.
+- Renal adjustment flag: False; Cockcroft-Gault: not computed
+- Fired rules:
+  - `NSAID_ACTIVE_GI_BLEED`: NSAID with a coded diagnosis of active gastrointestinal bleeding.
+- Source: `rules`; alternative: Paracetamol, Dose: consult SmPC
+
+### Preset E: Recorded penicillin allergy; amoxicillin-clavulanate proposed
+
+*Synthetic patient — invented data, not a real person.*
+
+- Patient: 45 years, sex F, 64 kg; creatinine 0.8 mg/dL, eGFR 95.0
+- Coded diagnoses: none; chronic medication: none; allergies: penicillin
+- Note: 45-year-old woman with 3 days of productive cough and fever. Suspected community-acquired pneumonia. Penicillin allergy (rash) in the record.
+- Proposed order: amoxicillin_clavulanate 875/125 mg PO every 8 hours
+
+Rules card (Layer 1 only):
+
+- Status / tier: **BLOCKED** / CRITICAL
+- Headline: Order conflicts with recorded allergy
+- Rationale: The proposed drug matches a recorded allergy.
+- Renal adjustment flag: False; Cockcroft-Gault: 89.7 mL/min
+- Fired rules:
+  - `ALLERGY_EXACT_MATCH`: The proposed drug matches a recorded allergy.
+- Source: `rules`; alternative: none on the rules card
+
+### Preset F: Renal colic with reduced kidney function; dexketoprofen proposed
+
+*Synthetic patient — invented data, not a real person.*
+
+- Patient: 72 years, sex M, 70 kg; creatinine 1.6 mg/dL, eGFR 43.0
+- Coded diagnoses: none; chronic medication: none; allergies: none
+- Note: 72-year-old man with sudden right flank pain radiating to the groin, with nausea. Suspected renal colic.
+- Proposed order: dexketoprofen 50 mg IV every 12 hours
+
+Rules card (Layer 1 only):
+
+- Status / tier: **BLOCKED** / HIGH
+- Headline: Order conflicts with patient context
+- Rationale: Dexketoprofen and CrCl below 60 mL/min (moderate to severe renal impairment).
+- Renal adjustment flag: True; Cockcroft-Gault: 41.3 mL/min
+- Fired rules:
+  - `RENAL_DEXKETOPROFEN_CRCL_60`: Dexketoprofen and CrCl below 60 mL/min (moderate to severe renal impairment).
+- Source: `rules`; alternative: Paracetamol, Dose: consult SmPC
 
 ## Preset A: expected final card text
 
@@ -167,9 +224,14 @@ The rules alone say `NO_ISSUE` because the suspected ACS is only in the free-tex
 11. NSAID with antiplatelet and coded ACS: is BLOCKED / CRITICAL the right verdict, and is the AHA 2007 statement plus SmPC 4.5 an adequate source? Should a P2Y12 inhibitor or an anticoagulant also count as an antiplatelet agent (only aspirin and clopidogrel do now)?
 12. NSAID with active GI bleed: is BLOCKED / CRITICAL right? Should aspirin and clopidogrel (class ANTIPLATELET, not NSAID here) also be flagged with an active GI bleed?
 13. Risk tiers (CRITICAL, HIGH, MODERATE) are the authors' judgment, not from a source. Please confirm or change them.
-14. Allergy matching is exact (ignoring upper or lower case) on the drug ID or class ID (NSAID, PENICILLIN, FLUOROQUINOLONE, OPIOID, PYRAZOLONE, ANTIPLATELET, LMWH, BIGUANIDE, ANALGESIC_ANTIPYRETIC). Spanish brand or ingredient names ('ibuprofeno', 'Adiro') do not match. Is that acceptable for a demo?
-15. Allergy cross-reactivity is not modelled (an aspirin or penicillin allergy does not flag NSAIDs or amoxicillin-clavulanate, and 'amoxicillin' does not match the class PENICILLIN). Which cross-reactions, if any, should the rules cover?
-16. Missing renal lab gives WARNING 'renal function unknown' (design choice A-5, not SmPC). Is a warning right, or should some drugs (e.g. metformin) be stricter?
+14. Allergy matching is exact (ignoring upper or lower case) on the drug ID, the active ingredient or the class ID (NSAID, PENICILLIN, FLUOROQUINOLONE, OPIOID, PYRAZOLONE, ANTIPLATELET, LMWH, BIGUANIDE, ANALGESIC_ANTIPYRETIC). Spanish brand or ingredient names ('ibuprofeno', 'Adiro') do not match. Is that acceptable for a demo?
+15. Allergy cross-reactivity is not modelled: an aspirin allergy does not flag NSAIDs, and 'amoxicillin' alone does not match (only the drug ID, the active ingredient or the class PENICILLIN does). Which cross-reactions, if any, should the rules cover?
+16. Template D (coded active GI bleed, ibuprofen): the record has a coded active GI bleed and the note says it was recorded today. Is that a realistic case, and is paracetamol the right alternative?
+17. Template E (penicillin allergy, amoxicillin-clavulanate for suspected pneumonia): should a recorded penicillin allergy offer an alternative (for example levofloxacin, on the drug list)? At the moment there is none.
+18. Template F (72 M, 70 kg, creatinine 1.6 mg/dL, Cockcroft-Gault CrCl 41 mL/min, eGFR 43; renal colic, dexketoprofen): is BLOCKED right, and is paracetamol the right alternative, or should another analgesic on the list (for example metamizole) be offered? Should age 65 or over add its own dexketoprofen warning?
+19. Demo order text (test input, not recommendations): ibuprofen 600 mg PO every 8 hours (D), amoxicillin-clavulanate 875/125 mg PO every 8 hours (E), dexketoprofen 50 mg IV every 12 hours (F), ibuprofen 400 mg PO every 8 hours (custom-patient sample). Do any read as implausible for an ED order?
+20. The paracetamol alternative now appears for presets A (ANTIPLATELET_ACS), D (GI_BLEED) and F (RENAL). Please confirm one dose that applies to all three.
+21. Missing renal lab gives WARNING 'renal function unknown' (design choice A-5, not SmPC). Is a warning right, or should some drugs (e.g. metformin) be stricter?
 
 ## Sign-off
 

@@ -16,13 +16,33 @@
   </header>
   <main class="layout">
     <nav class="patients" aria-labelledby="patients-heading">
-      <h2 id="patients-heading">ED patients (synthetic)</h2>
+      <h2 id="patients-heading">Rooms (synthetic patients)</h2>
       <ul id="patient-list" class="patient-list"></ul>
+      <div class="room-actions">
+        <button type="button" id="add-room-button" class="secondary" aria-expanded="false" aria-controls="add-room-form">Add room</button>
+        <button type="button" id="add-patient-button" class="secondary">Add patient</button>
+      </div>
+      <form id="add-room-form" class="add-room" hidden novalidate>
+        <div class="field">
+          <label for="room-name">Room name (required)</label>
+          <input id="room-name" type="text" maxlength="30" aria-required="true" aria-describedby="e-room-name">
+          <span id="e-room-name" class="field-error" hidden></span>
+        </div>
+        <div class="field">
+          <label for="room-template">Template patient</label>
+          <select id="room-template"></select>
+        </div>
+        <div class="add-room-buttons">
+          <button type="submit" class="primary">Create room</button>
+          <button type="button" id="add-room-cancel" class="secondary">Cancel</button>
+        </div>
+      </form>
+      <p class="hint">Added rooms exist only in this page; nothing is stored.</p>
     </nav>
 
     <section class="chart" aria-labelledby="chart-heading">
       <h2 id="chart-heading" tabindex="-1">Patient record</h2>
-      <p id="preset-title" class="preset-title" role="status">Select a patient to open the record.</p>
+      <p id="preset-title" class="preset-title">Select a room to open the patient record.</p>
       <p id="synthetic-label" class="synthetic-label"></p>
 
       <form id="check-form" novalidate>
@@ -30,6 +50,7 @@
         <div id="record" class="record" hidden>
           <div class="record-header">
             <p class="record-source" role="status">From the patient record (simulated)</p>
+            <button type="button" id="save-patient" class="primary save-patient-button" hidden>Save patient</button>
             <label class="edit-toggle" for="edit-scenario">
               <input type="checkbox" id="edit-scenario" aria-describedby="edit-hint">
               Edit scenario (demo only)
@@ -82,10 +103,28 @@
           </fieldset>
 
           <fieldset class="record-fields">
-            <legend>Chart</legend>
-            <p class="read-only">Recorded conditions: <span id="ro-conditions">none</span></p>
-            <p class="read-only">Chronic medication: <span id="ro-chronic">none</span></p>
-            <p class="read-only">Recorded allergies: <span id="ro-allergies">none</span></p>
+            <legend>Medical history</legend>
+            <div class="history-view">
+              <p class="read-only">Recorded conditions: <span id="ro-conditions">none</span></p>
+              <p class="read-only">Chronic medication: <span id="ro-chronic">none</span></p>
+              <p class="read-only">Recorded allergies: <span id="ro-allergies">none</span></p>
+            </div>
+            <div class="history-edit field-wide" hidden>
+              <fieldset class="conditions">
+                <legend>Recorded conditions</legend>
+                <label><input type="checkbox" id="f-cond-acs" value="ACS" data-history> Acute coronary syndrome</label>
+                <label><input type="checkbox" id="f-cond-gi" value="ACTIVE_GI_BLEED" data-history> Active gastrointestinal bleed</label>
+              </fieldset>
+              <fieldset class="chronic">
+                <legend>Chronic medication</legend>
+                <div id="f-chronic" class="chronic-list"></div>
+              </fieldset>
+              <div class="field">
+                <label for="f-allergies">Allergies (comma-separated, e.g. penicillin)</label>
+                <input id="f-allergies" type="text" maxlength="500" data-history aria-describedby="e-allergies">
+                <span id="e-allergies" class="field-error" hidden></span>
+              </div>
+            </div>
           </fieldset>
 
           <fieldset class="record-fields">
@@ -96,17 +135,23 @@
               <span id="e-note" class="field-error" hidden></span>
             </div>
           </fieldset>
+          <button type="button" id="save-patient-bottom" class="primary save-patient-button" hidden>Save patient</button>
         </div>
       </form>
     </section>
 
     <section class="result" aria-labelledby="order-heading">
       <h2 id="order-heading" tabindex="-1">Prescribe</h2>
-      <p id="order-empty" class="placeholder">Select a patient to draft an order.</p>
+      <p id="order-empty" class="placeholder">Select a room to write a prescription.</p>
       <fieldset class="order" id="order-fields" hidden>
-        <legend>New order (drafted for this demo case; change it freely)</legend>
+        <legend>New prescription</legend>
+        <p id="order-error" class="field-error field-wide" role="alert" hidden></p>
+        <div class="field-wide order-tools">
+          <button type="button" id="autofill-button" class="secondary" aria-describedby="autofill-hint">Auto-fill test prescription</button>
+          <p id="autofill-hint" class="hint">Fills an invented demo order for this case; the doses are test input, not recommendations.</p>
+        </div>
         <div class="field">
-          <label for="f-drug">Drug</label>
+          <label for="f-drug">Drug (required)</label>
           <select id="f-drug" form="check-form" data-path="order.drug_id" aria-describedby="e-drug"></select>
           <span id="e-drug" class="field-error" hidden></span>
         </div>
@@ -132,21 +177,23 @@
         </div>
       </fieldset>
 
-      <button type="submit" form="check-form" id="check-button" class="primary" disabled>Check order</button>
+      <button type="submit" form="check-form" id="check-button" class="primary" aria-describedby="check-hint" disabled>Verify prescription</button>
+      <p id="check-hint" class="hint"></p>
+      <p id="verify-status" class="visually-hidden" role="status"></p>
       <details id="payload" class="payload" hidden>
         <summary>What the record system would send</summary>
         <p class="hint">The request body for the current order: the drafted order plus the patient context. In this demo the browser builds it; no record system is connected. Shown here only; nothing is stored.</p>
         <pre id="payload-body"></pre>
       </details>
 
-      <h2 id="result-heading" tabindex="-1">Check result</h2>
-      <div id="card-area" class="card-area" aria-live="polite" aria-busy="false">
-        <p class="placeholder">Select a patient. The check runs on the drafted order.</p>
-      </div>
-      <div class="sign">
-        <button type="button" id="sign-button" class="primary" aria-describedby="sign-hint" disabled>Sign order</button>
-        <p id="sign-hint" class="hint"></p>
-        <p id="sign-result" class="sign-result" role="status"></p>
+      <div id="result-panel" hidden>
+        <h2 id="result-heading" tabindex="-1">Verification result</h2>
+        <div id="card-area" class="card-area" aria-live="polite" aria-busy="false"></div>
+        <div class="sign">
+          <button type="button" id="sign-button" class="primary" aria-describedby="sign-hint" disabled>Sign order</button>
+          <p id="sign-hint" class="hint"></p>
+          <p id="sign-result" class="sign-result" role="status"></p>
+        </div>
       </div>
     </section>
   </main>

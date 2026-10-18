@@ -19,7 +19,7 @@ def test_ac_006_4_presets_endpoint_lists_a_b_c_labelled_synthetic(client: TestCl
 
     assert response.status_code == 200
     presets = response.json()
-    assert [preset["preset_id"] for preset in presets] == ["A", "B", "C"]
+    assert [preset["preset_id"] for preset in presets] == ["A", "B", "C", "D", "E", "F"]
     assert all("Synthetic" in preset["synthetic_label"] for preset in presets)
 
 
@@ -87,6 +87,7 @@ def test_ac_009_1_alternative_order_is_rechecked_preset_a_paracetamol(client: Te
 def test_ac_006_5_presets_carry_distinct_bed_labels(client: TestClient) -> None:
     presets = client.get("/api/presets").json()
 
-    beds = [preset["bed"] for preset in presets]
+    beds = [preset["bed"] for preset in presets if preset["bed"] is not None]
+    assert len(beds) == 3
     assert all(bed.startswith("Bed ") for bed in beds)
     assert len(set(beds)) == len(beds)
