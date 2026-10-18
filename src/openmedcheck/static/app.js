@@ -271,15 +271,26 @@ function ecgTrace() {
   return svg;
 }
 
+const NEGATED_BEFORE = /\b(no|not|denies|denied|without|negative for|ruled out)\b[^.;\n]*$/i;
+
+function noteLocked() {
+  return $("f-note").hidden;
+}
+
 function quoteRanges(text, quotes) {
-  // Case-insensitive, spacing-tolerant position of each quote's first occurrence (the verifier
-  // checked that the quote is in the note, not which mention it came from); overlaps merged.
+  // Case-insensitive, spacing-tolerant position of one mention per quote; overlaps merged. The
+  // verifier checked that a non-negated mention exists, not which one, so the first mention not
+  // just after a negation in its clause is marked (else the first).
   const ranges = [];
   for (const quote of quotes) {
     const words = quote.trim().split(/\s+/).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
     if (!words.length || !words[0]) continue;
-    const match = new RegExp(words.join("\\s+"), "i").exec(text);
-    if (match) ranges.push([match.index, match.index + match[0].length]);
+    const matches = [...text.matchAll(new RegExp(words.join("\\s+"), "gi"))];
+    if (!matches.length) continue;
+    const match =
+      matches.find((m) => !NEGATED_BEFORE.test(text.slice(Math.max(0, m.index - 40), m.index))) ||
+      matches[0];
+    ranges.push([match.index, match.index + match[0].length]);
   }
   ranges.sort((a, b) => a[0] - b[0]);
   const merged = [];
@@ -678,7 +689,7 @@ function invalidate() {
   $("check-button").disabled = room === null || unsaved;
   $("check-hint").textContent = unsaved ? "Save the patient first." : "";
   if (room && !$("payload").hidden) showPayload();
-  if (room && $("f-note").hidden) renderNoteView(); // stale evidence highlights go
+  if (room && noteLocked()) renderNoteView(); // stale evidence highlights go
   const message = "Inputs changed. Press “Verify prescription” to check again.";
   if (!$("result-panel").hidden && $("card-area").textContent !== message) {
     moveFocusOutOfCard();
@@ -703,6 +714,7 @@ async function evaluate() {
   state.seq += 1;
   const mine = state.seq;
   resetOutcome();
+  if (noteLocked()) renderNoteView(); // the previous card's evidence does not carry over
   state.checking = true;
   updateSign();
   $("result-panel").hidden = false;
@@ -736,7 +748,7 @@ async function evaluate() {
   state.card = card;
   state.checking = false;
   renderCard(card);
-  if (document.querySelector(".history-edit").hidden) renderNoteView(evidenceOf(card));
+  if (noteLocked()) renderNoteView(evidenceOf(card));
   announceCard(card);
   if (card.source === "rules") setModelStatus(NO_MODEL_NOTE, "model-unavailable");
   else refreshHealth();
