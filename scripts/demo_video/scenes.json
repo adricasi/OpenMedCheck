@@ -6,12 +6,12 @@
     {
       "id": "intro",
       "slide": "intro",
-      "narration": "This is Open Med Check: an open-source prescribing check for emergency doctors, that reads the doctor's note and the patient's history."
+      "narration": "This is Open Med Check: an open-source prescribing check for emergency doctors that reads the note and the patient's history."
     },
     {
       "id": "problem",
       "slide": "problem",
-      "narration": "Emergency orders are written under time pressure. The key fact is often only in free text: a suspicion in today's note, or one line in a long history. Most coded-data checks we looked at don't read it, and studies report that clinicians override half to ninety-six percent of medication alerts."
+      "narration": "Emergency orders are written under pressure, and the key fact is often only in free text: today's note, or one line in a long history. Today's alerts mostly check drug pairs: a 2025 review of drug-interaction alerts found them often overridden, with no significant improvement in patient outcomes."
     },
     {
       "id": "bed3-open",
@@ -56,12 +56,12 @@
     {
       "id": "open",
       "slide": "open",
-      "narration": "Gemma's weights are open, so it can run on the hospital's own hardware and the note never has to leave the building. We think the buyer is the medication-safety team, paying for a maintained rule table, integration and support: a hypothesis we have yet to test."
+      "narration": "Gemma's weights are open, so it can run on the hospital's own hardware and the note never leaves the building. We think the buyer is the medication-safety team, paying for a maintained rule table, integration and support: a hypothesis still to test."
     },
     {
       "id": "end",
       "slide": "end",
-      "narration": "Open Med Check is a demonstrator on synthetic patients: not for clinical use, and not a medical device. The next step we're looking for is a clinical pilot. It's open source, on GitHub."
+      "narration": "Open Med Check is a demonstrator on synthetic patients: not for clinical use, and not a medical device. Next, we're looking for a clinical pilot. It's open source, on GitHub."
     }
   ]
 }

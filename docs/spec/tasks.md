@@ -226,12 +226,19 @@ pytest --cov` pass and CI is green, unless stated otherwise.
     show why Layer 2 exists, and the post draft's "76 synthetic cases" section backs it with the
     aggregate 72%→97% figure. Gemma's role is the headline, not a footnote after the rules.
   - Note (2026-10-18): the demo video was dropped and then reinstated by the owner. New cut:
-    introduction, the problems (today's note, a long history, alert overrides), the solution, Bed 3
+    introduction, the problems (today's note, a long history, generic alerts), the solution, Bed 3
     (suspected ACS in the note → `BLOCKED`) and Bed 5 (past GI bleed in the history → `WARNING`),
     how it works, results, promotional ending. Tooling restored in `scripts/demo_video/`; the final
     cut is recorded live on the GPU.
   - Done when: the video is linked from the README and the post; the post draft passes the wording rules
     (REQ-010); Q-6 answered; the user publishes and submits before Sun 22:00 CEST (human step).
+
+## Proposals (after the challenge, not scheduled)
+- [ ] P-1: Reason when an alert is acknowledged. When the prescriber chooses "Acknowledge and
+  keep order", ask for one reason from a short list (for example "already monitoring",
+  "tolerated before", "alert not relevant to this patient"), counted without patient data. It
+  measures override appropriateness per rule and may show which rules are noise (pilot metrics
+  in product.md). Needs a spec change first.
 
 ## Coverage check
 | Requirement | Tasks |

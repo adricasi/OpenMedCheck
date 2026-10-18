@@ -171,7 +171,10 @@ against the note, the exact model pinned and re-tested), no per-call fee, and no
 
 **Who would pay.** Not the ED doctor, but whoever owns medication safety: hospital pharmacy,
 medication-safety and clinical-informatics teams, who carry the cost of medication errors (WHO
-estimates about US$42 billion a year, *Medication Without Harm*) and of alert fatigue; and EHR or
+estimates about US$42 billion a year, *Medication Without Harm*) and of alerts that do not work:
+drug-interaction alerts are often overridden because they are generic, and have shown no
+significant improvement in patient outcomes
+([systematic review, 2025](https://pmc.ncbi.nlm.nih.gov/articles/PMC12451929/)); and EHR or
 clinical-decision-support vendors, who could embed an open, inspectable, escalate-only component.
 The lab-aware products we looked at (FDB Targeted Medication Warnings, Sentri7) do not, as far as we
 found, read the ED note at order time, and many hospitals will not send their notes to a hosted

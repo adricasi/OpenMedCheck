@@ -274,6 +274,18 @@ is **not** shown as a pass:
 
 ![Bed 3 with the model down: WARNING, Free-text note not checked](images/how-it-works/bed3-model-down.png)
 
+## Why patient-specific alerts
+
+Recent evidence is the reason for this design. Drug-interaction alerts are often overridden
+because they are generic, and have shown no significant improvement in patient-important
+outcomes ([systematic review, 2025](https://pmc.ncbi.nlm.nih.gov/articles/PMC12451929/)). One prospective study reported
+about 57% of embedded recommendations accepted, with alerts on about 2% of prescriptions
+([JMIR 2025](https://www.jmir.org/2025/1/e70731); no comparison group). OpenMedCheck
+therefore stays silent when nothing conflicts, checks the order against this patient's note,
+history and labs, shows the doctor's own words, and offers a re-checked alternative. Whether
+that changes prescribing in practice is not measured yet; the pilot metrics are defined in
+[product.md](spec/product.md).
+
 ## Why it is split this way
 
 | | Gemma alone | Rules alone | Gemma + code check + rules |
