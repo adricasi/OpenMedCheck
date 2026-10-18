@@ -328,7 +328,7 @@ PRESET_L = Preset(
     preset_id="L",
     title="Routine wrist sprain; a past GI bleed buried in a long past medical history; "
     "ibuprofen proposed",
-    bed="Bed 15",
+    bed="Bed 5",
     expected_rules_status=Status.NO_ISSUE,
     request=CheckRequest(
         context=PatientContext(

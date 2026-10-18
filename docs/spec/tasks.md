@@ -165,7 +165,7 @@ pytest --cov` pass and CI is green, unless stated otherwise.
   - Scope: `FindingKind.HISTORY`; the `note_history` question and schema (prompt v8); history
     findings kept unless denied or about a relative; evaluation set updated (`gi-past`,
     `acs-past-history` now WARNING; denied and family history silent).
-  - Note (2026-10-18): predefined room Bed 15 (preset L, AC-016.6): a past GI bleed buried in a
+  - Note (2026-10-18): predefined room Bed 5 (preset L, AC-016.6): a past GI bleed buried in a
     long past-history list in the note; past-history labels drop current-condition findings
     (AC-016.7).
   - Done when: tests pass; the model evaluation has run prompt v8 on the real model (human,

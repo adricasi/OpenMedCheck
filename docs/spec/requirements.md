@@ -224,8 +224,8 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
   - AC-006.4: All patient data in presets SHALL be synthetic and labelled as such.
   - AC-006.5: THE SYSTEM SHALL present presets A, B, C, K and L as predefined rooms of synthetic ED
     patients (bed, sex, age, reason for consult) rather than as preset letters, and selecting a
-    room SHALL show its context as the patient's record (simulated). (Amended 2026-10-18: K and
-    L added, AC-016.6.)
+    room SHALL show its context as the patient's record (simulated). Rooms are listed in bed
+    order. (Amended 2026-10-18: K and L added, AC-016.6; L moved from Bed 15 to Bed 5.)
   - AC-006.6: THE SYSTEM SHALL offer synthetic template patients: A, B, C, the three below, and
     G (warfarin + ibuprofen → rules `BLOCKED`), H (potassium 5.8 mmol/L + enalapril → rules
     `BLOCKED`) and I (pregnancy only in the note + ibuprofen → rules `NO_ISSUE`, the model's quote
@@ -457,7 +457,7 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
     the past medical history text and an NSAID is proposed, so the rules alone give `NO_ISSUE`
     and the final card is `WARNING` with the history's words as evidence once the model's history
     finding is kept: Bed 14 (preset K: knee injury after a fall; "Myocardial infarction in 2020,
-    treated with a coronary stent" in the history) and Bed 15 (preset L) : a routine wrist sprain with normal
+    treated with a coronary stent" in the history) and Bed 5 (preset L): a routine wrist sprain with normal
     labs, and "Upper GI bleed from a duodenal ulcer in 2021" as one line of a long past medical
     history.
   - AC-016.7: A current ACS or active GI bleed finding SHALL be dropped when a past-history label
