@@ -31,6 +31,7 @@ locally, can only escalate.
 
 - [What it does](#what-it-does)
 - [How it works](#-how-it-works)
+- [Why open weights — and who would pay](#-why-open-weights--and-who-would-pay)
 - [Try it](#-try-it)
 - [Quick start](#-quick-start)
 - [Using the demo](#using-the-demo)
@@ -40,12 +41,17 @@ locally, can only escalate.
 - [Measurements](#-measurements)
 - [Architecture & deployment](#-architecture--deployment)
 - [Privacy and zero egress](#-privacy-and-zero-egress)
-- [Why open-weights — and who would pay](#-why-open-weights--and-who-would-pay)
 - [Licence and credits](#-licence-and-credits)
 - [Contributing](#-contributing)
 - [Development workflow](#-development-workflow-spec-driven)
 
 ## What it does
+
+**In one example:** the ED note says *"Suspected ACS … On daily aspirin"*, the coded record is
+still empty, and the order is dexketoprofen (an NSAID). Rule-based checks stay silent.
+OpenMedCheck reads the note with Gemma 4 on local hardware, flags the order `BLOCKED` with the
+doctor's own words as evidence, and suggests paracetamol 1 g every 8 hours, re-checked first.
+The prescriber still decides.
 
 One proposed medication order plus a synthetic patient context goes in; one triage-coded decision
 card comes out: a status (`NO_ISSUE`, `WARNING` or `BLOCKED`), a risk level, a short rationale, a
@@ -112,6 +118,40 @@ rules-only card instead of an error. See [design.md](docs/spec/design.md) for th
 > `NO_ISSUE` from rules alone and `BLOCKED` only once Gemma reads it. Full numbers: see
 > [Evaluation set](#-evaluation-set).
 
+## 💰 Why open weights — and who would pay
+
+Built for the DEV Hacktoberfest Open-Source AI Challenge, whose Week 2 brief asks for something
+built with open-weight models or open-source AI that someone would actually pay for.
+
+**Open weights make this product possible, not just cheaper.** The ED note is special-category
+health data under GDPR (Art. 9): a hospital cannot send every order and note to a hosted model
+API. A capable open-weight model that fits on one hospital GPU (Gemma 4 E4B is about 6.6 GB; the
+results here come from an 8 GB laptop GPU) is what lets the check read the note without the note
+leaving the building (see [Privacy and zero egress](#-privacy-and-zero-egress)). The same
+openness brings auditability (cited rules a pharmacist can read, the model's quotes checked
+against the note, the exact model pinned and re-tested), no per-call fee, and no lock-in
+(`OPENMEDCHECK_MODEL` is one setting).
+
+**Who would pay.** Not the ED doctor, but whoever owns medication safety: hospital pharmacy,
+medication-safety and clinical-informatics teams, who carry the cost of preventable adverse drug
+events (WHO estimates medication errors cost about US$42 billion a year, *Medication Without
+Harm*) and of alert fatigue; and EHR or clinical-decision-support vendors, who could embed an
+open, inspectable, escalate-only component. Lab-aware checks exist, but none read the ED note at
+order time, and a hosted LLM API is ruled out by the data itself.
+
+**What they would pay for (open core).** The engine stays open source. A hospital pays for what
+keeps it trustworthy and connected: a maintained, cited, specialist-reviewed rule table kept
+current as SmPCs and guidelines change (the kind of content prescribing modules already license
+from drug databases), integration with its record system (HL7 FHIR, CDS Hooks), support, and the
+regulatory path. This is a hypothesis not yet tested with buyers.
+
+**Regulatory reality, stated plainly:** used on real patients this would involve
+special-category health data under GDPR (Art. 9) and, on this reading, medical-device software
+under the EU MDR (likely class IIa–IIb), needing a conformity assessment and CE marking.
+**OpenMedCheck is none of that.** It has no clinical validation and makes no performance claim
+on real patients. The [research notes](docs/discovery/research-notes.md) have the sourced alert-fatigue
+figures.
+
 ## 🚀 Try it
 
 OpenMedCheck is built to **run on-premises inside the hospital**, so patient context never leaves
@@ -155,8 +195,9 @@ rooms with synthetic ED patients (Bed 3, Bed 7 and Bed 12, which are presets A, 
 3. Press "Verify prescription": the page shows "Verifying the prescription with Gemma…", then
    one card (rules and Gemma combined, or rules only if the model is unavailable).
 
-"Add room" creates a room from one of six template patients (A–F; D, E and F add a coded GI
-bleed, a penicillin allergy and reduced kidney function). "Add patient" opens an empty record to
+"Add room" creates a room from one of nine template patients (A–I; D to I add a coded GI
+bleed, a penicillin allergy, reduced kidney function, warfarin, high potassium and a pregnancy
+stated only in the note). "Add patient" opens an empty record to
 fill in, including conditions, chronic medication and allergies; "Save patient" keeps it. Added
 rooms and patients exist only in the open page: nothing is stored, and a reload shows the three
 predefined rooms again. "Edit scenario (demo only)" unlocks a record so you can try other cases,
@@ -176,6 +217,9 @@ the model ready (the rules column is what `/api/check/rules` returns):
 | D (added room) | `BLOCKED`: NSAID with a coded active GI bleed | `BLOCKED`; alternative: Paracetamol 1 g, PO, every 8 hours |
 | E (added room) | `BLOCKED`: recorded penicillin allergy | `BLOCKED`, no alternative |
 | F (added room) | `BLOCKED`: dexketoprofen with estimated CrCl below 60 mL/min, renal flag | `BLOCKED`, renal flag kept; alternative: Paracetamol 1 g, PO, every 8 hours |
+| G (added room) | `BLOCKED`: NSAID with an oral anticoagulant (warfarin) | `BLOCKED` (a rules `BLOCKED` is final) |
+| H (added room) | `BLOCKED`: RAAS inhibitor (enalapril) with potassium above 5.5 mmol/L | `BLOCKED` (a rules `BLOCKED` is final) |
+| I (added room) | `NO_ISSUE`: the pregnancy is stated only in the note | Raised only if Gemma reads the pregnancy in the note |
 
 "Use alternative" on preset A fills in the specialist-reviewed rule-table dose (paracetamol 1 g,
 PO, every 8 hours) and verifies the changed order again on the same patient; that second check
@@ -192,7 +236,7 @@ second instance:
 OPENMEDCHECK_OLLAMA_URL=http://127.0.0.1:9 OPENMEDCHECK_PORT=8001 uv run openmedcheck
 ```
 
-The checks are also available over HTTP: `GET /api/presets/{A–F}` returns a request body
+The checks are also available over HTTP: `GET /api/presets/{A–I}` returns a request body
 that you can `POST` as JSON to `/api/check/rules` (rules only) or `/api/check` (final card), and
 `GET /api/model/health` reports `ready`, `warming` or `unavailable`.
 
@@ -311,40 +355,6 @@ its caveats.
   patient context (note, labs, medications, allergies, demographics) is written to logs, disk or
   caches. Logs carry only allowlisted fields such as request ID, rule IDs fired, statuses and
   timings (NFR-002).
-
-## 💰 Why open-weights — and who would pay
-
-Built for the DEV Hacktoberfest Open-Source AI Challenge, whose Week 2 brief asks for something
-built with open-weight models or open-source AI that someone would actually pay for.
-
-**Why open-weights, specifically:**
-- **Privacy.** Patient context is special-category health data. Because Gemma 4 is open-weights
-  and runs through Ollama, inference stays on the machine that's already running the app — no
-  prompt or patient context goes to a third-party model API (see [Privacy and zero
-  egress](#-privacy-and-zero-egress)).
-- **Cost.** Inference runs on local/self-hosted GPU hardware; there is no per-call model fee.
-- **Auditability.** The rules floor is plain, reviewed code and a cited rule table a pharmacist
-  can read — Gemma can only escalate it, never weaken it (see [How it works](#-how-it-works)).
-  That invariant is checkable because the model is swappable and inspectable, not a black-box
-  API.
-- **No lock-in.** The model tag is one configuration value (`OPENMEDCHECK_MODEL`); fine-tuning
-  on a hospital's own note style is a possible next step, not something a hosted API vendor
-  would need to agree to first.
-
-**Who would pay (a hypothesis, not a claim — this has not been validated with real
-conversations):** not the ED doctor directly, but an organisation that needs an on-premises,
-auditable check next to its existing prescribing system — hospital IT/clinical-informatics
-teams and pharmacy services wanting a self-hosted, reviewable layer on top of a vendor module,
-or EHR/clinical-decision-support vendors wanting an open, escalate-only component they can
-embed and inspect. A plausible model is support, rule-table maintenance and integration around
-the open-source core, not a licence fee for the core itself.
-
-**Regulatory reality, stated plainly:** used on real patients this would involve
-special-category health data under GDPR (Art. 9) and, on this reading, medical-device software
-under the EU MDR (likely class IIa–IIb), needing a conformity assessment and CE marking.
-**OpenMedCheck is none of that.** It has no clinical validation and makes no performance claim
-on real patients. See the [research notes](docs/discovery/research-notes.md) for the
-sourced alert-fatigue figures.
 
 ## 📄 Licence and credits
 
