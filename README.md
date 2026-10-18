@@ -16,6 +16,16 @@ renal-adjustment flag and, where the rule table allows one, an alternative drug.
 shown as "No issue found by these checks". The system checks orders against the diagnoses and
 data it is given; it never makes diagnoses of its own.
 
+**The doctor only writes the order.** The patient context is not meant to be typed: in a
+hospital it would be pulled from the patient's record (demographics, latest labs, coded
+diagnoses, current medication, allergies and the ED note) when the order is drafted, and the
+card would appear inline in the existing prescribing screen, or, when nothing conflicts, no
+card at all (the demo shows "No issue found by these checks"). The check engine is the
+product; the web UI here is a demo harness whose editable chart and synthetic presets stand in
+for that record. Record-system integration (for example HL7 FHIR with CDS Hooks) is not
+implemented in v0.1 and is out of scope for this version (see
+[product.md](docs/spec/product.md) non-goals).
+
 ## How it works
 
 Two layers, and the second can only make the first stricter (escalate-only):
