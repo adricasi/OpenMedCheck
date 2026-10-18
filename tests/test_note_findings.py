@@ -82,6 +82,11 @@ def test_ac_003_6_accepts_a_quote_from_the_reason_for_consult() -> None:
         ("Suspected ACS, no ST elevation on ECG.", acs()),
         ("Chest pain, likely NSTEMI.", acs("likely NSTEMI")),
         (
+            "Stopped aspirin and started warfarin last week.",
+            finding(FindingKind.MEDICATION, "warfarin", "started warfarin"),
+        ),
+        ("Chest pain on and off typical of angina.", acs("typical of angina")),
+        (
             "Coffee-ground vomiting this morning.",
             finding(FindingKind.CONDITION, "ACTIVE_GI_BLEED", "Coffee-ground vomiting"),
         ),
@@ -119,6 +124,8 @@ def test_ac_003_6_negation_is_local_to_the_term(note: str, item: NoteFinding) ->
             "Stopped warfarin two years ago.",
             finding(FindingKind.MEDICATION, "warfarin", "warfarin"),
         ),
+        ("Off warfarin since surgery.", finding(FindingKind.MEDICATION, "warfarin", "warfarin")),
+        ("Warfarin stopped last month.", finding(FindingKind.MEDICATION, "warfarin", "Warfarin")),
         ("Takes something daily.", finding(FindingKind.MEDICATION, "aspirin", "Takes something")),
     ],
 )

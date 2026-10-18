@@ -60,7 +60,7 @@ EnvironmentFile=/etc/caddy/caddy.env
 `/etc/caddy/Caddyfile` (replace the host name):
 ```caddyfile
 gemma.example.org {
-	@authorized header Authorization "Bearer {env.OLLAMA_API_KEY}"
+	@authorized header Authorization "Bearer {$OLLAMA_API_KEY}"
 
 	handle @authorized {
 		reverse_proxy 127.0.0.1:11434 {
@@ -75,7 +75,11 @@ gemma.example.org {
 	}
 }
 ```
+`{$OLLAMA_API_KEY}` is replaced from the environment when Caddy reads the Caddyfile, so the
+variable must be set wherever the Caddyfile is parsed: the service gets it from the
+`EnvironmentFile` above; for `caddy validate` load it into your shell first.
 ```bash
+set -a; . /etc/caddy/caddy.env; set +a     # only for the validate step
 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 systemctl daemon-reload && systemctl restart caddy
 systemctl status caddy --no-pager        # Caddy obtains the certificate automatically

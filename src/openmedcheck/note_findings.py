@@ -71,15 +71,22 @@ CONDITION_TERMS: dict[str, tuple[str, ...]] = {
 # ("ACS ruled out"). Clauses end at punctuation, "but", "except", "although" and "however", so
 # "Suspected ACS, no ST elevation" and "No known allergies except ... ibuprofen" keep the finding.
 _PRE_NEGATION = re.compile(
-    r"\b(?:no|not|denies|denied|negative\s+for|free\s+of|history\s+of|h/o|previous|prior|"
-    r"stopped|discontinued|off)\b",
+    r"\b(?:no|not|denies|denied|negative\s+for|free\s+of|history\s+of|h/o|previous|prior)\b",
     re.IGNORECASE,
 )
 _POST_NEGATION = re.compile(
-    r"^\W*(?:\w+\W+){0,2}?(?:ruled\s+out|rules\s+out|excluded|resolved|unlikely)\b",
+    r"^\W*(?:\w+\W+){0,2}?(?:ruled\s+out|rules\s+out|excluded|resolved|unlikely|stopped|"
+    r"discontinued)\b",
     re.IGNORECASE,
 )
-_CLAUSE_END = re.compile(r"[.;:,!?\n]|\b(?:but|except|although|however)\b", re.IGNORECASE)
+# "Stopped", "discontinued" and "off" negate only when right before the term ("stopped taking
+# warfarin", "off warfarin"); elsewhere they are too common ("pain on and off ... angina").
+_ADJACENT_PRE_NEGATION = re.compile(
+    r"\b(?:stopped|discontinued|off)(?:\s+taking)?\s*$", re.IGNORECASE
+)
+_CLAUSE_END = re.compile(
+    r"[.;:,!?\n]|\b(?:but|except|although|however|and|then|started|onto)\b", re.IGNORECASE
+)
 _PRE_WORDS = 4
 
 
@@ -111,7 +118,11 @@ def _negated(text: str, term: re.Match[str]) -> bool:
     after = text[term.end() :]
     stop = _CLAUSE_END.search(after)
     clause_after = after[: stop.start()] if stop else after
-    return bool(_PRE_NEGATION.search(window) or _POST_NEGATION.search(clause_after))
+    return bool(
+        _PRE_NEGATION.search(window)
+        or _ADJACENT_PRE_NEGATION.search(clause_before)
+        or _POST_NEGATION.search(clause_after)
+    )
 
 
 def _find(quote: str, text: str) -> re.Match[str] | None:
