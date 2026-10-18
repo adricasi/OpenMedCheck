@@ -30,7 +30,7 @@ from openmedcheck.contracts import (
     ProblemDetails,
 )
 from openmedcheck.logging_setup import LOGGER_NAME, log_event
-from openmedcheck.model_client import ModelClient, ModelHealth, OllamaClient
+from openmedcheck.model_client import BoundedModelClient, ModelClient, ModelHealth, OllamaClient
 
 LOGGER = logging.getLogger(f"{LOGGER_NAME}.web")
 PROBLEM_JSON = "application/problem+json"
@@ -138,8 +138,14 @@ def create_app(config: Config | None = None, model_client: ModelClient | None = 
     config = config or Config()
     injected = model_client
     if model_client is None:
-        model_client = OllamaClient(
-            config.ollama_url, config.model, deadline_s=config.model_timeout_s
+        model_client = BoundedModelClient(
+            OllamaClient(
+                config.ollama_url,
+                config.model,
+                deadline_s=config.model_timeout_s,
+                api_key=config.ollama_api_key,
+            ),
+            config.max_model_calls,
         )
     owns_client = injected is None
 
@@ -148,7 +154,7 @@ def create_app(config: Config | None = None, model_client: ModelClient | None = 
         try:
             yield
         finally:
-            if owns_client and isinstance(model_client, OllamaClient):
+            if owns_client and isinstance(model_client, BoundedModelClient | OllamaClient):
                 model_client.close()
 
     app = FastAPI(
@@ -163,12 +169,19 @@ def create_app(config: Config | None = None, model_client: ModelClient | None = 
     if config.allow_nonlocal and not is_loopback_host(config.host):
         host = config.host.lower().strip("[]")
         allowed_hosts.add(f"[{host}]" if ":" in host else host)
+    if config.allow_nonlocal:
+        allowed_hosts.update(config.public_hosts)
 
     @app.middleware("http")
     async def _trusted_host(request: Request, call_next: RequestResponseEndpoint) -> Response:
         # Registered first, so it runs inside the header and error middlewares below and its
         # rejection is a problem+json response that still carries the security headers.
-        if _request_hostname(request.headers.get("host", "")) not in allowed_hosts:
+        # /healthz is exempt: platform probes may send an internal Host header, and the
+        # response carries no data (AC-015.2).
+        if (
+            request.url.path != "/healthz"
+            and _request_hostname(request.headers.get("host", "")) not in allowed_hosts
+        ):
             return problem_response(
                 ProblemDetails(
                     title="Invalid host header",
@@ -206,7 +219,12 @@ def create_app(config: Config | None = None, model_client: ModelClient | None = 
 
     @app.get("/", response_class=HTMLResponse)
     async def index(request: Request) -> HTMLResponse:
-        return templates.TemplateResponse(request, "index.html")
+        return templates.TemplateResponse(request, "index.html", {"hosted": config.hosted})
+
+    @app.get("/healthz")
+    async def healthz() -> dict[str, str]:
+        # Platform liveness probe: never touches the model or any patient data.
+        return {"status": "ok"}
 
     @app.post("/api/check/rules", response_model=DecisionCard)
     async def check_rules(request: Request) -> Any:

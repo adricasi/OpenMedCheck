@@ -8,6 +8,22 @@ nothing conflicts (the card then reads "No issue found by these checks"). Gemma 
 > demonstrator built for the DEV Hacktoberfest Open-Source AI Challenge. It works on synthetic
 > patients only, gives no medical advice and must not be used for any real patient.
 
+## Try it
+
+OpenMedCheck is built to **run on-premises inside the hospital**, so patient context never leaves
+the building. The hosted copy below exists only so you can try the demo with synthetic data;
+never enter real patient data there.
+
+- **Hosted demo (synthetic data only):** [HOSTED DEMO URL]
+- **Local with Docker (one command after the model pull):**
+  `docker compose --profile setup run --rm model-pull && docker compose up --build`, then open
+  <http://127.0.0.1:8000>. Details: [docs/deploy/local-docker.md](docs/deploy/local-docker.md).
+- **Local with uv:** see [Quick start](#quick-start) below (unchanged).
+
+Maintainers: the opt-in hosted profile is described in
+[ADR 0007](docs/adr/0007-hosted-demo-profile.md), with guides for
+[Render](docs/deploy/render.md) and [Gemma on a DigitalOcean GPU droplet](docs/deploy/digitalocean-gemma.md).
+
 ## What it does
 
 One proposed medication order plus a synthetic patient context goes in; one triage-coded decision
@@ -99,7 +115,9 @@ by these checks"). The prescriber always decides.
 
 If Ollama or the model is missing, or does not answer in time, the app still starts and returns
 the rules-only card with the note "Model check unavailable — rules only". The rules alone cannot
-read the free-text note, so preset A then stays `NO_ISSUE`; the note on the card says why. To
+read the free-text note, so when they find nothing the card is a `WARNING` "Free-text note not
+checked" instead of "No issue found by these checks" (a check that could not check the note must
+not look like a pass; rule findings such as preset B's are shown unchanged). To
 try it, start a second instance:
 `OPENMEDCHECK_OLLAMA_URL=http://127.0.0.1:9 OPENMEDCHECK_PORT=8001 uv run openmedcheck`.
 
@@ -120,6 +138,9 @@ All settings are environment variables read at start-up (`src/openmedcheck/confi
 | `OPENMEDCHECK_MODEL` | `gemma4:e4b` | Model tag served by Ollama; must not be empty. |
 | `OPENMEDCHECK_MODEL_TIMEOUT_S` | `10.0` | Total model deadline in seconds across the first attempt and the retry; must be a positive, finite number. |
 | `OPENMEDCHECK_ALLOW_NONLOCAL` | `0` | Set to `1` to allow a non-loopback bind host or Ollama URL. Leave it at `0` for the zero-egress guarantee. |
+| `OPENMEDCHECK_PUBLIC_HOSTS` | empty | Hosted demo only: comma-separated host names accepted in the Host header and shown with the hosted-demo notice. Needs `OPENMEDCHECK_ALLOW_NONLOCAL=1`. |
+| `OPENMEDCHECK_OLLAMA_API_KEY` | empty | Hosted demo only: secret sent as `Authorization: Bearer` to the model host. Needs an `https://` Ollama URL (unless Ollama is on loopback). Never logged or returned. |
+| `PORT` | unset | Platform port, used only when `OPENMEDCHECK_PORT` is unset. |
 
 The app refuses to start with an invalid value.
 
@@ -135,6 +156,28 @@ uv run pytest -m ollama                              # real-model tests (local o
 
 Unit, service and API tests use a fake model client; only the `-m ollama` tests call a real
 model.
+
+## Evaluation set
+
+An open set of **76 synthetic ED cases** ([evals/](evals/README.md)) covers every rule, notes
+where the conflict is only in free text, negations ("ACS ruled out", "not pregnant", "stopped
+warfarin"), past and family history, abbreviations, typos and clean notes that must stay silent.
+Each case states the findings the authors expect the note to state (not yet reviewed by a
+clinician), and a test keeps every case
+consistent with the rules. Result on the same machine
+([comparison](docs/measurements/2026-10-18-model-comparison.md)):
+
+| | Final status matches label | False alarms | Misses | Model step p50 |
+|---|---|---|---|---|
+| Rules only | 72% | 0/34 | 21/42 (50%) | n/a |
+| **Rules + Gemma 4 E4B** | **97%** | **0/34** | **1/42 (2%)** | 1.87 s |
+| Rules + Gemma 3 4B | 78% | 5/34 | 11/42 | 5.59 s |
+| Rules + Gemma 4 12B | 80% | 0/34 | 14/42 (timeouts on an 8 GB GPU) | 9.62 s |
+
+Note findings from Gemma 4 E4B: 100% precision for every type, 100% recall except allergy (5/6)
+and active GI bleed (3/4). The cases, prompt and verifier were developed together, so 97% is a
+development-set figure, not a held-out estimate. Run it yourself: `uv run python scripts/eval_set.py [--model <tag>]`. Synthetic
+notes, temperature 0: this measures coverage of wordings, not clinical validity.
 
 ## Measurements
 
@@ -154,7 +197,7 @@ Measured on one machine (NVIDIA RTX 3000 Ada Laptop GPU, 8188 MiB; Ollama 0.35.1
   15/15, preset A re-checked with paracetamol `NO_ISSUE` 15/15, B `WARNING` with the renal flag,
   C `NO_ISSUE`; model-step p95 at most 1.50 s.
 
-- [English presets and prompt v4](docs/measurements/2026-10-18-prompt-v4.md) (current): after
+- [English presets and prompt v4](docs/measurements/2026-10-18-prompt-v4.md): after
   the presets were translated to English, prompt v3 blocked the paracetamol re-check 15/15. v4
   sends the ANTIPLATELET_ACS guidance only when the order is an NSAID (a fact from the drug
   list). Then 60/60 valid on the first try; preset A `BLOCKED` 15/15, paracetamol re-check
@@ -207,6 +250,11 @@ model weights are not part of this repository.
 Clinical content in the rule table is a demonstrator and has not been signed off for clinical
 use; see [docs/clinical-review.md](docs/clinical-review.md) for the review status and open
 questions for a specialist.
+
+## Contributing
+
+Clinicians and developers are welcome: propose a rule with its source, review a rule, or add
+synthetic evaluation cases. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Development workflow (spec-driven)
 

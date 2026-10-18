@@ -80,6 +80,27 @@ def test_ac_003_6_accepts_a_quote_from_the_reason_for_consult() -> None:
     ("note", "item"),
     [
         ("Suspected ACS, no ST elevation on ECG.", acs()),
+        ("Chest pain, likely NSTEMI.", acs("likely NSTEMI")),
+        (
+            "Stopped aspirin and started warfarin last week.",
+            finding(FindingKind.MEDICATION, "warfarin", "started warfarin"),
+        ),
+        ("Chest pain on and off typical of angina.", acs("typical of angina")),
+        ("Chest pain on and off angina.", acs("angina")),
+        ("ACS not ruled out yet.", acs("ACS")),
+        ("ACS hasn\u2019t been ruled out.", acs("ACS")),
+        ("ACS isn't fully excluded.", acs("ACS")),
+        ("Suspected ACS with troponin test negative so far.", acs()),
+        (
+            "Plan reviewed, meds stopped\nWarfarin daily for AF.",
+            finding(FindingKind.MEDICATION, "warfarin", "Warfarin daily"),
+        ),
+        ("Warfarin not stopped.", finding(FindingKind.MEDICATION, "warfarin", "Warfarin")),
+        ("Aspirin to be stopped tomorrow.", finding(FindingKind.MEDICATION, "aspirin", "Aspirin")),
+        (
+            "Coffee-ground vomiting this morning.",
+            finding(FindingKind.CONDITION, "ACTIVE_GI_BLEED", "Coffee-ground vomiting"),
+        ),
         ("Suspected ACS in a man with previous PCI.", acs()),
         ("Chest pain not relieved by rest, likely ACS.", acs("likely ACS")),
         (
@@ -110,6 +131,13 @@ def test_ac_003_6_negation_is_local_to_the_term(note: str, item: NoteFinding) ->
         ),
         ("History of ACS in 2019.", acs("ACS")),  # past history only
         ("Not on aspirin.", finding(FindingKind.MEDICATION, "aspirin", "aspirin")),
+        (
+            "Stopped warfarin two years ago.",
+            finding(FindingKind.MEDICATION, "warfarin", "warfarin"),
+        ),
+        ("Off warfarin since surgery.", finding(FindingKind.MEDICATION, "warfarin", "warfarin")),
+        ("Warfarin stopped last month.", finding(FindingKind.MEDICATION, "warfarin", "Warfarin")),
+        ("Warfarin was discontinued.", finding(FindingKind.MEDICATION, "warfarin", "Warfarin")),
         ("Takes something daily.", finding(FindingKind.MEDICATION, "aspirin", "Takes something")),
     ],
 )
@@ -239,7 +267,7 @@ _findings = st.lists(
 )
 _orders = st.sampled_from(note_findings.MEDICATION_CODES)
 _contexts = st.builds(
-    lambda diagnoses, chronic, allergies, creatinine, egfr, age, weight: (
+    lambda diagnoses, chronic, allergies, creatinine, egfr, age, weight, potassium, platelets: (
         PRESET_A.request.context.model_copy(
             update={
                 "diagnoses": diagnoses,
@@ -248,7 +276,12 @@ _contexts = st.builds(
                 "age": age,
                 "weight_kg": weight,
                 "labs": PRESET_A.request.context.labs.model_copy(
-                    update={"creatinine_mg_dl": creatinine, "egfr_ml_min_1_73m2": egfr}
+                    update={
+                        "creatinine_mg_dl": creatinine,
+                        "egfr_ml_min_1_73m2": egfr,
+                        "potassium_mmol_l": potassium,
+                        "platelets_per_ul": platelets,
+                    }
                 ),
             }
         )
@@ -260,6 +293,8 @@ _contexts = st.builds(
     st.one_of(st.none(), st.floats(min_value=5, max_value=120)),
     st.integers(min_value=18, max_value=100),
     st.floats(min_value=35, max_value=150),
+    st.one_of(st.none(), st.floats(min_value=1.5, max_value=9)),
+    st.one_of(st.none(), st.floats(min_value=1_000, max_value=2_000_000)),
 )
 
 
@@ -366,7 +401,8 @@ def test_req_005_invalid_model_output_uses_no_findings() -> None:
     card = run(PRESET_A.request, "not json", "still not json")
 
     assert card.source is Source.RULES
-    assert card.status is Status.NO_ISSUE
+    assert card.status is Status.WARNING  # note not checked (AC-005.3), no findings used
+    assert card.fired_rules == []
 
 
 def test_nfr_002_finding_counts_are_logged_and_quotes_are_not() -> None:
@@ -441,3 +477,145 @@ def test_ac_003_8_model_only_escalation_of_another_kind_reaches_the_card() -> No
     assert card.status is Status.BLOCKED
     assert card.source is Source.RULES_MODEL
     assert card.headline == "Order needs review now"
+
+
+_GATE_CASES = {
+    # conflict type: (request where no rule of that type fires, request where one does)
+    "ANTIPLATELET_ACS": (
+        PRESET_A.request,
+        CheckRequest(
+            context=PRESET_A.request.context.model_copy(update={"diagnoses": ["ACS"]}),
+            order=PRESET_A.request.order,
+        ),
+    ),
+    "GI_BLEED": (
+        PRESET_C.request.model_copy(
+            update={"order": Order(drug_id="ibuprofen", dose_text="x", route="PO", frequency="x")}
+        ),
+        CheckRequest(
+            context=PRESET_C.request.context.model_copy(update={"diagnoses": ["ACTIVE_GI_BLEED"]}),
+            order=Order(drug_id="ibuprofen", dose_text="x", route="PO", frequency="x"),
+        ),
+    ),
+    "ALLERGY": (
+        PRESET_C.request,
+        CheckRequest(
+            context=PRESET_C.request.context.model_copy(update={"allergies": ["paracetamol"]}),
+            order=PRESET_C.request.order,
+        ),
+    ),
+    "BLEEDING": (
+        PRESET_C.request.model_copy(
+            update={"order": Order(drug_id="ibuprofen", dose_text="x", route="PO", frequency="x")}
+        ),
+        CheckRequest(
+            context=PRESET_C.request.context.model_copy(
+                update={"chronic_medications": ["warfarin"]}
+            ),
+            order=Order(drug_id="ibuprofen", dose_text="x", route="PO", frequency="x"),
+        ),
+    ),
+    "HYPERKALAEMIA": (
+        CheckRequest(
+            context=PRESET_C.request.context.model_copy(
+                update={
+                    "labs": PRESET_C.request.context.labs.model_copy(
+                        update={"potassium_mmol_l": 4.2}
+                    )
+                }
+            ),
+            order=Order(drug_id="enalapril", dose_text="x", route="PO", frequency="x"),
+        ),
+        CheckRequest(
+            context=PRESET_C.request.context.model_copy(
+                update={
+                    "labs": PRESET_C.request.context.labs.model_copy(
+                        update={"potassium_mmol_l": 5.8}
+                    )
+                }
+            ),
+            order=Order(drug_id="enalapril", dose_text="x", route="PO", frequency="x"),
+        ),
+    ),
+    "HEART_FAILURE": (
+        PRESET_C.request.model_copy(
+            update={"order": Order(drug_id="naproxen", dose_text="x", route="PO", frequency="x")}
+        ),
+        CheckRequest(
+            context=PRESET_C.request.context.model_copy(update={"diagnoses": ["HEART_FAILURE"]}),
+            order=Order(drug_id="naproxen", dose_text="x", route="PO", frequency="x"),
+        ),
+    ),
+    "PREGNANCY": (
+        PRESET_C.request,
+        CheckRequest(
+            context=PRESET_C.request.context.model_copy(update={"diagnoses": ["PREGNANCY"]}),
+            order=Order(drug_id="ibuprofen", dose_text="x", route="PO", frequency="x"),
+        ),
+    ),
+}
+
+
+def _escalation(conflict: str) -> dict[str, Any]:
+    data = {**NO_ISSUE_WITH, "status": "BLOCKED", "risk_level": "HIGH", "conflict_type": conflict}
+    return data | {"headline": "Conflict found", "rationale": "The note raises a conflict."}
+
+
+def test_ac_003_8_gate_cases_cover_every_rule_decided_conflict() -> None:
+    from openmedcheck.check_service import RULE_DECIDED_CONFLICTS
+
+    assert {c.value for c in RULE_DECIDED_CONFLICTS} == set(_GATE_CASES)
+
+
+@pytest.mark.parametrize("conflict", sorted(_GATE_CASES))
+def test_ac_003_8_unconfirmed_escalation_is_set_aside_for_each_type(conflict: str) -> None:
+    unconfirmed, _ = _GATE_CASES[conflict]
+    coded = rules_engine.evaluate(unconfirmed.context, unconfirmed.order)
+
+    card = run(unconfirmed, model_json(**_escalation(conflict)))
+
+    assert card.status is coded.status
+
+
+@pytest.mark.parametrize("conflict", sorted(_GATE_CASES))
+def test_ac_003_8_escalation_confirmed_by_a_rule_is_kept_for_each_type(conflict: str) -> None:
+    _, confirmed = _GATE_CASES[conflict]
+
+    card = run(confirmed, model_json(**_escalation(conflict)))
+
+    assert card.status is Status.BLOCKED
+
+
+@pytest.mark.parametrize(
+    ("note", "item"),
+    [
+        (
+            "Denies chest pain and GI bleeding.",
+            finding(FindingKind.CONDITION, "ACTIVE_GI_BLEED", "GI bleeding"),
+        ),
+        ("No fever and melaena.", finding(FindingKind.CONDITION, "ACTIVE_GI_BLEED", "melaena")),
+    ],
+)
+def test_ac_003_6_coordinated_negation_is_not_carried_across_and(
+    note: str, item: NoteFinding
+) -> None:
+    """Known limit, kept on purpose: carrying a negator across "and" would also drop real
+    findings ("No fever and suspected ACS"), a fail-open path. Over-alerting is the safe side."""
+    assert len(note_findings.verify([item], context_with_note(note))) == 1
+
+
+@pytest.mark.parametrize("note", ["Non-pregnant woman, migraine.", "Nonpregnant, headache."])
+def test_ac_003_6_non_pregnant_is_negated(note: str) -> None:
+    item = finding(FindingKind.CONDITION, "PREGNANCY", "pregnant")
+    assert note_findings.verify([item], context_with_note(note)) == ()
+
+
+def test_ac_003_6_non_st_elevation_acs_is_kept() -> None:
+    assert (
+        len(
+            note_findings.verify(
+                [acs("Non-ST elevation ACS")], context_with_note("Non-ST elevation ACS on ECG.")
+            )
+        )
+        == 1
+    )

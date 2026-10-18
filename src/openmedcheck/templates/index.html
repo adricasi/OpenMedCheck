@@ -9,6 +9,7 @@
 </head>
 <body>
   <div class="banner" role="note">Not for clinical use — synthetic patients. Not a medical device.</div>
+  {% if hosted %}<div class="hosted-banner" role="note">This public demo is hosted only so you can try it. Use synthetic data only and never enter real patient data. OpenMedCheck is meant to run on-premises inside the hospital.</div>{% endif %}
   <header class="appbar">
     <div class="brand">
       <span class="brand-mark" aria-hidden="true">OM</span>
@@ -105,6 +106,16 @@
               <input id="f-egfr" type="number" inputmode="decimal" step="any" data-path="context.labs.egfr_ml_min_1_73m2" data-record aria-describedby="e-egfr">
               <span id="e-egfr" class="field-error" hidden></span>
             </div>
+            <div class="field">
+              <label for="f-potassium">Potassium (mmol/L<span class="constraint">, 1.5–9</span>)</label>
+              <input id="f-potassium" type="number" inputmode="decimal" step="any" data-path="context.labs.potassium_mmol_l" data-record aria-describedby="e-potassium">
+              <span id="e-potassium" class="field-error" hidden></span>
+            </div>
+            <div class="field">
+              <label for="f-platelets">Platelets (per µL<span class="constraint">, 1,000–2,000,000</span>)</label>
+              <input id="f-platelets" type="number" inputmode="numeric" step="any" data-path="context.labs.platelets_per_ul" data-record aria-describedby="e-platelets">
+              <span id="e-platelets" class="field-error" hidden></span>
+            </div>
           </fieldset>
 
           <fieldset class="record-fields">
@@ -119,6 +130,8 @@
                 <legend>Recorded conditions</legend>
                 <label><input type="checkbox" id="f-cond-acs" value="ACS" data-history> Acute coronary syndrome</label>
                 <label><input type="checkbox" id="f-cond-gi" value="ACTIVE_GI_BLEED" data-history> Active gastrointestinal bleed</label>
+                <label><input type="checkbox" id="f-cond-hf" value="HEART_FAILURE" data-history> Heart failure</label>
+                <label><input type="checkbox" id="f-cond-preg" value="PREGNANCY" data-history> Pregnancy</label>
               </fieldset>
               <fieldset class="chronic">
                 <legend>Chronic medication</legend>

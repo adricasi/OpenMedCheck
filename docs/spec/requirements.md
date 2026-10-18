@@ -80,6 +80,24 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
     sex and serum creatinine and show the computed value on the card.
   - AC-002.8: WHEN any rule-table entry lacks a source citation THE SYSTEM SHALL fail its test
     suite (rule-table lint test).
+  - AC-002.9: WHEN the proposed drug is an NSAID AND the patient takes an oral anticoagulant
+    (acenocoumarol or warfarin) THE SYSTEM SHALL return `BLOCKED`.
+  - AC-002.10: WHEN the proposed drug is an ACE inhibitor or a potassium-sparing drug AND serum
+    potassium is above the rule-table threshold, or the patient already takes a drug of the other
+    class and potassium is above it, THE SYSTEM SHALL return the rule's status (`WARNING` or
+    `BLOCKED`); IF potassium is missing for such a drug THEN THE SYSTEM SHALL warn that it is
+    unknown.
+  - AC-002.11: WHEN the proposed drug is an NSAID AND heart failure is coded (or a kept note
+    finding) THE SYSTEM SHALL return the rule's status.
+  - AC-002.12: WHEN the proposed drug is an NSAID or an anticoagulant AND the platelet count is
+    below the rule-table threshold THE SYSTEM SHALL return the rule's status.
+  - AC-002.13: WHEN pregnancy is coded (or a kept note finding) AND the proposed drug is on the
+    rule table's pregnancy list (ACE inhibitors, oral anticoagulants, NSAIDs) THE SYSTEM SHALL
+    return the rule's status.
+  - AC-002.14: The new rules (AC-002.9 to AC-002.13) SHALL follow AC-002.8 and NFR-011: a cited
+    source, a review mark (not reviewed until the specialist signs off) and no unreviewed numeric
+    dose; new conditions (heart failure, pregnancy) are coded diagnoses and note questions
+    (AC-003.6), and new medications and labs need no prompt change.
 
 ### REQ-003: Layer 2 model assessment with Gemma 4
 - Story: As an ED physician, I want the check to read my free-text note and the whole context,
@@ -170,6 +188,12 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
     as the final card with source `rules` and the fallback note.
   - AC-005.2: WHILE the model is unavailable THE SYSTEM SHALL still flag every high-risk case
     the rules cover (presets B and the coded variants of A return their rules status).
+  - AC-005.3: IF the model is unavailable (AC-005.1, including a full model-call cap) AND the
+    rules verdict is `NO_ISSUE` THEN THE SYSTEM SHALL return `WARNING` / `MODERATE` with the
+    fixed headline "Free-text note not checked" and the fixed rationale "The model check was unavailable, so the free-text note was not checked. The rules found no conflict in the coded data; review the note before signing.",
+    never "No issue found by these checks" (a check that could not check the note must not look
+    like a pass); a rules verdict of `WARNING` or `BLOCKED` is returned unchanged.
+    `/api/check/rules` (rules only by design) is not affected.
 
 ### REQ-006: Synthetic presets, rooms and templates
 - Story: As a challenge judge, I want three ready-made rooms and a few more template patients,
@@ -192,7 +216,10 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
   - AC-006.5: THE SYSTEM SHALL present presets A, B and C as predefined rooms of synthetic ED
     patients (bed, sex, age, reason for consult) rather than as preset letters, and selecting a
     room SHALL show its context as the patient's record (simulated).
-  - AC-006.6: THE SYSTEM SHALL offer six synthetic template patients: A, B, C and three more,
+  - AC-006.6: THE SYSTEM SHALL offer synthetic template patients: A, B, C, the three below, and
+    G (warfarin + ibuprofen → rules `BLOCKED`), H (potassium 5.8 mmol/L + enalapril → rules
+    `BLOCKED`) and I (pregnancy only in the note + ibuprofen → rules `NO_ISSUE`, the model's quote
+    decides) for the conflict breadth of AC-002.9 to AC-002.13. The first six are:
     each with a deterministic rules conflict and a demo prescription:
     D (coded active GI bleed, ibuprofen → rules `BLOCKED`, alternative paracetamol),
     E (penicillin allergy, amoxicillin-clavulanate → rules `BLOCKED`, no alternative),
@@ -315,6 +342,15 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
     and the final card, the valid-output rate, and the hardware/model tag used.
   - AC-012.2: WHEN the script finishes THE SYSTEM SHALL write the results to a file in the repo
     (`docs/measurements/`), with the date.
+  - AC-012.3: THE SYSTEM SHALL keep an open evaluation set of at least 60 synthetic ED cases in
+    `evals/` (note, coded context, order, expected findings and expected final status), covering
+    every rule, negations, past history, abbreviations, clean notes and mixed wording, with a
+    schema test so contributed cases stay valid.
+  - AC-012.4: WHEN the evaluation runs (`scripts/eval_set.py`, optionally `--model` to compare
+    local models) THE SYSTEM SHALL report per finding type precision and recall, the final-status
+    accuracy, the false-alarm rate on cases expected `NO_ISSUE`, the silence rate, first-try
+    validity and latency, and write them to `docs/measurements/`; the rules-only part SHALL run in
+    CI without a model.
 
 ### REQ-013: GCP reference architecture and deployment plan (documented, not implemented)
 - Story: As a CMIO reading the post, I want to see how this would run inside a hospital's own
@@ -340,10 +376,31 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
   - AC-014.1: WHEN the UI loads THE SYSTEM SHALL send one warm-up request to the model and show
     "Model warming…" until it completes or times out.
 
+### REQ-015: Hosted demo profile (opt-in, synthetic data only)
+- Story: As a challenge judge, I want to try the demo in a browser without installing a model,
+  while the product story stays "runs on-premises in the hospital".
+- Priority: Should
+- Goals: G-4
+- Acceptance criteria:
+  - AC-015.1: THE SYSTEM SHALL keep the local, zero-egress behaviour as the default; the hosted
+    profile is enabled only by explicit environment variables (`OPENMEDCHECK_ALLOW_NONLOCAL=1`
+    plus the public host name).
+  - AC-015.2: WHEN the hosted profile is enabled THE SYSTEM SHALL accept requests only for the
+    configured public host name(s), bind the address and port given by the platform, and reach
+    the model only at the configured HTTPS URL, sending a bearer API key read from the
+    environment; the key SHALL never be logged, returned or committed.
+  - AC-015.3: WHEN the hosted profile is enabled THE SYSTEM SHALL show on every page that the
+    demo is hosted for trying it, accepts synthetic data only, and that the product is meant to
+    run on-premises.
+  - AC-015.4: THE SYSTEM SHALL provide a container image and a `docker compose` setup that runs
+    the app and Ollama locally with one command, and step-by-step deployment guides for the
+    hosted demo (app on Render, Gemma on a DigitalOcean GPU droplet behind an authenticating
+    HTTPS proxy). Nothing is deployed.
+
 ## Non-functional requirements
 | ID | Category | Requirement (measurable) | Verification |
 |---|---|---|---|
-| NFR-001 | Security | The app binds to `127.0.0.1` by default. The only outbound connection is to the configured Ollama host (default `http://127.0.0.1:11434`). No telemetry or CDN calls at runtime (UI assets served locally). Request body ≤ 16 KB. `pip-audit` reports no known vulnerabilities with a fix available. Model output is never rendered as HTML (escaped text only). | Test that blocks non-allowlisted sockets during an evaluation; config test; `uv run pip-audit` in CI; XSS test with markup in the note and model output |
+| NFR-001 | Security | The app binds to `127.0.0.1` by default (the opt-in hosted profile, REQ-015, is the only exception). The only outbound connection is to the configured Ollama host (default `http://127.0.0.1:11434`). No telemetry or CDN calls at runtime (UI assets served locally). Request body ≤ 16 KB. `pip-audit` reports no known vulnerabilities with a fix available. Model output is never rendered as HTML (escaped text only). | Test that blocks non-allowlisted sockets during an evaluation; config test; `uv run pip-audit` in CI; XSS test with markup in the note and model output |
 | NFR-002 | Privacy / data classification | Data is synthetic only, but treated as special-category health data: nothing from the PatientContext (note, labs, meds, allergies, demographics) is written to logs, disk or caches. Logs carry only request ID, preset ID (if any), rule IDs fired, statuses, timings, validity outcome. 422 response bodies (which echo input values) and raw model output are never logged. | Log-capture test asserting no context field values appear in logs, incl. for a 422 and an invalid model output; no file writes during evaluation |
 | NFR-003 | Availability / fail-safe | 100% of valid evaluations return a card when Ollama is stopped, slow or returns garbage (rules-only card). | Tests with a fake model: down, timeout, invalid ×2 |
 | NFR-004 | Performance | Local NVIDIA GPU (≥ 8 GB VRAM), `gemma4:e4b`, warm: rules card p95 < 200 ms server-side; final card p95 < 3 s end to end over ≥ 20 calls. Total model deadline 10 s across the first attempt and the retry (configurable), then rules-only card. | REQ-012 measurement script; deadline test with a fake slow model (incl. slow first attempt + retry) |

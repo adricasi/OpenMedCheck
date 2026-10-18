@@ -995,3 +995,14 @@ button:disabled {
   font-size: 0.78rem;
   white-space: pre-wrap;
 }
+
+/* Hosted demo notice (AC-015.3): shown only when the hosted profile is enabled. */
+.hosted-banner {
+  padding: 0.4rem 1rem;
+  border-bottom: 1px solid var(--warn-border);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: center;
+}

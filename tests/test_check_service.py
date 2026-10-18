@@ -12,7 +12,14 @@ from typing import Any
 import pytest
 
 from openmedcheck import prompt, rule_table
-from openmedcheck.check_service import LOGGER, MODEL_UNAVAILABLE_NOTE, final_card
+from openmedcheck.check_service import (
+    LOGGER,
+    MODEL_UNAVAILABLE_NOTE,
+    NOTE_UNCHECKED_HEADLINE,
+    NOTE_UNCHECKED_RATIONALE,
+    final_card,
+    rules_card,
+)
 from openmedcheck.contracts import CheckRequest, DecisionCard, Source, Status
 from openmedcheck.logging_setup import ALLOWED_FIELDS, JsonFormatter
 from openmedcheck.model_client import FakeDelay, FakeModelClient, ModelTimeout, ModelUnavailable
@@ -199,7 +206,7 @@ def test_ac_004_7_unknown_drug_suggestion_is_not_shown() -> None:
 
     card, _ = run(PRESET_A.request, bad, bad)
 
-    assert_rules_only(card, Status.NO_ISSUE)
+    assert_rules_only(card, Status.WARNING)  # invalid twice: note not checked (AC-005.3)
     assert card.alternative is None
 
 
@@ -273,9 +280,9 @@ def test_ac_001_2_card_text_respects_the_limits_for_valid_model_output() -> None
 
 def test_nfr_003_model_down_every_check_returns_a_rules_only_card() -> None:
     cases = [
-        (PRESET_A.request, Status.NO_ISSUE),
+        (PRESET_A.request, Status.WARNING),  # rules NO_ISSUE, note not checked (AC-005.3)
         (PRESET_B.request, Status.WARNING),
-        (PRESET_C.request, Status.NO_ISSUE),
+        (PRESET_C.request, Status.WARNING),  # rules NO_ISSUE, note not checked (AC-005.3)
         (coded_a(), Status.BLOCKED),
     ] * 25
 
@@ -353,3 +360,68 @@ def test_ac_004_9_no_issue_from_both_layers_uses_the_fixed_text() -> None:
     assert card.status is Status.NO_ISSUE
     assert card.headline == "No issue found by these checks"
     assert "No conflict found" not in card.headline + card.rationale
+
+
+def test_ac_005_3_unread_note_turns_a_clean_rules_verdict_into_a_warning() -> None:
+    with captured_log() as stream:
+        card, _ = run(PRESET_C.request, ModelTimeout())
+
+    (line,) = parsed(stream)
+    assert line["final_status"] == "WARNING"
+    assert line["model_status"] is None
+
+    assert card.status is Status.WARNING
+    assert card.risk_level.value == "MODERATE"
+    assert card.headline == NOTE_UNCHECKED_HEADLINE
+    assert card.rationale == NOTE_UNCHECKED_RATIONALE
+    assert card.model_note == MODEL_UNAVAILABLE_NOTE
+
+
+def test_ac_005_3_rules_findings_are_kept_unchanged_without_the_model() -> None:
+    card_b, _ = run(PRESET_B.request, ModelUnavailable())
+    card_blocked, _ = run(coded_a(), ModelUnavailable())
+
+    assert card_b.status is Status.WARNING
+    assert card_b.headline != "Free-text note not checked"
+    assert card_blocked.status is Status.BLOCKED
+
+
+def test_ac_005_3_rules_only_endpoint_is_not_affected() -> None:
+    assert rules_card(PRESET_C.request).status is Status.NO_ISSUE
+
+
+def test_ac_005_3_error_after_the_model_call_still_flags_the_unchecked_note(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from openmedcheck import check_service
+
+    original = check_service.combined_card
+    calls = {"n": 0}
+
+    def failing_once(*args: Any, **kwargs: Any) -> Any:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("boom")
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(check_service, "combined_card", failing_once)
+    card, _ = run(PRESET_C.request, NO_ISSUE_JSON)
+
+    assert card.status is Status.WARNING
+    assert card.headline == NOTE_UNCHECKED_HEADLINE
+
+
+def test_ac_005_3_findings_that_cannot_be_applied_keep_the_escalation_and_flag_the_note(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from openmedcheck import check_service
+
+    def broken(*_args: Any, **_kwargs: Any) -> Any:
+        raise RuntimeError("findings failed")
+
+    monkeypatch.setattr(check_service.note_findings, "verify", broken)
+    clean, _ = run(PRESET_C.request, NO_ISSUE_JSON)
+    escalated, _ = run(PRESET_A.request, verdict_json())  # model's own ACS escalation
+
+    assert clean.status is Status.WARNING  # note not applied: never a green card
+    assert escalated.status is Status.BLOCKED  # the gate does not discard the escalation

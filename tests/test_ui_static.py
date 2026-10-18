@@ -5,6 +5,8 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from openmedcheck.check_service import NOTE_UNCHECKED_HEADLINE, NOTE_UNCHECKED_RATIONALE
+
 PACKAGE = Path(__file__).parent.parent / "src" / "openmedcheck"
 FORBIDDEN_JS = re.compile(
     r"innerHTML|outerHTML|insertAdjacentHTML|document\.write|\beval\s*\(|new\s+Function"
@@ -99,6 +101,8 @@ def test_ac_007_1_record_fields_are_marked_and_order_fields_are_not() -> None:
         "context.reason_for_consult",
         "context.labs.creatinine_mg_dl",
         "context.labs.egfr_ml_min_1_73m2",
+        "context.labs.potassium_mmol_l",
+        "context.labs.platelets_per_ul",
         "context.ed_note",
     }
     assert not re.search(r'data-path="order\.[^"]+" data-record', html)
@@ -241,3 +245,15 @@ def test_ac_003_7_card_shows_note_evidence_as_text() -> None:
 
     assert "rule.evidence" in body
     assert "From the clinician's note: “${quote}”" in body
+
+
+def test_ac_005_3_client_fallback_never_shows_a_green_card_and_matches_the_server() -> None:
+    script = (PACKAGE / "static" / "app.js").read_text()
+    body = _function_body(script, "settleWithRulesOnly")
+
+    assert 'if (rules.status === "NO_ISSUE")' in body
+    assert 'rules.status = "WARNING";' in body
+    assert f'const NOTE_UNCHECKED_HEADLINE = "{NOTE_UNCHECKED_HEADLINE}";' in script
+    declaration = script.split("const NOTE_UNCHECKED_RATIONALE =")[1].split('";')[0] + '"'
+    js_rationale = "".join(re.findall(r'"([^"]*)"', declaration))
+    assert js_rationale == NOTE_UNCHECKED_RATIONALE

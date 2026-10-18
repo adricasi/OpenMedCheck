@@ -1,0 +1,53 @@
+# Local one-command setup (T-016, AC-015.4): app + Ollama. Nothing is published except the
+# app on this machine's loopback. First run: `docker compose --profile setup run --rm model-pull`.
+# NVIDIA GPU: add `-f docker-compose.gpu.yml` (see docs/deploy/local-docker.md).
+services:
+  ollama:
+    image: ollama/ollama:0.35.1
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 512
+    volumes:
+      - ollama-models:/root/.ollama
+    # No `ports:` on purpose: only the app container reaches Ollama, over the compose network.
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  model-pull:
+    image: ollama/ollama:0.35.1
+    profiles: ["setup"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["ollama"]
+    command: ["pull", "gemma4:e4b"]
+
+  app:
+    build: .
+    image: openmedcheck:local
+    restart: unless-stopped
+    depends_on:
+      - ollama
+    environment:
+      OPENMEDCHECK_OLLAMA_URL: http://ollama:11434
+      # Raise it on a CPU-only machine, e.g. OPENMEDCHECK_MODEL_TIMEOUT_S=120 docker compose up
+      OPENMEDCHECK_MODEL_TIMEOUT_S: ${OPENMEDCHECK_MODEL_TIMEOUT_S:-10}
+    ports:
+      # Loopback only: the app stays local to this machine (NFR-001).
+      - "127.0.0.1:8000:8000"
+    read_only: true
+    cap_drop: [ALL]
+    pids_limit: 256
+    mem_limit: 1g
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  ollama-models:

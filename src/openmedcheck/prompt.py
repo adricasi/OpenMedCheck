@@ -24,7 +24,7 @@ from openmedcheck.contracts import (
 from openmedcheck.note_findings import ALLERGY_CODES, MAX_QUOTE_CHARS
 from openmedcheck.rule_table import CLASS_IDS, DRUG_IDS, DRUGS_BY_ID
 
-PROMPT_VERSION = "5"
+PROMPT_VERSION = "7"
 
 NOTE_OPEN_TAG = "<untrusted_note>"
 NOTE_CLOSE_TAG = "</untrusted_note>"
@@ -51,9 +51,13 @@ Rules:
   words of the reason for consult or the ED note (a short phrase, at most 120 characters).
   Never paraphrase or invent. Most notes answer null or [] to most questions. Answer null or
   leave the item out when the note denies it, rules it out or gives only past history.
+  Clinical shorthand: "?X", "query X", "possible X" and "r/o X" (X still to be ruled out) state a
+  suspected X; only "X ruled out" or "X excluded" is a rule-out.
   - note_acs_quote: the phrase that states a suspected or confirmed acute coronary syndrome,
     or null. Any other condition is null.
   - note_gi_bleed_quote: the phrase that states active gastrointestinal bleeding, or null.
+  - note_heart_failure_quote: the phrase that states known or suspected heart failure, or null.
+  - note_pregnancy_quote: the phrase that states the patient is pregnant, or null.
   - note_medications: medicines the note says the patient already takes, as known drug IDs,
     each with its quote; [] if none.
   - note_allergies: allergies the note records, as a known drug ID or class ID, each with its
@@ -97,7 +101,14 @@ def guidance_for(drug_id: str) -> str:
 _TAG_PATTERN = re.compile(r"<?\s*/?\s*untrusted[\s_\-]*note[^>\n]*>?", re.IGNORECASE)
 
 
-NOTE_FIELDS = ("note_acs_quote", "note_gi_bleed_quote", "note_medications", "note_allergies")
+NOTE_FIELDS = (
+    "note_acs_quote",
+    "note_gi_bleed_quote",
+    "note_heart_failure_quote",
+    "note_pregnancy_quote",
+    "note_medications",
+    "note_allergies",
+)
 _MAX_LISTED = 3
 
 
@@ -135,6 +146,8 @@ def build_schema(allowed_alternatives: Sequence[str]) -> dict[str, Any]:
             "alternative_drug_id": {"enum": [*allowed_alternatives, None]},
             "note_acs_quote": _nullable_quote(),
             "note_gi_bleed_quote": _nullable_quote(),
+            "note_heart_failure_quote": _nullable_quote(),
+            "note_pregnancy_quote": _nullable_quote(),
             "note_medications": _quoted_list("drug_id", DRUG_IDS),
             "note_allergies": _quoted_list("code", ALLERGY_CODES),
         },

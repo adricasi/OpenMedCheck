@@ -1,7 +1,8 @@
-"""Synthetic template patients A-F (REQ-006). All data is invented; no real patient (AC-006.4).
+"""Synthetic template patients A-I (REQ-006). All data is invented; no real patient (AC-006.4).
 
-A, B and C are the predefined rooms (``bed`` set); D, E and F are only offered as templates
-when a room is added (AC-006.6, AC-006.7).
+A, B and C are the predefined rooms (``bed`` set); D to I are only offered as templates when a
+room is added (AC-006.6, AC-006.7). G, H and I show the conflict breadth of T-014; in I the
+pregnancy is only in the note, so the rules alone say NO_ISSUE and the model's quote decides.
 """
 
 from __future__ import annotations
@@ -183,8 +184,94 @@ PRESET_F = Preset(
     ),
 )
 
+PRESET_G = Preset(
+    preset_id="G",
+    title="Atrial fibrillation on warfarin; ibuprofen proposed",
+    bed=None,
+    expected_rules_status=Status.BLOCKED,
+    request=CheckRequest(
+        context=PatientContext(
+            patient_id="SYN-G",
+            age=76,
+            sex="M",
+            weight_kg=79,
+            reason_for_consult="Knee pain after a fall",
+            ed_note=(
+                "76-year-old man with left knee pain after a fall at home. Atrial fibrillation "
+                "on long-term anticoagulation. No head injury."
+            ),
+            diagnoses=[],
+            chronic_medications=["warfarin"],
+            allergies=[],
+            labs=Labs(creatinine_mg_dl=1.0, egfr_ml_min_1_73m2=72, platelets_per_ul=210_000),
+        ),
+        order=Order(drug_id="ibuprofen", dose_text="600 mg", route="PO", frequency="every 8 hours"),
+    ),
+)
+
+PRESET_H = Preset(
+    preset_id="H",
+    title="Hypertension with high potassium; enalapril proposed",
+    bed=None,
+    expected_rules_status=Status.BLOCKED,
+    request=CheckRequest(
+        context=PatientContext(
+            patient_id="SYN-H",
+            age=68,
+            sex="F",
+            weight_kg=71,
+            reason_for_consult="High blood pressure reading",
+            ed_note=(
+                "68-year-old woman referred for a blood pressure of 182/104 mmHg, no chest pain or "
+                "neurological symptoms. Potassium 5.8 mmol/L on today's labs."
+            ),
+            diagnoses=[],
+            chronic_medications=[],
+            allergies=[],
+            labs=Labs(creatinine_mg_dl=1.1, egfr_ml_min_1_73m2=55, potassium_mmol_l=5.8),
+        ),
+        order=Order(drug_id="enalapril", dose_text="5 mg", route="PO", frequency="once daily"),
+    ),
+)
+
+PRESET_I = Preset(
+    preset_id="I",
+    title="Pregnancy stated only in the note; ibuprofen proposed",
+    bed=None,
+    expected_rules_status=Status.NO_ISSUE,
+    request=CheckRequest(
+        context=PatientContext(
+            patient_id="SYN-I",
+            age=31,
+            sex="F",
+            weight_kg=70,
+            reason_for_consult="Low back pain",
+            ed_note=(
+                "31-year-old woman with low back pain since yesterday, no trauma, no red flags. "
+                "She is 30 weeks pregnant."
+            ),
+            diagnoses=[],
+            chronic_medications=[],
+            allergies=[],
+            labs=Labs(creatinine_mg_dl=0.6, egfr_ml_min_1_73m2=118),
+        ),
+        order=Order(drug_id="ibuprofen", dose_text="400 mg", route="PO", frequency="every 8 hours"),
+    ),
+)
+
 PRESETS: dict[str, Preset] = {
-    p.preset_id: p for p in (PRESET_A, PRESET_B, PRESET_C, PRESET_D, PRESET_E, PRESET_F)
+    p.preset_id: p
+    for p in (
+        PRESET_A,
+        PRESET_B,
+        PRESET_C,
+        PRESET_D,
+        PRESET_E,
+        PRESET_F,
+        PRESET_G,
+        PRESET_H,
+        PRESET_I,
+    )
 }
 
 # Illustrative only: the real final card for preset A is written by the model at run time

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import re
+import threading
 import time
 import unicodedata
 from collections.abc import Callable, Sequence
@@ -107,6 +108,8 @@ class ModelOutput(ModelVerdict):
 
     note_acs_quote: str | None = None
     note_gi_bleed_quote: str | None = None
+    note_heart_failure_quote: str | None = None
+    note_pregnancy_quote: str | None = None
     note_medications: tuple[NoteMedication, ...] = ()
     note_allergies: tuple[NoteAllergy, ...] = ()
 
@@ -115,6 +118,8 @@ class ModelOutput(ModelVerdict):
         for code, quote in (
             ("ACS", self.note_acs_quote),
             ("ACTIVE_GI_BLEED", self.note_gi_bleed_quote),
+            ("HEART_FAILURE", self.note_heart_failure_quote),
+            ("PREGNANCY", self.note_pregnancy_quote),
         ):
             if quote is not None:
                 found.append(NoteFinding(kind=FindingKind.CONDITION, code=code, quote=quote))
@@ -226,6 +231,9 @@ _DOSE_PATTERNS = (
         re.IGNORECASE,
     ),
 )
+# The dose and banned-word patterns also match Spanish forms ("cada", "horas", "día", "aprob…",
+# "segur…") on purpose: defence in depth in case the model answers in another language. They
+# are output filters, not names, so the English-only rule for project text does not remove them.
 _BANNED_WORDS = re.compile(
     r"\b(?:approv\w*|aprob\w*|safe\w*|segur\w*|diagnos\w*|diagnost\w*|effective\w*"
     r"|efficac\w*|guarantee\w*|proven|cures?|cured|ok\s+to\s+(?:give|prescribe|continue))\b",
@@ -392,12 +400,18 @@ class OllamaClient:
         deadline_s: float = DEFAULT_DEADLINE_S,
         transport: httpx.BaseTransport | None = None,
         clock: Clock = time.monotonic,
+        api_key: str = "",
     ) -> None:
         self._model = model
         self._deadline_s = deadline_s
         self._clock = clock
         # trust_env=False: never route the loopback call through a proxy from the environment.
-        self._http = httpx.Client(base_url=base_url, transport=transport, trust_env=False)
+        # The bearer key (hosted profile, AC-015.2) is set once on the client so it covers
+        # warm-up, health and chat; it is never logged or echoed.
+        headers = {"Authorization": f"Bearer {api_key}"} if api_key else None
+        self._http = httpx.Client(
+            base_url=base_url, transport=transport, trust_env=False, headers=headers
+        )
 
     def close(self) -> None:
         self._http.close()
@@ -495,6 +509,43 @@ def _message_content(response: httpx.Response) -> str:
     except (ValueError, KeyError, TypeError):
         return ""
     return content if isinstance(content, str) else ""
+
+
+class BoundedModelClient:
+    """Caps concurrent model calls; a call over the cap is "unavailable" at once (REQ-005).
+
+    A public demo must not let a loop of requests hold the single GPU: the extra checks get the
+    rules-only card immediately instead of queueing behind the model (security review, T-016).
+    """
+
+    def __init__(self, inner: ModelClient, limit: int) -> None:
+        self._inner = inner
+        self._slots = threading.BoundedSemaphore(limit)
+
+    def assess(self, request: ModelRequest) -> ModelResult:
+        if not self._slots.acquire(blocking=False):
+            return ModelResult(
+                outcome=ModelOutcome.UNAVAILABLE,
+                verdict=None,
+                attempts=0,
+                latency_ms=0,
+                invalid_reason="busy",
+            )
+        try:
+            return self._inner.assess(request)
+        finally:
+            self._slots.release()
+
+    def health(self) -> ModelHealth:
+        return self._inner.health()
+
+    def warm_up(self) -> bool:
+        return self._inner.warm_up()
+
+    def close(self) -> None:
+        close = getattr(self._inner, "close", None)
+        if close is not None:
+            close()
 
 
 # --- fake for tests ----------------------------------------------------------------------

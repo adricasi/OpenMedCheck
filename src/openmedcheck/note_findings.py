@@ -24,11 +24,11 @@ from openmedcheck.contracts import (
 )
 from openmedcheck.rule_table import ContextRule
 
-MAX_FINDINGS = 8  # the prompt asks for at most 2 conditions, 3 medications and 3 allergies
+MAX_FINDINGS = 10  # the prompt asks for at most 4 conditions, 3 medications and 3 allergies
 MIN_QUOTE_CHARS = 3
 MAX_QUOTE_CHARS = 120
 
-CONDITION_CODES: tuple[str, ...] = ("ACS", "ACTIVE_GI_BLEED")
+CONDITION_CODES: tuple[str, ...] = ("ACS", "ACTIVE_GI_BLEED", "HEART_FAILURE", "PREGNANCY")
 MEDICATION_CODES: tuple[str, ...] = rule_table.DRUG_IDS
 ALLERGY_CODES: tuple[str, ...] = tuple(
     dict.fromkeys(
@@ -51,7 +51,7 @@ ALL_CODES: tuple[str, ...] = tuple(
 # A verbatim quote proves the words exist, not that they mean the code, so the quote must also
 # name what it is coded as (safety review, ADR 0006).
 CONDITION_TERMS: dict[str, tuple[str, ...]] = {
-    "ACS": ("acs", "coronary", "stemi", "angina", "myocardial infarction"),
+    "ACS": ("acs", "coronary", "stemi", "nstemi", "angina", "myocardial infarction"),
     "ACTIVE_GI_BLEED": (
         "bleed",
         "melena",
@@ -60,7 +60,11 @@ CONDITION_TERMS: dict[str, tuple[str, ...]] = {
         "hematemesis",
         "haemorrhage",
         "hemorrhage",
+        "coffee-ground",
+        "coffee ground",
     ),
+    "HEART_FAILURE": ("heart failure", "cardiac failure", "hfref", "hfpef", "chf", "ccf"),
+    "PREGNANCY": ("pregnan", "gestation"),
 }
 # Negation is local (safety review): a cue counts only inside the clause of the matched term,
 # a few words before it ("no GI bleeding", "history of ACS", "not on aspirin") or right after it
@@ -70,11 +74,37 @@ _PRE_NEGATION = re.compile(
     r"\b(?:no|not|denies|denied|negative\s+for|free\s+of|history\s+of|h/o|previous|prior)\b",
     re.IGNORECASE,
 )
+# "ACS ruled out", "bleeding resolved": up to two words between, but never a negator ("ACS not
+# ruled out" keeps the finding).
 _POST_NEGATION = re.compile(
-    r"^\W*(?:\w+\W+){0,2}?(?:ruled\s+out|rules\s+out|excluded|resolved|unlikely)\b",
+    r"^(?P<gap>\W*(?:[\w']+\W+){0,2}?)"
+    r"(?:ruled\s+out|rules\s+out|excluded|resolved|unlikely)\b",
     re.IGNORECASE,
 )
-_CLAUSE_END = re.compile(r"[.;:,!?\n]|\b(?:but|except|although|however)\b", re.IGNORECASE)
+# Only for pregnancy and only straight after the term ("pregnancy test negative"); a negative
+# troponin or stress test says nothing about an ACS.
+_POST_PREGNANCY_TEST_NEGATIVE = re.compile(
+    r"^[ \t]*test[ \t]+(?:was[ \t]+|is[ \t]+)?negative\b", re.IGNORECASE
+)
+# "non-pregnant" only: a generic "non" would negate "non-ST elevation ACS".
+_NON_PREFIX = re.compile(r"\bnon-?\Z", re.IGNORECASE)
+_NEGATOR = re.compile(r"\b(?:not|never|no|cannot|\w+n't)\b", re.IGNORECASE)
+# "Warfarin stopped", "warfarin was discontinued": right after the drug, so "warfarin not
+# stopped" and "aspirin to be stopped" keep the finding.
+_POST_STOPPED = re.compile(
+    r"^[ \t]*(?:was[ \t]+|is[ \t]+|has[ \t]+been[ \t]+|been[ \t]+)?(?:stopped|discontinued)\b",
+    re.IGNORECASE,
+)
+# "Stopped", "discontinued" and "off" negate only when right before the term ("stopped taking
+# warfarin", "off warfarin"); elsewhere they are too common ("pain on and off ... angina").
+_ADJACENT_PRE_NEGATION = re.compile(
+    # Spaces and tabs only: a cue on the previous line never reaches the term.
+    r"(?<!\band[ \t])(?<!\bon[ \t])\b(?:stopped|discontinued|off)(?:[ \t]+taking)?[ \t]*\Z",
+    re.IGNORECASE,
+)
+_CLAUSE_END = re.compile(
+    r"[.;:,!?\n]|\b(?:but|except|although|however|and|then|started|onto)\b", re.IGNORECASE
+)
 _PRE_WORDS = 4
 
 
@@ -98,15 +128,38 @@ def _term_in(span: re.Match[str], terms: Sequence[str]) -> re.Match[str] | None:
     return re.compile(pattern, re.IGNORECASE).search(span.string, span.start(), span.end())
 
 
-def _negated(text: str, term: re.Match[str]) -> bool:
+def _post_negated(clause_after: str) -> bool:
+    """A post-term cue ("ruled out") with no negator between it and the term."""
+    match = _POST_NEGATION.search(clause_after)
+    return match is not None and not _NEGATOR.search(match.group("gap"))
+
+
+def _negated(text: str, term: re.Match[str], kind: FindingKind, code: str) -> bool:
+    text = text.replace("\u2019", "'").replace("\u02bc", "'")  # typographic apostrophes
     before = text[: term.start()]
     ends = list(_CLAUSE_END.finditer(before))
     clause_before = before[ends[-1].end() :] if ends else before
     window = " ".join(clause_before.split()[-_PRE_WORDS:])
-    after = text[term.end() :]
+    # Terms can be word prefixes ("pregnan", "bleed"): look after the whole word.
+    word_end = term.end()
+    while word_end < len(text) and (text[word_end].isalnum() or text[word_end] == "'"):
+        word_end += 1
+    after = text[word_end:]
     stop = _CLAUSE_END.search(after)
     clause_after = after[: stop.start()] if stop else after
-    return bool(_PRE_NEGATION.search(window) or _POST_NEGATION.search(clause_after))
+    return bool(
+        _PRE_NEGATION.search(window)
+        or _post_negated(clause_after)
+        or (
+            code == "PREGNANCY"
+            and bool(_POST_PREGNANCY_TEST_NEGATIVE.search(after) or _NON_PREFIX.search(before))
+        )
+        # Stopping a drug only negates a medication finding, checked on the raw text before it.
+        or (
+            kind is FindingKind.MEDICATION
+            and (_ADJACENT_PRE_NEGATION.search(before) or _POST_STOPPED.search(after))
+        )
+    )
 
 
 def _find(quote: str, text: str) -> re.Match[str] | None:
@@ -129,7 +182,7 @@ def _verified(finding: NoteFinding, context: PatientContext) -> NoteFinding | No
         if not MIN_QUOTE_CHARS <= len(span) <= MAX_QUOTE_CHARS:
             return None
         term = _term_in(match, _code_terms(finding.kind, finding.code))
-        if term is None or _negated(match.string, term):
+        if term is None or _negated(match.string, term, finding.kind, finding.code):
             return None
         # Show the note's own words, not the model's copy of them.
         return finding.model_copy(update={"quote": span})
@@ -185,7 +238,9 @@ def _context_quotes(rule: ContextRule, findings: Sequence[NoteFinding]) -> list[
     quotes = [
         finding.quote
         for finding in findings
-        if finding.kind is FindingKind.CONDITION and finding.code == rule.diagnosis
+        if rule.diagnosis is not None
+        and finding.kind is FindingKind.CONDITION
+        and finding.code == rule.diagnosis
     ]
     if rule.chronic_class is not None:
         quotes += [

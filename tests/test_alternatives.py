@@ -9,7 +9,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from openmedcheck import rule_table, rules_engine
+from openmedcheck import note_findings, rule_table, rules_engine
 from openmedcheck.alternatives import select_alternative
 from openmedcheck.check_service import combined_card, rules_card
 from openmedcheck.combiner import NO_ISSUE_HEADLINE
@@ -295,6 +295,8 @@ _labs = st.fixed_dictionaries(
     optional={
         "creatinine_mg_dl": st.floats(min_value=0.1, max_value=20),
         "egfr_ml_min_1_73m2": st.floats(min_value=0, max_value=200),
+        "potassium_mmol_l": st.floats(min_value=1.5, max_value=9),
+        "platelets_per_ul": st.floats(min_value=1_000, max_value=2_000_000),
     },
 )
 
@@ -318,7 +320,7 @@ requests = st.builds(
     age=st.integers(18, 110),
     sex=st.sampled_from(["M", "F"]),
     weight=st.floats(30, 250),
-    diagnoses=st.lists(st.sampled_from(["ACS", "ACTIVE_GI_BLEED"]), max_size=2, unique=True),
+    diagnoses=st.lists(st.sampled_from(note_findings.CONDITION_CODES), max_size=4, unique=True),
     chronic=st.lists(st.sampled_from(DRUG_IDS), max_size=3, unique=True),
     allergies=st.lists(st.sampled_from([*DRUG_IDS, *CLASS_IDS]), max_size=2, unique=True),
     labs=_labs,

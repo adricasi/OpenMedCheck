@@ -17,7 +17,14 @@ from openmedcheck.contracts import (
     Status,
 )
 from openmedcheck.renal import cockcroft_gault
-from openmedcheck.rule_table import RenalBasis, RenalRule, RenalUnknownRule, RuleEntry
+from openmedcheck.rule_table import (
+    LabComparison,
+    LabRule,
+    RenalBasis,
+    RenalRule,
+    RenalUnknownRule,
+    RuleEntry,
+)
 
 _STATUS_RANK = {Status.NO_ISSUE: 0, Status.WARNING: 1, Status.BLOCKED: 2}
 _RISK_RANK = {RiskLevel.LOW: 0, RiskLevel.MODERATE: 1, RiskLevel.HIGH: 2, RiskLevel.CRITICAL: 3}
@@ -39,9 +46,36 @@ def _context_rules(context: PatientContext, order: Order) -> list[rule_table.Con
         rule
         for rule in rule_table.CONTEXT_RULES
         if rule.applies_to_class == drug_class
-        and rule.diagnosis in context.diagnoses
+        and (rule.diagnosis is None or rule.diagnosis in context.diagnoses)
         and (rule.chronic_class is None or rule.chronic_class in chronic_classes)
     ]
+
+
+def _beyond(rule: LabRule, value: float) -> bool:
+    if rule.comparison is LabComparison.ABOVE:
+        return value > rule.threshold
+    return value < rule.threshold
+
+
+def _lab_rules(context: PatientContext, order: Order) -> list[RuleEntry]:
+    """Strictest firing lab rule per lab, or the unknown-lab rule (AC-002.10, AC-002.12)."""
+    drug_class = rule_table.DRUGS_BY_ID[order.drug_id].drug_class
+    # Grouped by lab and conflict type, so a rule of another kind on the same lab is never hidden.
+    fired: dict[tuple[str, str], list[LabRule]] = {}
+    for rule in rule_table.LAB_RULES:
+        value = getattr(context.labs, rule.lab)
+        if drug_class in rule.applies_to_classes and value is not None and _beyond(rule, value):
+            fired.setdefault((rule.lab, rule.conflict_type), []).append(rule)
+    entries: list[RuleEntry] = [
+        max(rules, key=lambda r: (_STATUS_RANK[r.status], _RISK_RANK[r.risk_level]))
+        for rules in fired.values()
+    ]
+    entries += [
+        rule
+        for rule in rule_table.LAB_UNKNOWN_RULES
+        if drug_class in rule.applies_to_classes and getattr(context.labs, rule.lab) is None
+    ]
+    return entries
 
 
 def _renal_measure(basis: RenalBasis, context: PatientContext, crcl: float | None) -> float | None:
@@ -65,6 +99,7 @@ def evaluate(context: PatientContext, order: Order) -> RulesVerdict:
     if _allergy_matches(context, order):
         fired.append((rule_table.ALLERGY_RULE, rule_table.ALLERGY_RULE.reason))
     fired.extend((rule, rule.reason) for rule in _context_rules(context, order))
+    fired.extend((rule, rule.reason) for rule in _lab_rules(context, order))
 
     renal_rules = [rule for rule in rule_table.RENAL_RULES if rule.drug_id == order.drug_id]
     crcl: float | None = None

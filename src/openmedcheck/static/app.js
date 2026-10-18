@@ -8,6 +8,8 @@ const RANGES = {
   "context.weight_kg": { label: "Weight", min: 30, max: 250, required: true },
   "context.labs.creatinine_mg_dl": { label: "Creatinine", min: 0.1, max: 20 },
   "context.labs.egfr_ml_min_1_73m2": { label: "eGFR", min: 0, max: 200 },
+  "context.labs.potassium_mmol_l": { label: "Potassium", min: 1.5, max: 9 },
+  "context.labs.platelets_per_ul": { label: "Platelets", min: 1000, max: 2000000 },
 };
 const REQUIRED_TEXT = {
   "order.drug_id": "Drug",
@@ -22,9 +24,16 @@ const STATUS_VIEW = {
 const CONDITION_LABELS = {
   ACS: "acute coronary syndrome",
   ACTIVE_GI_BLEED: "active gastrointestinal bleed",
+  HEART_FAILURE: "heart failure",
+  PREGNANCY: "pregnancy",
 };
 const NO_MODEL_NOTE = "Model check unavailable — rules only";
 const VERIFYING_TEXT = "Verifying the prescription with Gemma…";
+// AC-005.3: same fixed text as the server's fallback; the note was not read, so no green card.
+const NOTE_UNCHECKED_HEADLINE = "Free-text note not checked";
+const NOTE_UNCHECKED_RATIONALE =
+  "The model check was unavailable, so the free-text note was not checked. The rules found no " +
+  "conflict in the coded data; review the note before signing.";
 // Test helper for custom patients (AC-007.6): an NSAID so the check has something to look at.
 const SAMPLE_ORDER = { drug_id: "ibuprofen", dose_text: "400 mg", route: "PO", frequency: "every 8 hours" };
 const EMPTY_ORDER = { drug_id: "", dose_text: "", route: "PO", frequency: "" };
@@ -150,6 +159,8 @@ function fillContext(context) {
   $("f-reason").value = context.reason_for_consult;
   $("f-creatinine").value = context.labs.creatinine_mg_dl ?? "";
   $("f-egfr").value = context.labs.egfr_ml_min_1_73m2 ?? "";
+  $("f-potassium").value = context.labs.potassium_mmol_l ?? "";
+  $("f-platelets").value = context.labs.platelets_per_ul ?? "";
   $("f-note").value = context.ed_note;
   state.hidden = {
     patient_id: context.patient_id,
@@ -212,6 +223,8 @@ function buildRequest() {
       labs: {
         creatinine_mg_dl: numberOrNull($("f-creatinine").value),
         egfr_ml_min_1_73m2: numberOrNull($("f-egfr").value),
+        potassium_mmol_l: numberOrNull($("f-potassium").value),
+        platelets_per_ul: numberOrNull($("f-platelets").value),
       },
     },
     order: {
@@ -668,6 +681,12 @@ async function settleWithRulesOnly(request, mine) {
     return;
   }
   rules.model_note = rules.model_note || NO_MODEL_NOTE;
+  if (rules.status === "NO_ISSUE") {
+    rules.status = "WARNING";
+    rules.risk_level = "MODERATE";
+    rules.headline = NOTE_UNCHECKED_HEADLINE;
+    rules.rationale = NOTE_UNCHECKED_RATIONALE;
+  }
   state.card = rules;
   state.checking = false;
   renderCard(rules);
@@ -734,7 +753,12 @@ function customRoom() {
       diagnoses: [],
       chronic_medications: [],
       allergies: [],
-      labs: { creatinine_mg_dl: null, egfr_ml_min_1_73m2: null },
+      labs: {
+        creatinine_mg_dl: null,
+        egfr_ml_min_1_73m2: null,
+        potassium_mmol_l: null,
+        platelets_per_ul: null,
+      },
     },
     demoOrder: null,
   };

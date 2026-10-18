@@ -127,6 +127,22 @@ pytest --cov` pass and CI is green, unless stated otherwise.
   - Done when: unit and property tests (augmented verdict never below the coded verdict;
     invented quotes dropped) pass; model eval keeps AC-003.4 and AC-009.2 at >= 9/10 and
     NFR-004/NFR-012 budgets; a review of the escalate-only invariant finds no blocking issue.
+- [x] T-014: Breadth of conflicts (anticoagulants, potassium, heart failure, platelets, pregnancy)
+  - Requirements: REQ-002 (AC-002.9 to AC-002.14), AC-003.6, NFR-011
+  - Scope: drugs, rules with sources and review marks, coded conditions and note questions for
+    heart failure and pregnancy, potassium and platelets in the record, templates, tests, eval.
+- [x] T-015: Open evaluation set and report
+  - Requirements: REQ-012 (AC-012.3, AC-012.4)
+  - Scope: `evals/cases.jsonl` (>= 60 cases), schema test, `scripts/eval_set.py` with model
+    comparison, report in `docs/measurements/`, rules-only part in CI-safe tests.
+- [x] T-016: Runnable everywhere: Docker, hosted demo profile and deployment guides
+  - Requirements: REQ-015 (AC-015.1 to AC-015.4), NFR-001, NFR-002
+  - Scope: Dockerfile, docker-compose (app + Ollama), hosted profile config (public hosts,
+    platform port, HTTPS model URL with bearer key), hosted banner, Render blueprint and guide,
+    DigitalOcean GPU droplet guide (Ollama behind Caddy with a bearer token), ADR 0007. No deploy.
+- [x] T-017: Clinician contribution guide and English-only names
+  - Scope: CONTRIBUTING.md (propose a rule with a source, review marks, evaluation set as the
+    regression guard, contributing synthetic cases); English for all technical names and text.
 - [x] T-008: Hardening: local exposure, XSS, wording, concurrency
   - Requirements: NFR-001, NFR-005, NFR-008, REQ-010 (AC-010.2)
   - Depends on: T-007

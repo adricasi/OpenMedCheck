@@ -55,7 +55,9 @@ def test_ac_005_1_check_with_model_down_returns_200_rules_only_card() -> None:
     cards = [api.post("/api/check", json=body(p)) for p in (PRESET_A, PRESET_B, PRESET_C)]
 
     assert [r.status_code for r in cards] == [200, 200, 200]
-    assert [r.json()["status"] for r in cards] == ["NO_ISSUE", "WARNING", "NO_ISSUE"]
+    # A and C: the rules find nothing but the note was not read, so WARNING (AC-005.3).
+    assert [r.json()["status"] for r in cards] == ["WARNING", "WARNING", "WARNING"]
+    assert cards[0].json()["headline"] == "Free-text note not checked"
     assert all(r.json()["source"] == "rules" for r in cards)
     assert all(r.json()["model_note"] == "Model check unavailable — rules only" for r in cards)
 
