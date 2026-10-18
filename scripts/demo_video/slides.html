@@ -91,6 +91,21 @@
   .rule.red { background: var(--danger-soft); border: 2px solid var(--danger); color: var(--danger); }
   .rule.amber { background: #fff4de; border: 2px solid #9a6200; color: #7f4d00; }
 
+  .example { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 40px;
+             background: var(--panel); border: 2px solid var(--teal); border-radius: 8px; padding: 22px 30px;
+             font-size: 30px; font-weight: 600; }
+  .example .ex-label { font-family: "AHM"; font-size: 22px; letter-spacing: .12em; text-transform: uppercase;
+                       color: var(--teal); margin-right: 8px; }
+  .example .plus { color: var(--teal); font-weight: 700; }
+  .example .ex-out { background: var(--danger); color: #fff; border-radius: 6px; padding: 4px 14px; }
+  .example .ex-src { font-size: 22px; font-weight: 400; color: var(--muted); margin-left: auto; }
+  #how { padding-top: 96px; }
+  #how .flow { margin-top: 40px; }
+  #how .step { min-height: 0; padding: 28px 28px; }
+  #how .step h3 { font-size: 36px; }
+  #how .step p { font-size: 26px; }
+  #how .rules-row { margin-top: 26px; }
+  #how .rule { padding: 20px 28px; font-size: 28px; }
   /* results */
   .bars { display: flex; flex-direction: column; gap: 46px; margin-top: 80px; }
   .bar-row { display: grid; grid-template-columns: 420px 1fr; align-items: center; gap: 36px; }
@@ -131,7 +146,7 @@
 <section class="slide dark" id="intro">
   <div class="logo"><div class="mark">OM</div><div class="name">OpenMedCheck</div></div>
   <h1>The prescribing check that reads<br>the note and the patient's history</h1>
-  <p class="lead">Open source, for emergency doctors. Gemma 4 reads the free text; cited rules decide.</p>
+  <p class="lead">Open source, for emergency doctors. Gemma 4 finds the facts in the free text; a written rule table decides.</p>
   <svg class="ecg" viewBox="0 0 1920 160" preserveAspectRatio="none" aria-hidden="true">
     <polyline fill="none" stroke="#c94b4b" stroke-width="4" points="0,100 520,100 560,100 590,40 620,150 650,20 690,120 720,100 1100,100 1140,100 1170,40 1200,150 1230,20 1270,120 1300,100 1920,100"/>
   </svg>
@@ -165,19 +180,25 @@
 
 <section class="slide" id="how">
   <div class="kicker">How it works</div>
-  <h2>Gemma reads the note. The rules decide.</h2>
+  <h2>Gemma finds the facts. A rule table decides.</h2>
   <div class="flow">
-    <div class="step gemma"><div class="n">01</div><h3>Gemma 4 reads</h3><p>Finds conditions, medications, allergies and past events in the note and the history, each with a verbatim quote</p></div>
+    <div class="step gemma"><div class="n">01</div><h3>Gemma 4 reads</h3><p>The note and the past history. It quotes each fact it finds, e.g. “Suspected ACS”</p></div>
     <div class="arrow">→</div>
-    <div class="step"><div class="n">02</div><h3>Code verifies</h3><p>Word for word in the text; not denied, not a relative's; a past event never counts as current</p></div>
+    <div class="step"><div class="n">02</div><h3>Code checks the quote</h3><p>The words must really be there: not denied, not a relative's, not an old event counted as new</p></div>
     <div class="arrow">→</div>
-    <div class="step"><div class="n">03</div><h3>Rules decide</h3><p>Cited rules re-run on the record plus kept findings (new past-history rules await specialist review)</p></div>
+    <div class="step"><div class="n">03</div><h3>The rule table decides</h3><p>Rules written by people from drug labels and guidelines, not learned by the AI. Same facts, same answer</p></div>
     <div class="arrow">→</div>
-    <div class="step"><div class="n">04</div><h3>One card</h3><p>Verdict, the doctor's own words as evidence, a re-checked alternative</p></div>
+    <div class="step"><div class="n">04</div><h3>One card</h3><p>The verdict, the doctor's own words as evidence, a re-checked alternative</p></div>
+  </div>
+  <div class="example">
+    <span class="ex-label">Example rule</span>
+    <span>Anti-inflammatory (NSAID)</span><span class="plus">+</span><span>suspected ACS</span><span class="plus">+</span><span>aspirin</span>
+    <span class="plus">→</span><span class="ex-out">BLOCKED</span>
+    <span class="ex-src">source: drug label (SmPC) + AHA statement · reviewed by a clinical specialist</span>
   </div>
   <div class="rules-row">
-    <div class="rule red">The model can raise a verdict, never lower it</div>
-    <div class="rule amber">Model down → rules-only card: "Free-text note not checked"</div>
+    <div class="rule red">Gemma can make a verdict stricter, never softer</div>
+    <div class="rule amber">Model down → the card says “free text not checked”</div>
   </div>
   <div class="banner">Not for clinical use — synthetic patients. Not a medical device.</div>
 </section>

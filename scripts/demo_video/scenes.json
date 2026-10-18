@@ -16,7 +16,7 @@
     {
       "id": "solution",
       "slide": "solution",
-      "narration": "Open Med Check runs Gemma 4, an open-weight model that can run on a hospital's own hardware. Gemma reads the note and the history, and cited rules decide. When nothing conflicts, it stays silent. Let's see two synthetic patients."
+      "narration": "Open Med Check runs Gemma 4, an open-weight model that can run on a hospital's own hardware. Gemma finds the facts in the note and the history, and a rule table written from drug labels makes the decision. When nothing conflicts, it stays silent. Let's see two synthetic patients."
     },
     {
       "id": "bed3-open",
@@ -61,7 +61,7 @@
     {
       "id": "how",
       "slide": "how",
-      "narration": "The model can raise a verdict, never lower it. A past event never counts as a current one, and a denial or a relative's history is dropped. If the model is down, the card says the free text was not checked, instead of looking like a pass."
+      "narration": "So what are the rules? A table written by people, not learned by the model. Each rule comes from a drug's label or a guideline: for example, an anti-inflammatory, with a suspected acute coronary syndrome and aspirin, is blocked. Gemma only supplies the facts, with quotes that code checks word for word. The table makes the call, the same way every time. Gemma can make a verdict stricter, never softer, and if the model is down, the card says the free text was not checked."
     },
     {
       "id": "results",
