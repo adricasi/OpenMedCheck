@@ -61,7 +61,7 @@ GI bleed in 2015, none since"); the history rules then fire on the verified quot
 GI bleeding" or "Mother had a GI bleed" stay silent, and an old event never counts as a current
 one ([ADR 0009](docs/adr/0009-patient-history-is-an-input.md)).
 
-Rooms **Bed 14** and **Bed 15** show why this matters. In Bed 15 today's visit is routine: a
+Rooms **Bed 5** and **Bed 14** show why this matters. In Bed 5 today's visit is routine: a
 wrist sprain after a fall, normal labs, ibuprofen for the pain. The line these checks look for,
 "Upper GI bleed from a duodenal ulcer in 2021", sits between the knee arthroscopy and the
 cataract surgery in a long past medical history: a line that can be missed under time pressure.
@@ -69,7 +69,7 @@ Bed 14 is a knee injury after a fall in a man whose history records a myocardial
 with a coronary stent. The
 rules alone say `NO_ISSUE`; when Gemma finds the line and the verifier confirms it word for word,
 the card becomes a `WARNING` that quotes it. (NSAID with an ACE inhibitor, also relevant for the
-Bed 15 patient, is not in the rule table.)
+Bed 5 patient, is not in the rule table.)
 
 One proposed medication order plus a synthetic patient context goes in; one triage-coded decision
 card comes out: a status (`NO_ISSUE`, `WARNING` or `BLOCKED`), a risk level, a short rationale, a
@@ -208,8 +208,8 @@ uv run openmedcheck         # serve the app (leave it running)
 ```
 
 Then open <http://127.0.0.1:8000> in a browser. The page shows the disclaimer banner and five
-rooms with synthetic ED patients (Bed 3, Bed 7, Bed 12, Bed 14 and Bed 15, which are presets A,
-B, C, K and L).
+rooms with synthetic ED patients (Bed 3, Bed 5, Bed 7, Bed 12 and Bed 14, which are presets A,
+L, B, C and K).
 
 ## Using the demo
 
@@ -238,7 +238,7 @@ the model ready (the rules column is what `/api/check/rules` returns):
 | A (Bed 3) | `NO_ISSUE` ("No issue found by these checks") | `BLOCKED` after the model reads the note; alternative: Paracetamol 1 g, PO, every 8 hours |
 | B (Bed 7) | `WARNING` with the renal-adjustment flag | `WARNING`, renal flag kept, "Renal adjustment required — consult SmPC", no alternative |
 | C (Bed 12) | `NO_ISSUE` | `NO_ISSUE`, no alternative |
-| L (Bed 15) | `NO_ISSUE`: the past GI bleed is only in the free-text past medical history | `WARNING` (NSAID_HISTORY_GI_BLEED; not yet reviewed, so no dose shown) with the history's words once Gemma's history finding is kept; alternative: Paracetamol, "Dose: consult SmPC"; not measured yet (prompt v8) |
+| L (Bed 5) | `NO_ISSUE`: the past GI bleed is only in the free-text past medical history | `WARNING` (NSAID_HISTORY_GI_BLEED; not yet reviewed, so no dose shown) with the history's words once Gemma's history finding is kept; alternative: Paracetamol, "Dose: consult SmPC"; not measured yet (prompt v8) |
 | D (added room) | `BLOCKED`: NSAID with a coded active GI bleed | `BLOCKED`; alternative: Paracetamol 1 g, PO, every 8 hours |
 | E (added room) | `BLOCKED`: recorded penicillin allergy | `BLOCKED`, no alternative |
 | F (added room) | `BLOCKED`: dexketoprofen with estimated CrCl below 60 mL/min, renal flag | `BLOCKED`, renal flag kept; alternative: Paracetamol 1 g, PO, every 8 hours |

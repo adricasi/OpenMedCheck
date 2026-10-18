@@ -153,6 +153,10 @@ function drugName(drugId) {
   return drug ? drug.name : drugId;
 }
 
+function bedNumber(bed) {
+  return Number(bed.replace(/\D/g, ""));
+}
+
 function listText(items, mapper = (item) => item) {
   return items.length ? items.map(mapper).join(", ") : "none";
 }
@@ -1015,8 +1019,10 @@ async function loadRooms() {
     for (const preset of state.templates) {
       select.appendChild(el("option", { text: templateLabel(preset), attrs: { value: preset.preset_id } }));
     }
+    // Rooms in bed order (Bed 3, Bed 5, Bed 7, ...), whatever the preset letters.
     state.rooms = state.templates
       .filter((preset) => preset.bed !== null)
+      .sort((a, b) => bedNumber(a.bed) - bedNumber(b.bed))
       .map((preset) => roomFromTemplate(preset, preset.bed));
     renderRooms();
   } catch (_error) {

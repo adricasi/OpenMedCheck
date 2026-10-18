@@ -461,27 +461,27 @@ def test_ac_003_6_max_findings_matches_the_prompt_limits() -> None:
     assert expected == note_findings.MAX_FINDINGS
 
 
-# --- AC-016.6: Bed 15, a past GI bleed buried in a long history -------------------------------
+# --- AC-016.6: Bed 5, a past GI bleed buried in a long history -------------------------------
 
-BED_15_QUOTE = "Upper GI bleed from a duodenal ulcer in 2021"
+BED_5_QUOTE = "Upper GI bleed from a duodenal ulcer in 2021"
 
 
-def test_ac_016_6_bed_15_looks_routine_to_the_rules() -> None:
+def test_ac_016_6_bed_5_looks_routine_to_the_rules() -> None:
     preset = PRESETS["L"]
     request = preset.request
 
-    assert preset.bed == "Bed 15"
+    assert preset.bed == "Bed 5"
     assert request.context.history == []
     assert request.context.diagnoses == []
-    assert BED_15_QUOTE in request.context.past_history
+    assert BED_5_QUOTE in request.context.past_history
     assert rules_card(request).status is Status.NO_ISSUE
 
 
-def test_ac_016_6_bed_15_warns_once_the_model_finds_the_history() -> None:
+def test_ac_016_6_bed_5_warns_once_the_model_finds_the_history() -> None:
     answer = {
         **verdict_json(status="NO_ISSUE", conflict_type=None, alternative_drug_id=None),
         "note_acs_quote": None,
-        "note_history": [{"code": "PAST_GI_BLEED", "quote": BED_15_QUOTE}],
+        "note_history": [{"code": "PAST_GI_BLEED", "quote": BED_5_QUOTE}],
     }
 
     card = final_card(PRESETS["L"].request, FakeModelClient([answer]))
@@ -489,18 +489,18 @@ def test_ac_016_6_bed_15_warns_once_the_model_finds_the_history() -> None:
     assert card.status is Status.WARNING
     (rule,) = card.fired_rules
     assert rule.rule_id == "NSAID_HISTORY_GI_BLEED"
-    assert rule.evidence == [BED_15_QUOTE]
+    assert rule.evidence == [BED_5_QUOTE]
     assert card.alternative is not None
     assert card.alternative.drug_id == "paracetamol"
     assert card.alternative.dose_text == rule_table.DOSE_FALLBACK_TEXT
 
 
-def test_ac_016_6_bed_15_past_bleed_is_not_a_current_bleed() -> None:
+def test_ac_016_6_bed_5_past_bleed_is_not_a_current_bleed() -> None:
     """Misread as a current bleed, the list item would make the card BLOCKED (AC-016.7)."""
     answer = {
         **verdict_json(status="NO_ISSUE", conflict_type=None, alternative_drug_id=None),
         "note_acs_quote": None,
-        "note_gi_bleed_quote": BED_15_QUOTE,
+        "note_gi_bleed_quote": BED_5_QUOTE,
     }
 
     card = final_card(PRESETS["L"].request, FakeModelClient([answer]))
@@ -559,3 +559,11 @@ def test_ac_016_1_a_coded_history_is_shown_read_only_when_present() -> None:
 
     assert 'id="ro-history-line" hidden' in html
     assert '$("ro-history-line").hidden = history.length === 0;' in script
+
+
+def test_ac_006_5_rooms_are_listed_in_bed_order() -> None:
+    script = (PACKAGE / "static" / "app.js").read_text()
+
+    assert ".sort((a, b) => bedNumber(a.bed) - bedNumber(b.bed))" in script
+    beds = sorted(int(p.bed.removeprefix("Bed ")) for p in PRESETS.values() if p.bed)
+    assert beds == [3, 5, 7, 12, 14]
