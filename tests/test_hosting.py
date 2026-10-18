@@ -188,6 +188,13 @@ def test_ac_015_2_healthz_is_ok_without_touching_the_model() -> None:
     assert fake.warm_up_calls == 0
 
 
+def test_ac_015_2_healthz_ignores_the_host_header_but_pages_do_not() -> None:
+    api = _client(Config(), "10.0.0.5")
+
+    assert api.get("/healthz").status_code == 200
+    assert api.get("/").status_code == 400
+
+
 def test_ac_015_3_hosted_banner_only_in_hosted_mode() -> None:
     hosted = _client(Config.from_env(HOSTED_ENV), "demo.onrender.com").get("/").text
     local = _client(Config(), "127.0.0.1").get("/").text

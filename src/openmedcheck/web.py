@@ -173,7 +173,12 @@ def create_app(config: Config | None = None, model_client: ModelClient | None = 
     async def _trusted_host(request: Request, call_next: RequestResponseEndpoint) -> Response:
         # Registered first, so it runs inside the header and error middlewares below and its
         # rejection is a problem+json response that still carries the security headers.
-        if _request_hostname(request.headers.get("host", "")) not in allowed_hosts:
+        # /healthz is exempt: platform probes may send an internal Host header, and the
+        # response carries no data (AC-015.2).
+        if (
+            request.url.path != "/healthz"
+            and _request_hostname(request.headers.get("host", "")) not in allowed_hosts
+        ):
             return problem_response(
                 ProblemDetails(
                     title="Invalid host header",
