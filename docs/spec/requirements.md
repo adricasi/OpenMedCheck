@@ -68,9 +68,11 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
     a value equal to the threshold doesn't fire) THE SYSTEM SHALL
     flag renal adjustment and return the rule's status (`WARNING` or `BLOCKED`).
   - AC-002.3: WHEN the proposed drug is an NSAID AND the patient takes an antiplatelet agent AND
-    a coded diagnosis of ACS is present THE SYSTEM SHALL return `BLOCKED`.
+    a coded diagnosis of ACS (or a kept note finding, AC-003.7) is present THE SYSTEM SHALL
+    return `BLOCKED`.
   - AC-002.4: WHEN the proposed drug is an NSAID AND a coded diagnosis of active
-    gastrointestinal bleeding is present THE SYSTEM SHALL return `BLOCKED`.
+    gastrointestinal bleeding (or a kept note finding, AC-003.7) is present THE SYSTEM SHALL
+    return `BLOCKED`.
   - AC-002.5: WHEN the proposed drug's active ingredient or drug class exactly matches a
     recorded allergy THE SYSTEM SHALL return `BLOCKED`.
   - AC-002.6: WHEN no rule fires THE SYSTEM SHALL return rules status `NO_ISSUE`, tier `LOW`.
@@ -101,6 +103,27 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
   - AC-003.5: IF the model headline or rationale contains a dose pattern, the name of a drug
     from the drug list other than the ordered drug or the selected alternative, or a banned word
     (AC-010.2) THEN THE SYSTEM SHALL treat the output as invalid (AC-003.3).
+  - AC-003.6: WHEN the model returns output THE SYSTEM SHALL accept its answers to four note
+    questions, each with a quote: `note_acs_quote` and `note_gi_bleed_quote` (a phrase or
+    null), `note_medications` (up to 3 drug IDs from the drug list) and `note_allergies` (up to 3
+    drug IDs, active ingredients or class IDs). THE SYSTEM SHALL keep a finding only if its code
+    is valid for its kind, its quote (3–120 characters) appears word for word in the ED note or
+    the reason for consult (ignoring case and spacing), the quote names what it is coded as (the
+    drug or class name, or a term of the condition), and the sentence it comes from does not
+    deny it, rule it out or give only past history; at most 8 findings are kept. Dropped
+    findings SHALL NOT make the output invalid. The card SHALL show the note's own words.
+  - AC-003.7: WHEN findings are kept THE SYSTEM SHALL run Layer 1 again on the coded context
+    plus the kept findings (added to diagnoses, chronic medication and allergies; nothing is
+    removed), use that verdict as the rules verdict for the combiner and the alternative
+    re-check, and show on the card, under each rule that fired only because of a finding, the
+    supporting quote labelled "From the clinician's note". Quotes are not subject to AC-003.5:
+    they can only repeat the clinician's own text (accepted risk, ADR 0006).
+  - AC-003.8: IF the model's own verdict escalates with conflict type `ANTIPLATELET_ACS`,
+    `GI_BLEED` or `ALLERGY` and no rule of that type fired on the coded context plus the kept
+    findings THEN THE SYSTEM SHALL set that escalation aside (the rules decide these conflicts)
+    and log `model_escalation_gated`; escalations of other types still count, and the final card
+    SHALL never be below the coded rules verdict (REQ-004). The final status SHALL never be below the
+    verdict on the coded context alone (REQ-004).
 
 ### REQ-004: Escalate-only safety invariant
 - Story: As a hospital pharmacist, I want a guarantee that the model can only make the verdict

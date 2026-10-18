@@ -117,6 +117,16 @@ pytest --cov` pass and CI is green, unless stated otherwise.
     paracetamol → `NO_ISSUE`), AC-008.2 (Sign disabled on `BLOCKED`), AC-008.7 (Sign disabled
     while checking; stale responses dropped after an edit), AC-008.8, keyboard-only and with
     Ollama stopped; a usability review finds no blocking issue.
+- [x] T-013: Note findings with evidence quotes (Gemma extracts, the rules decide)
+  - Requirements: REQ-003 (AC-003.6, AC-003.7), REQ-004, NFR-002, NFR-004, NFR-012
+  - Depends on: T-005, T-007
+  - Scope: model output `note_findings` (kind, code, quote) in the schema and prompt (v5);
+    pure verification (code per kind, verbatim quote) and context augmentation; Layer 1 re-run
+    on the augmented context with evidence quotes on note-derived rules; alternative re-check on
+    the augmented context; card UI line "From the ED note"; ADR 0006; model eval.
+  - Done when: unit and property tests (augmented verdict never below the coded verdict;
+    invented quotes dropped) pass; model eval keeps AC-003.4 and AC-009.2 at >= 9/10 and
+    NFR-004/NFR-012 budgets; a review of the escalate-only invariant finds no blocking issue.
 - [x] T-008: Hardening: local exposure, XSS, wording, concurrency
   - Requirements: NFR-001, NFR-005, NFR-008, REQ-010 (AC-010.2)
   - Depends on: T-007
