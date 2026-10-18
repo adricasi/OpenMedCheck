@@ -80,7 +80,7 @@ pytest --cov` pass and CI is green, unless stated otherwise.
     (AC-001.2); NFR-003 and AC-005.2 tests (Ollama down → 100% rules-only cards, presets B and
     coded-A keep their rules status) pass; log-capture test shows no context values (incl. a
     422 and an invalid model output) and one line per check with the NFR-007 fields.
-- [ ] T-006: Clinical review applied
+- [x] T-006: Clinical review applied
   - Requirements: NFR-011, REQ-006 (AC-006.2, Q-5), AC-003.4 wording
   - Depends on: T-003 (human: specialist review of the rule table and rules cards, Sat before
     22:00); a second short check of the 3 final cards on Sun morning before freeze (after T-007)
@@ -94,7 +94,7 @@ pytest --cov` pass and CI is green, unless stated otherwise.
     Sunday final-card check; Q-5 closed in product.md.
 
 ## Milestone 3: User interface
-- [~] T-007: Chart, presets, progressive card, actions
+- [x] T-007: Chart, presets, progressive card, actions
   - Requirements: REQ-006 (AC-006.1 … AC-006.3 in the UI), REQ-007, REQ-008, REQ-009,
     REQ-011 (AC-011.2), REQ-014 (Could), NFR-010
   - Depends on: T-005

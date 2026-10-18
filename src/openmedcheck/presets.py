@@ -283,7 +283,5 @@ PRESET_A_EXPECTED_FINAL_CARD: dict[str, str] = {
         "The note describes suspected ACS and the patient takes an antiplatelet agent; "
         "an NSAID raises bleeding and cardiovascular risk."
     ),
-    "alternative": (
-        "Paracetamol. Dose: consult SmPC (numeric dose shown only after specialist sign-off)"
-    ),
+    "alternative": "Paracetamol 1 g, PO, every 8 hours (dose specialist-reviewed, T-006)",
 }

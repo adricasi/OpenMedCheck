@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date
 from typing import Any
 
@@ -107,13 +108,32 @@ def select(request: CheckRequest, **kwargs: Any) -> Any:
 # --- AC-001.3 -------------------------------------------------------------------------------
 
 
-def test_ac_001_3_blocked_card_offers_the_rule_table_alternative_by_name_only() -> None:
+def test_ac_001_3_blocked_card_offers_the_reviewed_rule_table_alternative() -> None:
     card = rules_card(request_for(diagnoses=["ACTIVE_GI_BLEED"]))
     assert card.status is Status.BLOCKED
     assert card.source is Source.RULES
     assert card.alternative is not None
     assert card.alternative.drug_id == "paracetamol"
     assert card.alternative.name == "Paracetamol"
+    assert (card.alternative.dose_text, card.alternative.route, card.alternative.frequency) == (
+        "1 g",
+        "PO",
+        "every 8 hours",
+    )
+
+
+def test_nfr_011_unreviewed_alternative_is_offered_by_name_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    key = ("ibuprofen", ConflictType.GI_BLEED)
+    unsigned = tuple(
+        replace(a, reviewed_by=None, reviewed_on=None) for a in ALLOWED_ALTERNATIVES[key]
+    )
+    monkeypatch.setitem(rule_table.ALLOWED_ALTERNATIVES, key, unsigned)
+
+    card = rules_card(request_for(diagnoses=["ACTIVE_GI_BLEED"]))
+
+    assert card.alternative is not None
     assert card.alternative.dose_text == DOSE_FALLBACK_TEXT
     assert (card.alternative.route, card.alternative.frequency) == ("", "")
 
@@ -230,7 +250,7 @@ def test_ac_004_7_only_allowed_alternatives_are_ever_shown_for_preset_a(suggesti
     assert DRUGS_BY_ID[card.alternative.drug_id].drug_class != "NSAID"
 
 
-def test_ac_001_3_preset_a_final_card_is_blocked_with_paracetamol_by_name_only() -> None:
+def test_ac_001_3_preset_a_final_card_is_blocked_with_reviewed_paracetamol() -> None:
     model = verdict(Status.BLOCKED, conflict_type=ConflictType.ANTIPLATELET_ACS)
     card, rejected = combined_card(PRESETS["A"].request, model, request_id="req-1")
     assert (card.status, card.source, card.request_id) == (
@@ -240,8 +260,7 @@ def test_ac_001_3_preset_a_final_card_is_blocked_with_paracetamol_by_name_only()
     )
     assert not rejected
     assert card.alternative is not None
-    assert card.alternative.dose_text == DOSE_FALLBACK_TEXT
-    assert not any(ch.isdigit() for ch in card.alternative.model_dump_json())
+    assert (card.alternative.drug_id, card.alternative.dose_text) == ("paracetamol", "1 g")
 
 
 # --- AC-004.2, AC-004.5, AC-004.9 end to end --------------------------------------------------
@@ -397,12 +416,34 @@ def test_property_pipeline_invariants_hold_for_any_model_verdict(
     assert recheck is Status.NO_ISSUE or (
         recheck is Status.WARNING and rule_table.is_reviewed(allowed[0])
     )
-    # NFR-011: nothing is reviewed yet, so no dose may appear.
-    assert alternative.dose_text == DOSE_FALLBACK_TEXT
-    assert (alternative.route, alternative.frequency) == ("", "")
+    # NFR-011: the dose appears only when the rule-table entry is reviewed, and only from it.
+    if rule_table.is_reviewed(allowed[0]):
+        assert (alternative.dose_text, alternative.route, alternative.frequency) == (
+            allowed[0].dose_text,
+            allowed[0].route,
+            allowed[0].frequency,
+        )
+    else:
+        assert alternative.dose_text == DOSE_FALLBACK_TEXT
+        assert (alternative.route, alternative.frequency) == ("", "")
 
 
-def test_unreviewed_table_still_has_no_reviewed_alternative() -> None:
-    assert not any(
-        rule_table.is_reviewed(a) for group in ALLOWED_ALTERNATIVES.values() for a in group
+def test_nfr_011_unreviewed_alternative_after_model_escalation_has_no_dose(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    key = ("dexketoprofen", ConflictType.ANTIPLATELET_ACS)
+    unsigned = tuple(
+        replace(a, reviewed_by=None, reviewed_on=None) for a in ALLOWED_ALTERNATIVES[key]
     )
+    monkeypatch.setitem(rule_table.ALLOWED_ALTERNATIVES, key, unsigned)
+    model = verdict(Status.BLOCKED, conflict_type=ConflictType.ANTIPLATELET_ACS)
+
+    card, _ = combined_card(PRESETS["A"].request, model)
+
+    assert card.alternative is not None
+    assert card.alternative.dose_text == DOSE_FALLBACK_TEXT
+    assert not any(ch.isdigit() for ch in card.alternative.model_dump_json())
+
+
+def test_nfr_011_every_alternative_is_reviewed_after_t_006() -> None:
+    assert all(rule_table.is_reviewed(a) for group in ALLOWED_ALTERNATIVES.values() for a in group)

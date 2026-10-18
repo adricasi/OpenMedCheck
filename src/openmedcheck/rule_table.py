@@ -1,15 +1,15 @@
 """The rule table: drug list, classes, rules and allowed alternatives (REQ-002, NFR-011).
 
 Pure data, no I/O. Every entry carries a source citation, a conflict type and a
-specialist-review mark (``reviewed_by`` / ``reviewed_on``). Nothing here has been reviewed by a
-clinical specialist yet (T-006): numeric doses stay hidden until ``reviewed_on`` is set.
+specialist-review mark (``reviewed_by`` / ``reviewed_on``). Every entry was reviewed by a
+clinical specialist on 2026-10-18 (T-006); an entry added later stays unreviewed, and its numeric
+doses hidden, until the specialist signs it off.
 
 The citations name the active ingredient and section of the summary of product characteristics
 (SmPC) as published by the Spanish Agency of Medicines and Medical Devices in its online drug
 information centre (AEMPS CIMA, https://cima.aemps.es), or a published guideline. Rules marked as
-project policy are design choices, not SmPC text. The citations were written without access to the
-live documents; the review sheet (``docs/clinical-review.md``) asks the specialist to confirm each
-one.
+project policy are design choices, not SmPC text. The review sheet (``docs/clinical-review.md``)
+records the review outcome.
 """
 
 from __future__ import annotations
@@ -22,6 +22,10 @@ from openmedcheck.contracts import ConflictType, RiskLevel, Status
 
 RENAL_FALLBACK_GUIDANCE = "Renal adjustment required — consult SmPC"
 DOSE_FALLBACK_TEXT = "Dose: consult SmPC"
+
+# T-006: the specialist review of the whole table. The reviewer's name is not recorded.
+SPECIALIST_REVIEWER = "Clinical specialist (name not recorded)"
+SPECIALIST_REVIEW_DATE = date(2026, 10, 18)
 
 CIMA = "AEMPS CIMA, Spanish Agency of Medicines drug information centre (https://cima.aemps.es)"
 ESC_HF_2021 = (
@@ -204,6 +208,8 @@ _NSAID_SMPC = f"{CIMA}: dexketoprofen SmPC"
 
 ALLERGY_RULE = AllergyRule(
     rule_id="ALLERGY_EXACT_MATCH",
+    reviewed_by=SPECIALIST_REVIEWER,
+    reviewed_on=SPECIALIST_REVIEW_DATE,
     status=Status.BLOCKED,
     risk_level=RiskLevel.CRITICAL,
     conflict_type=ConflictType.ALLERGY,
@@ -215,6 +221,8 @@ ALLERGY_RULE = AllergyRule(
 CONTEXT_RULES: tuple[ContextRule, ...] = (
     ContextRule(
         rule_id="NSAID_ANTIPLATELET_ACS",
+        reviewed_by=SPECIALIST_REVIEWER,
+        reviewed_on=SPECIALIST_REVIEW_DATE,
         status=Status.BLOCKED,
         risk_level=RiskLevel.CRITICAL,
         conflict_type=ConflictType.ANTIPLATELET_ACS,
@@ -229,6 +237,8 @@ CONTEXT_RULES: tuple[ContextRule, ...] = (
     ),
     ContextRule(
         rule_id="NSAID_ACTIVE_GI_BLEED",
+        reviewed_by=SPECIALIST_REVIEWER,
+        reviewed_on=SPECIALIST_REVIEW_DATE,
         status=Status.BLOCKED,
         risk_level=RiskLevel.CRITICAL,
         conflict_type=ConflictType.GI_BLEED,
@@ -241,6 +251,8 @@ CONTEXT_RULES: tuple[ContextRule, ...] = (
     ),
     ContextRule(
         rule_id="NSAID_ORAL_ANTICOAGULANT",
+        reviewed_by=SPECIALIST_REVIEWER,
+        reviewed_on=SPECIALIST_REVIEW_DATE,
         status=Status.BLOCKED,
         risk_level=RiskLevel.HIGH,
         conflict_type=ConflictType.BLEEDING,
@@ -252,6 +264,8 @@ CONTEXT_RULES: tuple[ContextRule, ...] = (
     ),
     ContextRule(
         rule_id="NSAID_HEART_FAILURE",
+        reviewed_by=SPECIALIST_REVIEWER,
+        reviewed_on=SPECIALIST_REVIEW_DATE,
         status=Status.WARNING,
         risk_level=RiskLevel.HIGH,
         conflict_type=ConflictType.HEART_FAILURE,
@@ -263,6 +277,8 @@ CONTEXT_RULES: tuple[ContextRule, ...] = (
     ),
     ContextRule(
         rule_id="PREGNANCY_ACE_INHIBITOR",
+        reviewed_by=SPECIALIST_REVIEWER,
+        reviewed_on=SPECIALIST_REVIEW_DATE,
         status=Status.BLOCKED,
         risk_level=RiskLevel.HIGH,
         conflict_type=ConflictType.PREGNANCY,
@@ -274,6 +290,8 @@ CONTEXT_RULES: tuple[ContextRule, ...] = (
     ),
     ContextRule(
         rule_id="PREGNANCY_ORAL_ANTICOAGULANT",
+        reviewed_by=SPECIALIST_REVIEWER,
+        reviewed_on=SPECIALIST_REVIEW_DATE,
         status=Status.BLOCKED,
         risk_level=RiskLevel.HIGH,
         conflict_type=ConflictType.PREGNANCY,
@@ -285,6 +303,8 @@ CONTEXT_RULES: tuple[ContextRule, ...] = (
     ),
     ContextRule(
         rule_id="PREGNANCY_NSAID",
+        reviewed_by=SPECIALIST_REVIEWER,
+        reviewed_on=SPECIALIST_REVIEW_DATE,
         status=Status.WARNING,
         risk_level=RiskLevel.HIGH,
         conflict_type=ConflictType.PREGNANCY,
@@ -307,6 +327,8 @@ _PLATELET_POLICY = (
 LAB_RULES: tuple[LabRule, ...] = (
     LabRule(
         rule_id="POTASSIUM_RAAS_ABOVE_5_5",
+        reviewed_by=SPECIALIST_REVIEWER,
+        reviewed_on=SPECIALIST_REVIEW_DATE,
         status=Status.BLOCKED,
         risk_level=RiskLevel.HIGH,
         conflict_type=ConflictType.HYPERKALAEMIA,
@@ -321,6 +343,8 @@ LAB_RULES: tuple[LabRule, ...] = (
     ),
     LabRule(
         rule_id="POTASSIUM_RAAS_ABOVE_5_0",
+        reviewed_by=SPECIALIST_REVIEWER,
+        reviewed_on=SPECIALIST_REVIEW_DATE,
         status=Status.WARNING,
         risk_level=RiskLevel.MODERATE,
         conflict_type=ConflictType.HYPERKALAEMIA,
@@ -335,6 +359,8 @@ LAB_RULES: tuple[LabRule, ...] = (
     ),
     LabRule(
         rule_id="PLATELETS_ANTICOAGULANT_BELOW_50000",
+        reviewed_by=SPECIALIST_REVIEWER,
+        reviewed_on=SPECIALIST_REVIEW_DATE,
         status=Status.BLOCKED,
         risk_level=RiskLevel.HIGH,
         conflict_type=ConflictType.BLEEDING,
@@ -349,6 +375,8 @@ LAB_RULES: tuple[LabRule, ...] = (
     ),
     LabRule(
         rule_id="PLATELETS_NSAID_BELOW_50000",
+        reviewed_by=SPECIALIST_REVIEWER,
+        reviewed_on=SPECIALIST_REVIEW_DATE,
         status=Status.WARNING,
         risk_level=RiskLevel.HIGH,
         conflict_type=ConflictType.BLEEDING,
@@ -364,6 +392,8 @@ LAB_RULES: tuple[LabRule, ...] = (
 LAB_UNKNOWN_RULES: tuple[LabUnknownRule, ...] = (
     LabUnknownRule(
         rule_id="POTASSIUM_UNKNOWN_RAAS",
+        reviewed_by=SPECIALIST_REVIEWER,
+        reviewed_on=SPECIALIST_REVIEW_DATE,
         status=Status.WARNING,
         risk_level=RiskLevel.MODERATE,
         conflict_type=ConflictType.HYPERKALAEMIA,
@@ -378,6 +408,8 @@ LAB_UNKNOWN_RULES: tuple[LabUnknownRule, ...] = (
 RENAL_RULES: tuple[RenalRule, ...] = (
     RenalRule(
         rule_id="RENAL_DEXKETOPROFEN_CRCL_60",
+        reviewed_by=SPECIALIST_REVIEWER,
+        reviewed_on=SPECIALIST_REVIEW_DATE,
         status=Status.BLOCKED,
         risk_level=RiskLevel.HIGH,
         conflict_type=ConflictType.RENAL,
@@ -390,6 +422,8 @@ RENAL_RULES: tuple[RenalRule, ...] = (
     ),
     RenalRule(
         rule_id="RENAL_CIPROFLOXACIN_CRCL_30",
+        reviewed_by=SPECIALIST_REVIEWER,
+        reviewed_on=SPECIALIST_REVIEW_DATE,
         status=Status.WARNING,
         risk_level=RiskLevel.MODERATE,
         conflict_type=ConflictType.RENAL,
@@ -399,10 +433,12 @@ RENAL_RULES: tuple[RenalRule, ...] = (
         drug_id="ciprofloxacin",
         basis=RenalBasis.CRCL,
         threshold=30,
-        dose_guidance="CrCl below 30 mL/min: maximum 500 mg a day by mouth, per SmPC 4.2",
+        # Q-5 (specialist review, 2026-10-18): the card keeps "consult SmPC", no numeric dose.
     ),
     RenalRule(
         rule_id="RENAL_LEVOFLOXACIN_CRCL_50",
+        reviewed_by=SPECIALIST_REVIEWER,
+        reviewed_on=SPECIALIST_REVIEW_DATE,
         status=Status.WARNING,
         risk_level=RiskLevel.MODERATE,
         conflict_type=ConflictType.RENAL,
@@ -415,6 +451,8 @@ RENAL_RULES: tuple[RenalRule, ...] = (
     ),
     RenalRule(
         rule_id="RENAL_METFORMIN_EGFR_30",
+        reviewed_by=SPECIALIST_REVIEWER,
+        reviewed_on=SPECIALIST_REVIEW_DATE,
         status=Status.BLOCKED,
         risk_level=RiskLevel.HIGH,
         conflict_type=ConflictType.RENAL,
@@ -427,6 +465,8 @@ RENAL_RULES: tuple[RenalRule, ...] = (
     ),
     RenalRule(
         rule_id="RENAL_METFORMIN_EGFR_45",
+        reviewed_by=SPECIALIST_REVIEWER,
+        reviewed_on=SPECIALIST_REVIEW_DATE,
         status=Status.WARNING,
         risk_level=RiskLevel.MODERATE,
         conflict_type=ConflictType.RENAL,
@@ -439,6 +479,8 @@ RENAL_RULES: tuple[RenalRule, ...] = (
     ),
     RenalRule(
         rule_id="RENAL_ENOXAPARIN_CRCL_30",
+        reviewed_by=SPECIALIST_REVIEWER,
+        reviewed_on=SPECIALIST_REVIEW_DATE,
         status=Status.WARNING,
         risk_level=RiskLevel.MODERATE,
         conflict_type=ConflictType.RENAL,
@@ -451,6 +493,8 @@ RENAL_RULES: tuple[RenalRule, ...] = (
     ),
     RenalRule(
         rule_id="RENAL_TRAMADOL_CRCL_30",
+        reviewed_by=SPECIALIST_REVIEWER,
+        reviewed_on=SPECIALIST_REVIEW_DATE,
         status=Status.WARNING,
         risk_level=RiskLevel.MODERATE,
         conflict_type=ConflictType.RENAL,
@@ -463,6 +507,8 @@ RENAL_RULES: tuple[RenalRule, ...] = (
     ),
     RenalRule(
         rule_id="RENAL_AMOXICILLIN_CLAVULANATE_CRCL_30",
+        reviewed_by=SPECIALIST_REVIEWER,
+        reviewed_on=SPECIALIST_REVIEW_DATE,
         status=Status.WARNING,
         risk_level=RiskLevel.MODERATE,
         conflict_type=ConflictType.RENAL,
@@ -484,6 +530,8 @@ _UNKNOWN_SOURCE = (
 RENAL_UNKNOWN_RULES: dict[RenalBasis, RenalUnknownRule] = {
     RenalBasis.EGFR: RenalUnknownRule(
         rule_id="RENAL_UNKNOWN_EGFR",
+        reviewed_by=SPECIALIST_REVIEWER,
+        reviewed_on=SPECIALIST_REVIEW_DATE,
         status=Status.WARNING,
         risk_level=RiskLevel.MODERATE,
         conflict_type=ConflictType.RENAL,
@@ -493,6 +541,8 @@ RENAL_UNKNOWN_RULES: dict[RenalBasis, RenalUnknownRule] = {
     ),
     RenalBasis.CRCL: RenalUnknownRule(
         rule_id="RENAL_UNKNOWN_CRCL",
+        reviewed_by=SPECIALIST_REVIEWER,
+        reviewed_on=SPECIALIST_REVIEW_DATE,
         status=Status.WARNING,
         risk_level=RiskLevel.MODERATE,
         conflict_type=ConflictType.RENAL,
@@ -505,8 +555,7 @@ RENAL_UNKNOWN_RULES: dict[RenalBasis, RenalUnknownRule] = {
 # --- Allowed alternatives, keyed by (proposed drug, conflict type) ---------------------------
 
 _PARACETAMOL_SOURCE = (
-    f"{CIMA}: paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose); "
-    "dose to be confirmed by the specialist"
+    f"{CIMA}: paracetamol 1 g SmPC, sections 4.1 and 4.2 (adult dose and maximum daily dose)"
 )
 
 
@@ -520,6 +569,8 @@ def _paracetamol_for(proposed_drug_id: str, conflict_type: ConflictType) -> Allo
         frequency="every 8 hours",
         reason="Analgesic outside the NSAID class.",
         source=_PARACETAMOL_SOURCE,
+        reviewed_by=SPECIALIST_REVIEWER,
+        reviewed_on=SPECIALIST_REVIEW_DATE,
     )
 
 
@@ -543,9 +594,15 @@ ALLOWED_ALTERNATIVES: dict[tuple[str, ConflictType], tuple[AllowedAlternative, .
 # --- Questions for the clinical specialist (rendered into docs/clinical-review.md) -----------
 
 SPECIALIST_QUESTIONS: tuple[str, ...] = (
+    "Raised by the source check after your review (not applied; the reviewed text stands until "
+    "you confirm): (a) RENAL_METFORMIN_EGFR_45: the EMA 2016 text sets a maximum of 1000 mg a "
+    "day at GFR 30-44 rather than 'not to be started'; change the source text? (b) "
+    "PREGNANCY_NSAID: add the MHRA 2023 / FDA 2020 advice to avoid NSAIDs from week 20 as a "
+    "separate source? (c) RENAL_CIPROFLOXACIN_CRCL_30 fires below 30 while the SmPC band is "
+    "30 or lower: keep, or flag at 30 too?",
     "Citations: confirm each SmPC section and product named in the table. They were written "
     "without access to the live CIMA documents and none links to a specific document.",
-    "Drug list: is this the right set of 20 drugs for the demo (Q-5)? Anything to add "
+    "Drug list: is this the right set of 20 drugs for the demo? Anything to add "
     "or remove, e.g. a second alternative analgesic?",
     "Renal thresholds: confirm each threshold, its basis (CrCl by Cockcroft-Gault or eGFR) and "
     "its status. In particular dexketoprofen BLOCKED below CrCl 60 (the SmPC says 59 or lower) "
@@ -558,12 +615,6 @@ SPECIALIST_QUESTIONS: tuple[str, ...] = (
     "and compares the unrounded value with the threshold (the card shows one decimal). Is "
     "that acceptable, or should obese or "
     "low-weight patients use another weight?",
-    "Preset B dose guidance: the ciprofloxacin text 'maximum 500 mg a day by mouth' is hidden "
-    "until you sign it off (Q-5). Confirm or correct it, or keep the fallback 'consult SmPC'.",
-    "Alternative paracetamol 1 g by mouth every 8 hours (preset A): confirm dose, route and "
-    "frequency, or provide the dose to use. Until you sign the dose off, the card offers "
-    "paracetamol by name only, with the text 'Dose: consult SmPC' and no number; after your "
-    "sign-off it shows the signed-off dose.",
     "Basis and bands: metformin rules use eGFR in mL/min/1.73 m2 where the SmPC says GFR in "
     "mL/min (acceptable?). Should enoxaparin CrCl below 15 be a stricter rule? Should "
     "dexketoprofen CrCl 60-89 (mild impairment, reduced maximum dose) warn? Does the "
@@ -606,8 +657,6 @@ SPECIALIST_QUESTIONS: tuple[str, ...] = (
     "hours (F), ibuprofen 600 mg PO every 8 hours (G), enalapril 5 mg PO once daily (H), "
     "ibuprofen 400 mg PO every 8 hours (I and the custom-patient sample). Do any read as "
     "implausible for an ED order?",
-    "The paracetamol alternative now appears for presets A (ANTIPLATELET_ACS), D (GI_BLEED), "
-    "F (RENAL), G (BLEEDING) and I (PREGNANCY). Please confirm one dose that applies to all.",
     "Note findings (ADR 0006): should a suspected ACS taken from the clinician's note give the "
     "same BLOCKED / CRITICAL as a coded ACS, or WARNING?",
     "Note findings: should 'suspected' or 'recent' GI bleeding written in the note count as "

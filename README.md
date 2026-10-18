@@ -47,8 +47,8 @@ implemented in v0.1 and is out of scope for this version (see
 Two layers, and the second can only make the first stricter (escalate-only):
 
 1. **Layer 1, deterministic rules.** A rule table in code (every entry cites a source and carries
-   a review status; entries not yet reviewed by a specialist show "consult SmPC" instead of a
-   numeric dose) checks the order against labs, allergies and listed diagnoses. It
+   a review status; every current entry was reviewed by a clinical specialist on 2026-10-18,
+   and an entry not yet reviewed shows "consult SmPC" instead of a numeric dose) checks the order against labs, allergies and listed diagnoses. It
    sets the floor: the final status is never below the rules' status, and a rules `BLOCKED` is
    final. The renal flag cannot be cleared, and the reasons of every fired rule always appear
    on the card.
@@ -101,17 +101,17 @@ the model ready (the rules column is what `/api/check/rules` returns):
 
 | Template (room) | Rules card | Final card |
 |---|---|---|
-| A (Bed 3) | `NO_ISSUE` ("No issue found by these checks") | `BLOCKED` after the model reads the note; alternative: Paracetamol, "Dose: consult SmPC" |
+| A (Bed 3) | `NO_ISSUE` ("No issue found by these checks") | `BLOCKED` after the model reads the note; alternative: Paracetamol 1 g, PO, every 8 hours |
 | B (Bed 7) | `WARNING` with the renal-adjustment flag | `WARNING`, renal flag kept, "Renal adjustment required — consult SmPC", no alternative |
 | C (Bed 12) | `NO_ISSUE` | `NO_ISSUE`, no alternative |
-| D (added room) | `BLOCKED`: NSAID with a coded active GI bleed | `BLOCKED`; alternative: Paracetamol, "Dose: consult SmPC" |
+| D (added room) | `BLOCKED`: NSAID with a coded active GI bleed | `BLOCKED`; alternative: Paracetamol 1 g, PO, every 8 hours |
 | E (added room) | `BLOCKED`: recorded penicillin allergy | `BLOCKED`, no alternative |
-| F (added room) | `BLOCKED`: dexketoprofen with estimated CrCl below 60 mL/min, renal flag | `BLOCKED`, renal flag kept; alternative: Paracetamol, "Dose: consult SmPC" |
+| F (added room) | `BLOCKED`: dexketoprofen with estimated CrCl below 60 mL/min, renal flag | `BLOCKED`, renal flag kept; alternative: Paracetamol 1 g, PO, every 8 hours |
 
-"Use alternative" on preset A selects paracetamol and clears the dose, because the dose is not
-specialist-reviewed; enter a dose (the recorded runs used the demo order text 1 g every 8 hours;
-this is not a recommendation) and verify again on the same patient; in the recorded runs that second check gives `NO_ISSUE` ("No issue found
-by these checks"). The prescriber always decides.
+"Use alternative" on preset A fills in the specialist-reviewed rule-table dose (paracetamol 1 g,
+PO, every 8 hours) and verifies the changed order again on the same patient; that second check
+gives `NO_ISSUE` ("No issue found by these checks"). An alternative whose dose is not reviewed is
+offered by name only, and the prescriber enters the dose. The prescriber always decides.
 
 If Ollama or the model is missing, or does not answer in time, the app still starts and returns
 the rules-only card with the note "Model check unavailable — rules only". The rules alone cannot

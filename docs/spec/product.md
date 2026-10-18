@@ -143,8 +143,9 @@ safety invariant in a self-hosted deployment.
 - [ ] Q-3: Exact Gemma 4 size naming (E4B) and Ollama tag `gemma4:e4b`, from the model card.
 - [x] Q-4: Local hardware → NVIDIA GPU with ≥ 8 GB VRAM (answered 2026-10-17); targets in
   NFR-004.
-- [ ] Q-5: Preset B dose: numeric (CrCl-based, SmPC-cited) only if the specialist signs it off
-  today; otherwise "renal adjustment required — consult SmPC".
+- [x] Q-5: Preset B dose: numeric (CrCl-based, SmPC-cited) only if the specialist signs it off
+  today; otherwise "renal adjustment required — consult SmPC". Closed (2026-10-18): the
+  specialist kept "renal adjustment required — consult SmPC"; no numeric renal dose is shown.
 - [x] Q-6: ~~Do the Week 2 "Side Hustle" / "Best Use of Gemma" rules require a live hosted demo?~~
   Closed (2026-10-17): no. Source: DEV Events API `full_details` for event 80 "Hacktoberfest
   Open-Source AI Challenge: Week 2" (https://dev.to/challenges/hf26), read 2026-10-17. A hosted

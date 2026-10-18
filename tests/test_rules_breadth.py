@@ -159,11 +159,11 @@ NEW_RULES = (
 
 
 @pytest.mark.parametrize("rule_id", NEW_RULES)
-def test_ac_002_14_new_rules_are_cited_and_not_reviewed(rule_id: str) -> None:
+def test_ac_002_14_new_rules_are_cited_and_reviewed(rule_id: str) -> None:
     entry = rule_table.RULES_BY_ID[rule_id]
 
     assert entry.source.strip()
-    assert not rule_table.is_reviewed(entry)
+    assert rule_table.is_reviewed(entry)  # T-006 sign-off
 
 
 @pytest.mark.parametrize(

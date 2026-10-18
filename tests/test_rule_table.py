@@ -27,6 +27,7 @@ from openmedcheck.rule_table import (
 _BANNED = re.compile(r"\b(approved?|safe|safely)\b", re.IGNORECASE)
 _DOSE_PATTERN = re.compile(r"\d\s*(mg|g|mcg|µg|iu|ui|ml/h)\b", re.IGNORECASE)
 _SIGNED = {"reviewed_by": "Dr Example", "reviewed_on": date(2026, 10, 17)}
+_UNSIGNED: dict[str, None] = {"reviewed_by": None, "reviewed_on": None}
 
 
 def _all_entries() -> list[rule_table.RuleEntry]:
@@ -49,15 +50,55 @@ def test_ac_002_8_entries_are_complete_and_unique() -> None:
         assert isinstance(entry.conflict_type, ConflictType)
 
 
-def test_nfr_011_nothing_is_marked_reviewed_before_the_specialist_review() -> None:
-    for entry in _all_entries():
-        assert not is_reviewed(entry), entry.rule_id
-    for alternatives in ALLOWED_ALTERNATIVES.values():
-        assert not any(is_reviewed(a) for a in alternatives)
+# Frozen at the T-006 review (2026-10-18). A rule added later must not reuse that mark: it stays
+# unreviewed until the specialist signs it off, with its own date.
+_T006_REVIEWED_RULE_IDS = frozenset(
+    {
+        "ALLERGY_EXACT_MATCH",
+        "NSAID_ACTIVE_GI_BLEED",
+        "NSAID_ANTIPLATELET_ACS",
+        "NSAID_HEART_FAILURE",
+        "NSAID_ORAL_ANTICOAGULANT",
+        "PLATELETS_ANTICOAGULANT_BELOW_50000",
+        "PLATELETS_NSAID_BELOW_50000",
+        "POTASSIUM_RAAS_ABOVE_5_0",
+        "POTASSIUM_RAAS_ABOVE_5_5",
+        "POTASSIUM_UNKNOWN_RAAS",
+        "PREGNANCY_ACE_INHIBITOR",
+        "PREGNANCY_NSAID",
+        "PREGNANCY_ORAL_ANTICOAGULANT",
+        "RENAL_AMOXICILLIN_CLAVULANATE_CRCL_30",
+        "RENAL_CIPROFLOXACIN_CRCL_30",
+        "RENAL_DEXKETOPROFEN_CRCL_60",
+        "RENAL_ENOXAPARIN_CRCL_30",
+        "RENAL_LEVOFLOXACIN_CRCL_50",
+        "RENAL_METFORMIN_EGFR_30",
+        "RENAL_METFORMIN_EGFR_45",
+        "RENAL_TRAMADOL_CRCL_30",
+        "RENAL_UNKNOWN_CRCL",
+        "RENAL_UNKNOWN_EGFR",
+    }
+)
+_T006_REVIEWED_ALTERNATIVES = 21
+
+
+def test_nfr_011_only_the_t006_entries_carry_the_t006_review_mark() -> None:
+    t006 = (rule_table.SPECIALIST_REVIEWER, rule_table.SPECIALIST_REVIEW_DATE)
+    stamped = {
+        rule_id
+        for rule_id, entry in rule_table.RULES_BY_ID.items()
+        if (entry.reviewed_by, entry.reviewed_on) == t006
+    }
+    assert stamped == _T006_REVIEWED_RULE_IDS
+    alternatives = [a for group in ALLOWED_ALTERNATIVES.values() for a in group]
+    assert sum((a.reviewed_by, a.reviewed_on) == t006 for a in alternatives) == (
+        _T006_REVIEWED_ALTERNATIVES
+    )
 
 
 def test_nfr_011_review_mark_needs_both_fields() -> None:
-    base = ALLOWED_ALTERNATIVES[("naproxen", ConflictType.GI_BLEED)][0]
+    base = replace(ALLOWED_ALTERNATIVES[("naproxen", ConflictType.GI_BLEED)][0], **_UNSIGNED)
+    assert not is_reviewed(base)
     assert not is_reviewed(replace(base, reviewed_by="Dr Example"))
     assert not is_reviewed(replace(base, reviewed_on=date(2026, 10, 17)))
     assert is_reviewed(replace(base, **_SIGNED))
@@ -70,15 +111,22 @@ def test_nfr_011_reasons_have_no_doses_or_banned_words() -> None:
         assert len(entry.reason) <= 120, entry.rule_id
 
 
-def test_nfr_011_unreviewed_dose_guidance_is_hidden() -> None:
+def test_ac_006_2_q5_ciprofloxacin_card_keeps_consult_smpc() -> None:
     ciprofloxacin = next(r for r in RENAL_RULES if r.drug_id == "ciprofloxacin")
-    assert ciprofloxacin.dose_guidance is not None
+    assert ciprofloxacin.dose_guidance is None
     assert shown_dose_guidance(ciprofloxacin) == RENAL_FALLBACK_GUIDANCE
+
+
+def test_nfr_011_unreviewed_dose_guidance_is_hidden() -> None:
+    base = next(r for r in RENAL_RULES if r.drug_id == "ciprofloxacin")
+    unsigned = replace(base, dose_guidance="500 mg a day", **_UNSIGNED)
+    assert shown_dose_guidance(unsigned) == RENAL_FALLBACK_GUIDANCE
 
 
 def test_nfr_011_reviewed_dose_guidance_is_shown() -> None:
     base = next(r for r in RENAL_RULES if r.drug_id == "ciprofloxacin")
-    assert shown_dose_guidance(replace(base, **_SIGNED)) == base.dose_guidance
+    signed = replace(base, dose_guidance="500 mg a day", **_SIGNED)
+    assert shown_dose_guidance(signed) == "500 mg a day"
 
 
 def test_nfr_011_reviewed_rule_without_numeric_guidance_uses_fallback() -> None:
@@ -88,8 +136,8 @@ def test_nfr_011_reviewed_rule_without_numeric_guidance_uses_fallback() -> None:
 
 def test_nfr_011_alternative_dose_hidden_until_reviewed() -> None:
     base = ALLOWED_ALTERNATIVES[("naproxen", ConflictType.GI_BLEED)][0]
-    assert shown_alternative_dose(base) == DOSE_FALLBACK_TEXT
-    assert shown_alternative_dose(replace(base, **_SIGNED)) == "1 g, PO, every 8 hours"
+    assert shown_alternative_dose(replace(base, **_UNSIGNED)) == DOSE_FALLBACK_TEXT
+    assert shown_alternative_dose(base) == "1 g, PO, every 8 hours"
 
 
 def test_drug_list_has_twenty_known_drugs() -> None:
