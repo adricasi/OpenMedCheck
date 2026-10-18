@@ -392,12 +392,18 @@ class OllamaClient:
         deadline_s: float = DEFAULT_DEADLINE_S,
         transport: httpx.BaseTransport | None = None,
         clock: Clock = time.monotonic,
+        api_key: str = "",
     ) -> None:
         self._model = model
         self._deadline_s = deadline_s
         self._clock = clock
         # trust_env=False: never route the loopback call through a proxy from the environment.
-        self._http = httpx.Client(base_url=base_url, transport=transport, trust_env=False)
+        # The bearer key (hosted profile, AC-015.2) is set once on the client so it covers
+        # warm-up, health and chat; it is never logged or echoed.
+        headers = {"Authorization": f"Bearer {api_key}"} if api_key else None
+        self._http = httpx.Client(
+            base_url=base_url, transport=transport, trust_env=False, headers=headers
+        )
 
     def close(self) -> None:
         self._http.close()

@@ -139,7 +139,10 @@ def create_app(config: Config | None = None, model_client: ModelClient | None = 
     injected = model_client
     if model_client is None:
         model_client = OllamaClient(
-            config.ollama_url, config.model, deadline_s=config.model_timeout_s
+            config.ollama_url,
+            config.model,
+            deadline_s=config.model_timeout_s,
+            api_key=config.ollama_api_key,
         )
     owns_client = injected is None
 
@@ -163,6 +166,8 @@ def create_app(config: Config | None = None, model_client: ModelClient | None = 
     if config.allow_nonlocal and not is_loopback_host(config.host):
         host = config.host.lower().strip("[]")
         allowed_hosts.add(f"[{host}]" if ":" in host else host)
+    if config.allow_nonlocal:
+        allowed_hosts.update(config.public_hosts)
 
     @app.middleware("http")
     async def _trusted_host(request: Request, call_next: RequestResponseEndpoint) -> Response:
@@ -206,7 +211,12 @@ def create_app(config: Config | None = None, model_client: ModelClient | None = 
 
     @app.get("/", response_class=HTMLResponse)
     async def index(request: Request) -> HTMLResponse:
-        return templates.TemplateResponse(request, "index.html")
+        return templates.TemplateResponse(request, "index.html", {"hosted": config.hosted})
+
+    @app.get("/healthz")
+    async def healthz() -> dict[str, str]:
+        # Platform liveness probe: never touches the model or any patient data.
+        return {"status": "ok"}
 
     @app.post("/api/check/rules", response_model=DecisionCard)
     async def check_rules(request: Request) -> Any:
