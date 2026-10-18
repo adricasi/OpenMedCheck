@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import statistics
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
@@ -44,18 +45,16 @@ CASES_PATH = ROOT / "evals" / "cases.jsonl"
 class RecordingClient(OllamaClient):
     """OllamaClient that keeps the last result and whether the first attempt was valid."""
 
-    def __init__(
-        self, base_url: str, model: str, *, deadline_s: float, api_key: str | None
-    ) -> None:
-        kwargs: dict[str, Any] = {"deadline_s": deadline_s}
-        if api_key:
-            kwargs["api_key"] = api_key
-        super().__init__(base_url, model, **kwargs)
+    def __init__(self, base_url: str, model: str, *, deadline_s: float, api_key: str) -> None:
+        super().__init__(base_url, model, deadline_s=deadline_s, api_key=api_key)
         self.last_result: ModelResult | None = None
         self.first_raw: str | None = None
 
     def assess(self, request: ModelRequest) -> ModelResult:
+        # Reset first: if assess raises, final_card's fail-safe swallows it and the stale result
+        # of the previous case must not be counted (run_model raises on None instead).
         self.first_raw = None
+        self.last_result = None
         self.last_result = super().assess(request)
         return self.last_result
 
@@ -155,7 +154,7 @@ def run_model(cases: list[dict[str, Any]], client: RecordingClient, warmup: int)
                 context=request.context,
                 order=request.order,
                 rules_verdict=rules_engine.evaluate(request.context, request.order),
-                allowed_alternatives=check_service._allowed_alternatives(request.order.drug_id),
+                allowed_alternatives=check_service.allowed_alternatives(request.order.drug_id),
                 drug_list=rule_table.DRUG_IDS,
             )
             try:
@@ -216,10 +215,15 @@ def finding_rows(tally: Tally) -> list[tuple[str, str, str]]:
     ]
 
 
-def ollama_version(url: str) -> str:
-    """The Ollama server version for the report, or "unknown"."""
+def ollama_version(url: str, api_key: str = "") -> str:
+    """The Ollama server version for the report, or "unknown".
+
+    Behind the hosted proxy this is "unknown": the proxy forwards only the four calls the app
+    makes (docs/deploy/digitalocean-gemma.md), and /api/version is not one of them.
+    """
+    headers = {"Authorization": f"Bearer {api_key}"} if api_key else None
     try:
-        with httpx.Client(base_url=url, timeout=5, trust_env=False) as http:
+        with httpx.Client(base_url=url, timeout=5, trust_env=False, headers=headers) as http:
             return str(http.get("/api/version").json().get("version", "unknown"))
     except (httpx.HTTPError, ValueError):
         return "unknown"
@@ -289,8 +293,6 @@ def main() -> None:
     parser.add_argument("--out", type=Path, help="report path (default: docs/measurements/...)")
     args = parser.parse_args()
 
-    import os
-
     config = Config.from_env(os.environ)
     model = args.model or config.model
     cases = load_cases(args.cases)
@@ -301,7 +303,7 @@ def main() -> None:
             config.ollama_url,
             model,
             deadline_s=config.model_timeout_s,
-            api_key=getattr(config, "ollama_api_key", None),
+            api_key=config.ollama_api_key,
         )
         try:
             gemma = run_model(cases, client, args.warmup)
@@ -314,7 +316,8 @@ def main() -> None:
     )
     write_report(out, model if gemma else "rules only", cases, baseline, gemma)
     used = model if gemma else "none"
-    print(f"cases={len(cases)} model={used} ollama={ollama_version(config.ollama_url)}")
+    version = ollama_version(config.ollama_url, config.ollama_api_key)
+    print(f"cases={len(cases)} model={used} ollama={version}")
     for key, value in summary_rows(gemma or baseline):
         print(f"{key}: {value}")
     if gemma:

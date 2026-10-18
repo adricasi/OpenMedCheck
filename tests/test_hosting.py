@@ -275,3 +275,9 @@ def test_ac_015_2_max_model_calls_is_validated() -> None:
     for bad in ("0", "65", "x"):
         with pytest.raises(ConfigError):
             Config.from_env({"OPENMEDCHECK_MAX_MODEL_CALLS": bad})
+
+
+def test_ac_015_2_empty_openmedcheck_port_falls_back_to_platform_port() -> None:
+    from openmedcheck.config import Config
+
+    assert Config.from_env({"OPENMEDCHECK_PORT": "", "PORT": "10000"}).port == 10000

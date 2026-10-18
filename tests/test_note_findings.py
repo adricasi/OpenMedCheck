@@ -583,3 +583,38 @@ def test_ac_003_8_escalation_confirmed_by_a_rule_is_kept_for_each_type(conflict:
     card = run(confirmed, model_json(**_escalation(conflict)))
 
     assert card.status is Status.BLOCKED
+
+
+@pytest.mark.parametrize(
+    ("note", "item"),
+    [
+        (
+            "Denies chest pain and GI bleeding.",
+            finding(FindingKind.CONDITION, "ACTIVE_GI_BLEED", "GI bleeding"),
+        ),
+        ("No fever and melaena.", finding(FindingKind.CONDITION, "ACTIVE_GI_BLEED", "melaena")),
+    ],
+)
+def test_ac_003_6_coordinated_negation_is_not_carried_across_and(
+    note: str, item: NoteFinding
+) -> None:
+    """Known limit, kept on purpose: carrying a negator across "and" would also drop real
+    findings ("No fever and suspected ACS"), a fail-open path. Over-alerting is the safe side."""
+    assert len(note_findings.verify([item], context_with_note(note))) == 1
+
+
+@pytest.mark.parametrize("note", ["Non-pregnant woman, migraine.", "Nonpregnant, headache."])
+def test_ac_003_6_non_pregnant_is_negated(note: str) -> None:
+    item = finding(FindingKind.CONDITION, "PREGNANCY", "pregnant")
+    assert note_findings.verify([item], context_with_note(note)) == ()
+
+
+def test_ac_003_6_non_st_elevation_acs_is_kept() -> None:
+    assert (
+        len(
+            note_findings.verify(
+                [acs("Non-ST elevation ACS")], context_with_note("Non-ST elevation ACS on ECG.")
+            )
+        )
+        == 1
+    )

@@ -3,6 +3,8 @@
 Runs without a model, so contributed cases are checked in CI: every case is a valid request,
 its expected findings use valid codes, its expected rules status matches the rules on the coded
 record, and its expected final status matches the rules on the record plus the expected findings.
+It checks the labels' arithmetic, not whether real note text yields those findings: that is what
+the model run (scripts/eval_set.py) and the verifier tests in test_note_findings.py measure.
 """
 
 from __future__ import annotations

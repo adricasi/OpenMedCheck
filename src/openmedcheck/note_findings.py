@@ -64,7 +64,7 @@ CONDITION_TERMS: dict[str, tuple[str, ...]] = {
         "coffee ground",
     ),
     "HEART_FAILURE": ("heart failure", "cardiac failure", "hfref", "hfpef", "chf", "ccf"),
-    "PREGNANCY": ("pregnan", "gestation", "weeks pregnant"),
+    "PREGNANCY": ("pregnan", "gestation"),
 }
 # Negation is local (safety review): a cue counts only inside the clause of the matched term,
 # a few words before it ("no GI bleeding", "history of ACS", "not on aspirin") or right after it
@@ -86,6 +86,8 @@ _POST_NEGATION = re.compile(
 _POST_PREGNANCY_TEST_NEGATIVE = re.compile(
     r"^[ \t]*test[ \t]+(?:was[ \t]+|is[ \t]+)?negative\b", re.IGNORECASE
 )
+# "non-pregnant" only: a generic "non" would negate "non-ST elevation ACS".
+_NON_PREFIX = re.compile(r"\bnon-?\Z", re.IGNORECASE)
 _NEGATOR = re.compile(r"\b(?:not|never|no|cannot|\w+n't)\b", re.IGNORECASE)
 # "Warfarin stopped", "warfarin was discontinued": right after the drug, so "warfarin not
 # stopped" and "aspirin to be stopped" keep the finding.
@@ -148,7 +150,10 @@ def _negated(text: str, term: re.Match[str], kind: FindingKind, code: str) -> bo
     return bool(
         _PRE_NEGATION.search(window)
         or _post_negated(clause_after)
-        or (code == "PREGNANCY" and bool(_POST_PREGNANCY_TEST_NEGATIVE.search(after)))
+        or (
+            code == "PREGNANCY"
+            and bool(_POST_PREGNANCY_TEST_NEGATIVE.search(after) or _NON_PREFIX.search(before))
+        )
         # Stopping a drug only negates a medication finding, checked on the raw text before it.
         or (
             kind is FindingKind.MEDICATION

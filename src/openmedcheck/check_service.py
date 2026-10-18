@@ -122,7 +122,7 @@ def rules_card(request: CheckRequest) -> DecisionCard:
     return combined_card(request, None)[0]
 
 
-def _allowed_alternatives(drug_id: str) -> tuple[str, ...]:
+def allowed_alternatives(drug_id: str) -> tuple[str, ...]:
     """Drugs the rule table allows as alternatives to ``drug_id`` (any conflict type)."""
     found = dict.fromkeys(
         alternative.drug_id
@@ -203,7 +203,7 @@ def final_card(
             context=request.context,
             order=request.order,
             rules_verdict=rules_verdict,
-            allowed_alternatives=_allowed_alternatives(request.order.drug_id),
+            allowed_alternatives=allowed_alternatives(request.order.drug_id),
             drug_list=rule_table.DRUG_IDS,
         ),
     )
