@@ -162,6 +162,7 @@ function fillContext(context) {
   $("f-potassium").value = context.labs.potassium_mmol_l ?? "";
   $("f-platelets").value = context.labs.platelets_per_ul ?? "";
   $("f-note").value = context.ed_note;
+  renderNoteView();
   state.hidden = {
     patient_id: context.patient_id,
     diagnoses: [...context.diagnoses],
@@ -246,6 +247,90 @@ const AUTOFILL_STATUS = "Test prescription filled";
 
 const SEX_LABELS = { M: "Male", F: "Female" };
 
+const SVG_NS = "http://www.w3.org/2000/svg";
+// One ECG complex (P, QRS, T) repeated: the loading trace while Gemma reads the note.
+const ECG_PATH =
+  "M0 22 H18 l4 -4 l4 4 H34 l3 6 l5 -24 l5 30 l3 -12 H62 q6 -9 12 0 H100 " +
+  "l4 -4 l4 4 H116 l3 6 l5 -24 l5 30 l3 -12 H144 q6 -9 12 0 H200";
+
+function svgEl(tag, attrs) {
+  const node = document.createElementNS(SVG_NS, tag);
+  for (const [name, value] of Object.entries(attrs)) node.setAttribute(name, value);
+  return node;
+}
+
+function ecgTrace() {
+  const svg = svgEl("svg", {
+    class: "ecg",
+    viewBox: "0 0 200 40",
+    preserveAspectRatio: "none",
+    "aria-hidden": "true",
+    focusable: "false",
+  });
+  svg.appendChild(svgEl("path", { class: "ecg-line", d: ECG_PATH, pathLength: "100" }));
+  return svg;
+}
+
+const NEGATED_BEFORE = /\b(no|not|denies|denied|without|negative for|ruled out)\b[^.;\n]*$/i;
+
+function noteLocked() {
+  return $("f-note").hidden;
+}
+
+function quoteRanges(text, quotes) {
+  // Case-insensitive, spacing-tolerant position of one mention per quote; overlaps merged. The
+  // verifier checked that a non-negated mention exists, not which one, so the first mention not
+  // just after a negation in its clause is marked (else the first).
+  const ranges = [];
+  for (const quote of quotes) {
+    const words = quote.trim().split(/\s+/).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    if (!words.length || !words[0]) continue;
+    const matches = [...text.matchAll(new RegExp(words.join("\\s+"), "gi"))];
+    if (!matches.length) continue;
+    const match =
+      matches.find((m) => !NEGATED_BEFORE.test(text.slice(Math.max(0, m.index - 40), m.index))) ||
+      matches[0];
+    ranges.push([match.index, match.index + match[0].length]);
+  }
+  ranges.sort((a, b) => a[0] - b[0]);
+  const merged = [];
+  for (const range of ranges) {
+    const last = merged[merged.length - 1];
+    if (last && range[0] <= last[1]) last[1] = Math.max(last[1], range[1]);
+    else merged.push([...range]);
+  }
+  return merged;
+}
+
+function renderNoteView(quotes = []) {
+  // The note as text nodes, with the clinician's quoted evidence marked (textContent only).
+  const view = $("note-view");
+  const text = $("f-note").value;
+  clear(view);
+  if (!text) {
+    view.appendChild(el("span", { cls: "note-empty", text: "No free-text note recorded." }));
+    return;
+  }
+  let at = 0;
+  for (const [start, end] of quoteRanges(text, quotes)) {
+    if (start > at) view.appendChild(document.createTextNode(text.slice(at, start)));
+    // <mark> is not announced by most screen readers, so the evidence is named in hidden text.
+    const mark = el("mark", { cls: "evidence-mark" });
+    mark.append(
+      el("span", { cls: "visually-hidden", text: "[evidence: " }),
+      text.slice(start, end),
+      el("span", { cls: "visually-hidden", text: "]" }),
+    );
+    view.appendChild(mark);
+    at = end;
+  }
+  if (at < text.length) view.appendChild(document.createTextNode(text.slice(at)));
+}
+
+function evidenceOf(card) {
+  return card.fired_rules.flatMap((rule) => rule.evidence || []);
+}
+
 function setRecordEditable(editable) {
   for (const input of document.querySelectorAll("[data-record]")) {
     // A select has no read-only state, so a read-only text copy stands in while locked.
@@ -254,6 +339,10 @@ function setRecordEditable(editable) {
   }
   $("f-sex-text").value = SEX_LABELS[$("f-sex").value] || "";
   $("f-sex-text").hidden = editable;
+  // The locked note is shown as text so the evidence can be highlighted in place.
+  $("f-note").hidden = !editable;
+  $("note-view").hidden = editable;
+  if (!editable) renderNoteView();
   document.querySelector(".history-view").hidden = editable;
   document.querySelector(".history-edit").hidden = !editable;
   $("edit-scenario").checked = editable;
@@ -511,7 +600,8 @@ function renderCard(card) {
   clear(area);
   area.setAttribute("aria-busy", "false");
   const view = STATUS_VIEW[card.status];
-  const container = el("article", { cls: `card ${view.cls}` });
+  // A triage tag: coloured band, eyelet and tear line (START tag colours, ED familiar).
+  const container = el("article", { cls: `card tag ${view.cls}` });
   container.appendChild(renderStatusHeader(card));
   if (card.status === "NO_ISSUE") {
     container.classList.add("card-compact");
@@ -530,7 +620,15 @@ function renderCard(card) {
   }
   area.appendChild(container);
   if (hadFocus) $("result-heading").focus();
-  if (area.scrollIntoView) area.scrollIntoView({ block: "nearest" });
+  revealResult(area);
+}
+
+function revealResult(area) {
+  // On a phone the verdict sits far below the order form: bring its top into view.
+  if (!area.scrollIntoView) return;
+  const top = area.getBoundingClientRect().top;
+  const offscreen = top < 0 || top > window.innerHeight * 0.6;
+  area.scrollIntoView({ block: offscreen ? "start" : "nearest" });
 }
 
 function renderMessage(text, cls) {
@@ -591,6 +689,7 @@ function invalidate() {
   $("check-button").disabled = room === null || unsaved;
   $("check-hint").textContent = unsaved ? "Save the patient first." : "";
   if (room && !$("payload").hidden) showPayload();
+  if (room && noteLocked()) renderNoteView(); // stale evidence highlights go
   const message = "Inputs changed. Press “Verify prescription” to check again.";
   if (!$("result-panel").hidden && $("card-area").textContent !== message) {
     moveFocusOutOfCard();
@@ -615,11 +714,13 @@ async function evaluate() {
   state.seq += 1;
   const mine = state.seq;
   resetOutcome();
+  if (noteLocked()) renderNoteView(); // the previous card's evidence does not carry over
   state.checking = true;
   updateSign();
   $("result-panel").hidden = false;
   moveFocusOutOfCard();
   renderMessage(VERIFYING_TEXT, "checking");
+  $("card-area").prepend(ecgTrace());
   announce(VERIFYING_TEXT);
   $("card-area").setAttribute("aria-busy", "true");
 
@@ -647,6 +748,7 @@ async function evaluate() {
   state.card = card;
   state.checking = false;
   renderCard(card);
+  if (noteLocked()) renderNoteView(evidenceOf(card));
   announceCard(card);
   if (card.source === "rules") setModelStatus(NO_MODEL_NOTE, "model-unavailable");
   else refreshHealth();
