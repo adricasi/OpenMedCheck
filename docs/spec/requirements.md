@@ -166,15 +166,25 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
     analgesic) and evaluated THE SYSTEM SHALL show a `NO_ISSUE` card with no alternative and no
     modal or blocking element.
   - AC-006.4: All patient data in presets SHALL be synthetic and labelled as such.
+  - AC-006.5: THE SYSTEM SHALL present the presets as a list of synthetic ED patients (bed,
+    sex, age, reason for consult) rather than as preset letters, and loading one SHALL show its
+    context as the patient's record (simulated) together with a drafted demo order.
 
-### REQ-007: Editable chart
-- Story: As an ED physician, I want to change the key context variables, so that I can see how
-  the verdict reacts (e.g. eGFR falling, a note mentioning chest pain).
+### REQ-007: Simulated record with an editable scenario
+- Story: As an ED physician, I want the patient context to come from the record so that I only
+  write the order; as a demo user, I want to change the key context variables, so that I can
+  see how the verdict reacts (e.g. eGFR falling, a note mentioning chest pain).
 - Priority: Must
 - Goals: G-1
 - Acceptance criteria:
-  - AC-007.1: WHEN a preset is loaded THE SYSTEM SHALL let the user edit creatinine, eGFR, age,
-    weight, sex, the free-text note and the proposed drug (dropdown from the drug list).
+  - AC-007.1: WHEN a preset is loaded THE SYSTEM SHALL show the patient context read-only,
+    labelled "From the patient record (simulated)", with only the proposed order editable
+    (drug from the drug list, dose, route, frequency). WHEN the user switches on "Edit scenario
+    (demo only)" THE SYSTEM SHALL also let the user edit creatinine, eGFR, age, weight, sex,
+    the reason for consult and the free-text note.
+  - AC-007.4: WHEN a patient is loaded THE SYSTEM SHALL offer a collapsed panel "What the
+    record system would send", outside the card, showing the request body for the current
+    order and context as plain text; it SHALL be built with `textContent` only and SHALL NOT be stored or logged.
   - AC-007.2: WHEN the user changes a chart value and evaluates THE SYSTEM SHALL evaluate the
     edited context, not the stored preset.
   - AC-007.3: IF an edited value is out of range THEN THE SYSTEM SHALL show an inline error next

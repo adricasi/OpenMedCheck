@@ -17,7 +17,7 @@ architecture).
 ```mermaid
 flowchart LR
   subgraph Browser
-    ui[Page: chart left / card right]
+    ui[Page: patient list + simulated record / order + card]
   end
   subgraph App["openmedcheck (FastAPI, 127.0.0.1)"]
     api[JSON API]
