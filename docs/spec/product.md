@@ -16,6 +16,9 @@ Emergency physicians and on-call MIR residents in Spanish hospitals sign medicat
 under heavy time pressure, often just as creatinine/eGFR results arrive. Severe errors are
 predictable: an NSAID for a patient on daily aspirin with suspected acute coronary syndrome,
 or a renally cleared antibiotic at full dose with eGFR < 30.
+WHO estimates the global cost of medication errors at about US$42 billion a year, almost 1% of
+global health spending (WHO, Medication Without Harm, 2017:
+https://www.who.int/initiatives/medication-without-harm; read 2026-10-18).
 
 The EHR prescribing modules (Diraya, Orion Clinic, IANUS, HCIS/Selene, ECAP…) check orders
 against drug databases (e.g. Bot PLUS). Those checks are mostly drug-pair tables that ignore
