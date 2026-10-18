@@ -12,7 +12,7 @@ Ollama 0.35.1, temperature 0, 10 s model deadline with one retry. Per-model repo
 | Rules only (coded record), v7 set | 55/76 = 72% | 0/34 | 21/42 = 50% | n/a | n/a |
 | **Gemma 4 E4B** (shipped), prompt v7 | **74/76 = 97%** | **0/34** | **1/42 = 2%** | **75/76** | **1.87 s / 2.49 s** |
 | Gemma 3 4B, prompt v7 | 59/76 = 78% | 5/34 = 15% | 11/42 = 26% | 33/76 | 5.59 s / 7.13 s |
-| Gemma 4 12B, prompt v6 (74-case set) | 62/74 = 84% | 0/34 | 10/40 = 25% | 54/74 | 8.74 s / 10.01 s (20 timeouts) |
+| Gemma 4 12B, prompt v7 | 61/76 = 80% | 0/34 | 14/42 = 33% | 45/76 | 9.62 s / 10.02 s (32 timeouts) |
 
 Gemma 4 E4B note-finding precision was 100% for every type; recall was 100% except allergy
 (5/6: the ibuprofen reaction inside an NSAID-allergy note) and active GI bleed (3/4:
@@ -26,8 +26,8 @@ Gemma 4 E4B note-finding precision was 100% for every type; recall was 100% exce
   NO_ISSUE (some are conflicts the rules do not cover, e.g. the known limit
   `allergy-cross-reactivity`).
 - **Bigger is not better on this hardware.** Gemma 4 12B does not fit the 8 GB GPU comfortably:
-  20 of 74 calls hit the 10 s deadline and fell back to the rules-only card (fail-safe, but the
-  note-only conflicts are lost). On a larger GPU it may well do better; that is the point of
+  32 of 76 calls hit the 10 s deadline and fell back to the rules-only card (fail-safe, but the
+  note-only conflicts are lost); on the shorter prompt v6 it was 20 of 74. On a larger GPU it may well do better; that is the point of
   measuring locally.
 - **Older small models are noisier.** Gemma 3 4B produced invalid output on its first try in
   43 of 76 calls and raised 5 false alarms (its own escalations on conflicts the rules do not
@@ -40,9 +40,9 @@ Gemma 4 E4B note-finding precision was 100% for every type; recall was 100% exce
    This measures coverage of wordings, not clinical validity.
 2. **Development-set figure.** The cases, the prompt and the verifier were developed together by
    the same authors, so 97% is not a held-out estimate.
-3. The Gemma 4 12B row is from its clean run on prompt v6 and the 74-case set. A prompt-v7 run
-   overlapped with a real-model test that swapped Gemma 4 E4B onto the same 8 GB GPU (42 of 76
-   calls timed out), so it is not reported; re-run 12B alone for a v7 number.
+3. A first prompt-v7 run of Gemma 4 12B overlapped with a real-model test that swapped Gemma 4
+   E4B onto the same 8 GB GPU (42 of 76 timeouts) and is not reported; the row above is a re-run
+   with no other evaluation on the GPU (the local app was running but idle).
 4. The two Gemma 4 E4B errors: one miss (`gi-coffee-ground`) and one stricter than the label
    (`pregnancy-note-nsaid`, expected WARNING, got BLOCKED, from the model's own escalation under
    a label the gate does not cover, ADR 0006).

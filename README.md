@@ -170,7 +170,7 @@ consistent with the rules. Result on the same machine
 | Rules only | 72% | 0/34 | 21/42 (50%) | n/a |
 | **Rules + Gemma 4 E4B** | **97%** | **0/34** | **1/42 (2%)** | 1.87 s |
 | Rules + Gemma 3 4B | 78% | 5/34 | 11/42 | 5.59 s |
-| Rules + Gemma 4 12B (prompt v6, 74 cases) | 84% | 0/34 | 10/40 (timeouts on an 8 GB GPU) | 8.74 s |
+| Rules + Gemma 4 12B | 80% | 0/34 | 14/42 (timeouts on an 8 GB GPU) | 9.62 s |
 
 Note findings from Gemma 4 E4B: 100% precision for every type, 100% recall except allergy (5/6)
 and active GI bleed (3/4). The cases, prompt and verifier were developed together, so 97% is a
