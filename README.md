@@ -3,8 +3,8 @@
 # OpenMedCheck
 
 **Open-source prescribing check for emergency-department doctors.**
-Flags a medication order that conflicts with the patient's labs, diagnoses or free-text note —
-and stays silent when nothing conflicts. Deterministic rules decide; Gemma 4, running fully
+Flags a medication order that conflicts with the patient's labs, diagnoses, past medical history
+or free-text note — and stays silent when nothing conflicts. Deterministic rules decide; Gemma 4, running fully
 locally, can only escalate.
 
 [![CI](https://github.com/adricasi/OpenMedCheck/actions/workflows/ci-python.yml/badge.svg)](https://github.com/adricasi/OpenMedCheck/actions/workflows/ci-python.yml)
@@ -53,6 +53,13 @@ OpenMedCheck reads the note with Gemma 4 on local hardware, flags the order `BLO
 doctor's own words as evidence, and suggests paracetamol 1 g every 8 hours, re-checked first.
 The prescriber still decides.
 
+**It also looks at the patient's past.** A previous GI bleed or a previous heart attack is a
+reason to think twice about an NSAID even when nothing current conflicts. OpenMedCheck checks the
+order against the past medical history in the record and, through Gemma, against past history
+written in the note ("Previous GI bleed in 2015, none since") — while "No history of GI
+bleeding" or "Mother had a GI bleed" stay silent, and an old event never counts as a current one
+([ADR 0009](docs/adr/0009-patient-history-is-an-input.md)).
+
 One proposed medication order plus a synthetic patient context goes in; one triage-coded decision
 card comes out: a status (`NO_ISSUE`, `WARNING` or `BLOCKED`), a risk level, a short rationale, a
 renal-adjustment flag and, where the rule table allows one, an alternative drug. `NO_ISSUE` is
@@ -61,7 +68,7 @@ data it is given; it never makes diagnoses of its own.
 
 **The doctor only writes the order.** The patient context is not meant to be typed: in a
 hospital it would be pulled from the patient's record (demographics, latest labs, coded
-diagnoses, current medication, allergies and the ED note) when the order is drafted, and the
+diagnoses, past medical history, current medication, allergies and the ED note) when the order is drafted, and the
 card would appear inline in the existing prescribing screen — or, when nothing conflicts, no
 card at all (the demo shows "No issue found by these checks" so the check's result is visible).
 The check engine is the product; the web UI here is a demo harness whose editable chart and
@@ -77,7 +84,7 @@ lower a verdict (**escalate-only**, [ADR 0003](docs/adr/0003-escalate-only-two-l
 
 ```mermaid
 flowchart LR
-    O["Order + patient record<br/>(labs, coded diagnoses, meds,<br/>allergies, free-text ED note)"] --> G
+    O["Order + patient record<br/>(labs, coded diagnoses, past history,<br/>meds, allergies, free-text ED note)"] --> G
     G["Gemma 4 E4B (local)<br/>reads the note, extracts findings<br/>with verbatim quotes"] -- findings + quotes --> V
     V["Verifier (code)<br/>quote must appear word for word,<br/>negation checked"] -- kept findings --> R
     O --> R["Layer 1 — rules<br/>coded record + kept findings<br/>(deterministic, cited, reviewed)"]
@@ -87,21 +94,24 @@ flowchart LR
 ```
 
 1. **Layer 1, deterministic rules.** A rule table in code (every entry cites a source and carries
-   a review status; every current entry was reviewed by a clinical specialist on 2026-10-18, and
-   an entry not yet reviewed shows "consult SmPC" instead of a numeric dose) checks the order
-   against labs, allergies and listed diagnoses. It sets the floor: the final status is never
+   a review status; 23 of the 25 rules were reviewed by a clinical specialist on 2026-10-18, the
+   two past-history rules added after that review are marked *not reviewed* and await sign-off,
+   and an entry not yet reviewed shows "consult SmPC" instead of a numeric dose) checks the order
+   against labs, allergies, listed diagnoses and the recorded past medical history. It sets the floor: the final status is never
    below the rules' status, and a rules `BLOCKED` is final. The renal flag cannot be cleared, and
    the reasons of every fired rule always appear on the card.
 2. **Layer 2, Gemma 4 E4B.** The local model reads the free-text ED note and extracts the
-   conditions, medications and allergies it mentions (for example "Suspected ACS … on daily
-   aspirin"), each with a verbatim quote. Code keeps a finding only if its code is valid, the quote
+   conditions, medications, allergies and past history it mentions (for example "Suspected ACS …
+   on daily aspirin" or "h/o peptic ulcer"), each with a verbatim quote. A past event becomes a
+   history finding, never a current condition. Code keeps a finding only if its code is valid, the quote
    appears word for word (ignoring case and spacing) in the note or reason for consult and names
-   what it is coded as, and it is not negated ("ACS ruled out"). The rules then re-run on the coded
+   what it is coded as, and it is not negated ("ACS ruled out", "denies previous MI") or a relative's
+   ("Father had an MI"). The rules then re-run on the coded
    record plus the kept findings, so the reviewed allergy, diagnosis and home-medication rules also
    apply to what is only written in free text (lab-based rules use the record's labs only), and the
    card shows the doctor's own words as evidence. Gemma's own verdict is a second, escalate-only
-   signal; for the conflict types the rules decide, it counts only if a rule of that type fired. It
-   can never lower a verdict. Alternatives are suggested by name only, drawn from the drug list;
+   signal; for the conflict types the rules decide, it counts only if a rule of that type fired,
+   and never above that rule's level. It can never lower a verdict. Alternatives are suggested by name only, drawn from the drug list;
    doses come only from the rule table (never from the model), and until a specialist has signed off
    an entry the card shows "Dose: consult SmPC" instead of a number. Every alternative is re-checked
    by Layer 1 before it is shown, and "Use alternative" in the UI sends the changed order through
@@ -110,7 +120,7 @@ flowchart LR
 If the model times out, is unreachable, or returns invalid output twice, the app returns the
 rules-only card instead of an error. See [design.md](docs/spec/design.md) for the details.
 
-> **Why Layer 2 isn't a footnote:** on the 76-case evaluation set below, rules alone match the
+> **Why Layer 2 isn't a footnote:** on the 76-case evaluation set below (prompt v7), rules alone match the
 > expected outcome on 72% of cases and miss every case where the conflict is only in the free-text
 > note: 21 of the 42 cases that should be flagged. Reading that note is Gemma's job, not the rules':
 > adding it lifts the match rate to **97%** and cuts misses to **1/42**, with no false alarm on the
@@ -196,10 +206,11 @@ rooms with synthetic ED patients (Bed 3, Bed 7 and Bed 12, which are presets A, 
 3. Press "Verify prescription": the page shows "Verifying the prescription with Gemma…", then
    one card (rules and Gemma combined, or rules only if the model is unavailable).
 
-"Add room" creates a room from one of nine template patients (A–I; D to I add a coded GI
-bleed, a penicillin allergy, reduced kidney function, warfarin, high potassium and a pregnancy
-stated only in the note). "Add patient" opens an empty record to
-fill in, including conditions, chronic medication and allergies; "Save patient" keeps it. Added
+"Add room" creates a room from one of eleven template patients (A–K; D to K add a coded GI
+bleed, a penicillin allergy, reduced kidney function, warfarin, high potassium, a pregnancy
+stated only in the note, a previous GI bleed and ischaemic heart disease in the past medical
+history). "Add patient" opens an empty record to
+fill in, including conditions, past medical history, chronic medication and allergies; "Save patient" keeps it. Added
 rooms and patients exist only in the open page: nothing is stored, and a reload shows the three
 predefined rooms again. "Edit scenario (demo only)" unlocks a record so you can try other cases,
 and "What the record system would send" shows the request body. When the page loads it asks the
@@ -221,6 +232,8 @@ the model ready (the rules column is what `/api/check/rules` returns):
 | G (added room) | `BLOCKED`: NSAID with an oral anticoagulant (warfarin) | `BLOCKED`; alternative: Paracetamol 1 g, PO, every 8 hours |
 | H (added room) | `BLOCKED`: ACE inhibitor (enalapril) with potassium above 5.5 mmol/L | `BLOCKED`, no alternative |
 | I (added room) | `NO_ISSUE`: the pregnancy is stated only in the note | `WARNING` (PREGNANCY_NSAID) once Gemma's quoted finding is kept; not measured on this preset |
+| J (added room) | `WARNING`: NSAID with a previous GI bleed in the past medical history (rule not reviewed yet) | `WARNING`; alternative: Paracetamol, "Dose: consult SmPC"; not measured on this preset |
+| K (added room) | `WARNING`: NSAID with ischaemic heart disease in the past medical history (rule not reviewed yet) | `WARNING`; alternative: Paracetamol, "Dose: consult SmPC"; not measured on this preset |
 
 "Use alternative" on preset A fills in the specialist-reviewed rule-table dose (paracetamol 1 g,
 PO, every 8 hours) and verifies the changed order again on the same patient; that second check
@@ -237,7 +250,7 @@ second instance:
 OPENMEDCHECK_OLLAMA_URL=http://127.0.0.1:9 OPENMEDCHECK_PORT=8001 uv run openmedcheck
 ```
 
-The checks are also available over HTTP: `GET /api/presets/{A–I}` returns a request body
+The checks are also available over HTTP: `GET /api/presets/{A–K}` returns a request body
 that you can `POST` as JSON to `/api/check/rules` (rules only) or `/api/check` (final card), and
 `GET /api/model/health` reports `ready`, `warming` or `unavailable`.
 
@@ -273,12 +286,14 @@ model.
 
 ## 🧪 Evaluation set
 
-An open set of **76 synthetic ED cases** ([evals/](evals/README.md)) covers every rule, notes
+An open set of **86 synthetic ED cases** ([evals/](evals/README.md)) covers every rule, notes
 where the conflict is only in free text, negations ("ACS ruled out", "not pregnant", "stopped
-warfarin"), past and family history, abbreviations, typos and clean notes that must stay silent.
-Each case states the findings the authors expect the note to state (not yet reviewed by a
-clinician), and a test keeps every case consistent with the rules. Result on the same machine
-([comparison](docs/measurements/2026-10-18-model-comparison.md)):
+warfarin"), past medical history (recorded, in the note, denied and a relative's), abbreviations,
+typos and clean notes that must stay silent. Each case states the findings the authors expect the
+note to state (not yet reviewed by a clinician), and a test keeps every case consistent with the
+rules. The results below are for prompt v7 on the first 76 cases; prompt v8 (past history in the
+note) and the ten history cases have not been run on the real model yet. Result on the same
+machine ([comparison](docs/measurements/2026-10-18-model-comparison.md)):
 
 | | Final status matches label | False alarms | Misses | Model step p50 |
 |---|---|---|---|---|
