@@ -156,7 +156,7 @@ non-loopback host or Ollama URL unless set; AC-011.4).
    fallback note "Model check unavailable — rules only".
 
 UI (AC-008.7): each evaluation gets a client request ID; "Sign order" is disabled while
-"Checking context…" is shown; responses for an older request ID are dropped.
+the "Verifying the prescription with Gemma…" loading state is shown; responses for an older request ID are dropped.
 
 ## Security design
 - Identities: none. Local single-user tool; no accounts (non-goal).

@@ -106,7 +106,10 @@ pytest --cov` pass and CI is green, unless stated otherwise.
     time). All dynamic text via `textContent`. CSS/JS served locally. Record view
     (2026-10-18): patient list instead of preset buttons, context read-only by default with an
     "Edit scenario (demo only)" toggle, order as the only active area, collapsed request panel
-    (AC-006.5, AC-007.1, AC-007.4).
+    (AC-006.5, AC-007.1, AC-007.4). Rooms (2026-10-18, later): predefined rooms, "Add room" from
+    six templates, "Add patient" (custom record), empty prescription with "Auto-fill test
+    prescription", "Verify prescription" with a loading state, results hidden until verified
+    (AC-006.6, AC-006.7, AC-007.5, AC-007.6, AC-008.1).
   - Done when: API tests for presets/drugs endpoints, AC-007.2 (edited context is evaluated),
     AC-007.3 (out-of-range rejected) and AC-009.1 (alternative order re-checked → preset A
     paracetamol `NO_ISSUE`) pass; AC-011.2 health states tested with the fake model; manual checklist in

@@ -148,29 +148,38 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
   - AC-005.2: WHILE the model is unavailable THE SYSTEM SHALL still flag every high-risk case
     the rules cover (presets B and the coded variants of A return their rules status).
 
-### REQ-006: Synthetic presets
-- Story: As a challenge judge, I want three ready-made cases, so that I can see the three
-  outcomes in under a minute.
+### REQ-006: Synthetic presets, rooms and templates
+- Story: As a challenge judge, I want three ready-made rooms and a few more template patients,
+  so that I can see the three outcomes in under a minute and try other conflicts.
 - Priority: Must
 - Goals: G-1, G-4
 - Acceptance criteria:
   - AC-006.1: WHEN preset A is loaded (suspected ACS in the free-text note only, chronic
-    aspirin, proposed dexketoprofen) and evaluated THE SYSTEM SHALL show a final
+    aspirin, proposed dexketoprofen) and its demo prescription is verified THE SYSTEM SHALL show a final
     `BLOCKED` card with paracetamol as the alternative (with the model available).
   - AC-006.2: WHEN preset B is loaded (eGFR < 30 mL/min/1.73 m², creatinine > 2.0 mg/dL,
-    proposed ciprofloxacin) and evaluated THE SYSTEM SHALL show a `WARNING` card with the
+    proposed ciprofloxacin) and its demo prescription is verified THE SYSTEM SHALL show a `WARNING` card with the
     renal-adjustment flag set and the dose guidance from the rule table: a numeric, SmPC-cited
     CrCl-based adjustment if the specialist signed it off, otherwise "Renal adjustment
     required — consult SmPC" with no number (Q-5).
   - AC-006.3: WHEN preset C is loaded (benign condition, normal renal function, standard
-    analgesic) and evaluated THE SYSTEM SHALL show a `NO_ISSUE` card with no alternative and no
+    analgesic) and its demo prescription is verified THE SYSTEM SHALL show a `NO_ISSUE` card with no alternative and no
     modal or blocking element.
   - AC-006.4: All patient data in presets SHALL be synthetic and labelled as such.
-  - AC-006.5: THE SYSTEM SHALL present the presets as a list of synthetic ED patients (bed,
-    sex, age, reason for consult) rather than as preset letters, and loading one SHALL show its
-    context as the patient's record (simulated) together with a drafted demo order.
+  - AC-006.5: THE SYSTEM SHALL present presets A, B and C as predefined rooms of synthetic ED
+    patients (bed, sex, age, reason for consult) rather than as preset letters, and selecting a
+    room SHALL show its context as the patient's record (simulated).
+  - AC-006.6: THE SYSTEM SHALL offer six synthetic template patients: A, B, C and three more,
+    each with a deterministic rules conflict and a demo prescription:
+    D (coded active GI bleed, ibuprofen → rules `BLOCKED`, alternative paracetamol),
+    E (penicillin allergy, amoxicillin-clavulanate → rules `BLOCKED`, no alternative),
+    F (renal colic with estimated CrCl < 60 mL/min, dexketoprofen → rules `BLOCKED` with the
+    renal flag, alternative paracetamol).
+  - AC-006.7: WHEN the user chooses "Add room", names it and picks a template THE SYSTEM SHALL
+    add the room to the list with that template's record and select it. Rooms exist only in
+    the open page: nothing is stored and a reload shows the predefined rooms again (NFR-002).
 
-### REQ-007: Simulated record with an editable scenario
+### REQ-007: Simulated record, editable scenario and custom patients
 - Story: As an ED physician, I want the patient context to come from the record so that I only
   write the order; as a demo user, I want to change the key context variables, so that I can
   see how the verdict reacts (e.g. eGFR falling, a note mentioning chest pain).
@@ -181,8 +190,18 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
     labelled "From the patient record (simulated)", with only the proposed order editable
     (drug from the drug list, dose, route, frequency). WHEN the user switches on "Edit scenario
     (demo only)" THE SYSTEM SHALL also let the user edit creatinine, eGFR, age, weight, sex,
-    the reason for consult and the free-text note.
-  - AC-007.4: WHEN a patient is loaded THE SYSTEM SHALL offer a collapsed panel "What the
+    the reason for consult, the free-text note, the coded conditions, the chronic medication and
+    the allergies.
+  - AC-007.5: WHEN the user chooses "Add patient" THE SYSTEM SHALL add a room with an empty,
+    editable record (age, sex, weight, reason for consult, creatinine, eGFR, coded conditions,
+    chronic medication from the drug list, allergies, free-text note) labelled as a custom
+    patient; WHEN the user saves it THE SYSTEM SHALL validate the values (AC-007.3) and keep
+    them as that room's record for the open page only.
+  - AC-007.6: WHEN a room is selected THE SYSTEM SHALL leave the prescription empty; "Auto-fill
+    test prescription" SHALL fill it with the template's invented demo prescription, or with a
+    sample prescription from the drug list for a custom patient, and SHALL say that these doses
+    are test input, not recommendations.
+  - AC-007.4: WHEN a prescription has been verified THE SYSTEM SHALL offer a collapsed panel "What the
     record system would send", outside the card, showing the request body for the current
     order and context as plain text; it SHALL be built with `textContent` only and SHALL NOT be stored or logged.
   - AC-007.2: WHEN the user changes a chart value and evaluates THE SYSTEM SHALL evaluate the
@@ -190,15 +209,18 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
   - AC-007.3: IF an edited value is out of range THEN THE SYSTEM SHALL show an inline error next
     to the field and SHALL NOT submit the evaluation.
 
-### REQ-008: Progressive, triage-coded card display
-- Story: As an ED physician, I want the rules verdict instantly and the full card shortly after,
-  with colour and wording that match urgency, so that I'm never staring at a spinner.
+### REQ-008: Verification and triage-coded card display
+- Story: As an ED physician, I want to verify a prescription on demand and get one card with
+  colour and wording that match urgency.
 - Priority: Must
 - Goals: G-1
 - Acceptance criteria:
-  - AC-008.1: WHEN an evaluation starts THE SYSTEM SHALL display the rules card first (NFR-004),
-    marked "Checking context…", and replace it with the final card when available, without
-    streaming partial text.
+  - AC-008.1: THE SYSTEM SHALL keep the result panel hidden until the user presses "Verify
+    prescription". WHEN verification starts THE SYSTEM SHALL show a loading state "Verifying the
+    prescription with Gemma…" and then the final card (rules and model combined, or the
+    rules-only card on fallback, REQ-005), without streaming partial text. (Changed
+    2026-10-18: the instant rules card is no longer shown first in the UI; `/api/check/rules`
+    and NFR-004's rules budget remain for the API and the fallback.)
   - AC-008.2: WHEN the final status is `BLOCKED` THE SYSTEM SHALL show a red card with two
     actions, "Use alternative" (if one exists) and "Acknowledge and keep order", and SHALL
     disable "Sign order" until one of them is chosen.
@@ -210,7 +232,7 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
     Alternative and SHALL NOT show raw JSON or internal identifiers other than rule IDs.
   - AC-008.6: WHEN a card is shown THE SYSTEM SHALL communicate status with text and an icon,
     not colour alone (NFR-010).
-  - AC-008.7: WHILE "Checking context…" is shown THE SYSTEM SHALL keep "Sign order" disabled,
+  - AC-008.7: WHILE the loading state is shown THE SYSTEM SHALL keep "Sign order" disabled,
     and THE SYSTEM SHALL discard any card whose request ID doesn't match the latest evaluation
     (e.g. after a field edit).
   - AC-008.8: WHEN "Sign order" is clicked THE SYSTEM SHALL show "Order signed (demo — nothing
