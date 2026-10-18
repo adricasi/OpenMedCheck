@@ -121,27 +121,36 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
   - AC-003.5: IF the model headline or rationale contains a dose pattern, the name of a drug
     from the drug list other than the ordered drug or the selected alternative, or a banned word
     (AC-010.2) THEN THE SYSTEM SHALL treat the output as invalid (AC-003.3).
-  - AC-003.6: WHEN the model returns output THE SYSTEM SHALL accept its answers to four note
-    questions, each with a quote: `note_acs_quote` and `note_gi_bleed_quote` (a phrase or
-    null), `note_medications` (up to 3 drug IDs from the drug list) and `note_allergies` (up to 3
-    drug IDs, active ingredients or class IDs). THE SYSTEM SHALL keep a finding only if its code
-    is valid for its kind, its quote (3–120 characters) appears word for word in the ED note or
-    the reason for consult (ignoring case and spacing), the quote names what it is coded as (the
-    drug or class name, or a term of the condition), and the sentence it comes from does not
-    deny it, rule it out or give only past history; at most 8 findings are kept. Dropped
-    findings SHALL NOT make the output invalid. The card SHALL show the note's own words.
+  - AC-003.6: WHEN the model returns output THE SYSTEM SHALL accept its answers to the note
+    questions, each with a quote: one phrase or null per current condition (`note_acs_quote`,
+    `note_gi_bleed_quote`, `note_heart_failure_quote`, `note_pregnancy_quote`),
+    `note_medications` (up to 3 drug IDs from the drug list), `note_allergies` (up to 3 drug
+    IDs, active ingredients or class IDs) and `note_history` (up to 3 past-history codes,
+    REQ-016). THE SYSTEM SHALL keep a finding only if its code is valid for its kind, its quote
+    (3–120 characters) appears word for word in the ED note, the reason for consult or the past medical history text (ignoring
+    case and spacing), the quote names what it is coded as (the drug or class name, or a term of
+    the condition), and the clause it comes from does not deny it or rule it out. A current
+    condition SHALL NOT be kept from a sentence that gives only past history; past history is
+    kept only as a history finding (AC-016.4). At most 13 findings are kept. Dropped findings
+    SHALL NOT make the output invalid. The card SHALL show the note's own words.
+    (Amended 2026-10-18, ADR 0009: previously four questions, at most 8 findings, and past
+    history always dropped.)
   - AC-003.7: WHEN findings are kept THE SYSTEM SHALL run Layer 1 again on the coded context
     plus the kept findings (added to diagnoses, chronic medication and allergies; nothing is
     removed), use that verdict as the rules verdict for the combiner and the alternative
     re-check, and show on the card, under each rule that fired only because of a finding, the
     supporting quote labelled "From the clinician's note". Quotes are not subject to AC-003.5:
     they can only repeat the clinician's own text (accepted risk, ADR 0006).
-  - AC-003.8: IF the model's own verdict escalates with conflict type `ANTIPLATELET_ACS`,
-    `GI_BLEED` or `ALLERGY` and no rule of that type fired on the coded context plus the kept
-    findings THEN THE SYSTEM SHALL set that escalation aside (the rules decide these conflicts)
-    and log `model_escalation_gated`; escalations of other types still count, and the final card
-    SHALL never be below the coded rules verdict (REQ-004). The final status SHALL never be below the
-    verdict on the coded context alone (REQ-004).
+  - AC-003.8: IF the model's own verdict escalates with a conflict type the rules decide
+    (`ANTIPLATELET_ACS`, `GI_BLEED`, `ALLERGY`, `BLEEDING`, `HYPERKALAEMIA`, `HEART_FAILURE`,
+    `PREGNANCY`, `PAST_GI_BLEED`, `ISCHAEMIC_HEART_DISEASE`) and no rule of that type fired on
+    the coded context plus the kept findings THEN THE SYSTEM SHALL set that escalation aside
+    (the rules decide these conflicts) and log `model_escalation_gated`; IF the type is
+    `PAST_GI_BLEED` or `ISCHAEMIC_HEART_DISEASE` and a rule of that type fired THEN the escalation
+    SHALL count only up to the highest status and tier of those rules (a `WARNING` history rule
+    does not become `BLOCKED` because the model says so), logged the same way. Escalations of other
+    types still count. The final status SHALL never be below the verdict on the coded context
+    alone (REQ-004). (Amended 2026-10-18, ADR 0009: previously seven types and no cap.)
 
 ### REQ-004: Escalate-only safety invariant
 - Story: As a hospital pharmacist, I want a guarantee that the model can only make the verdict
@@ -190,7 +199,7 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
     the rules cover (presets B and the coded variants of A return their rules status).
   - AC-005.3: IF the model is unavailable (AC-005.1, including a full model-call cap) AND the
     rules verdict is `NO_ISSUE` THEN THE SYSTEM SHALL return `WARNING` / `MODERATE` with the
-    fixed headline "Free-text note not checked" and the fixed rationale "The model check was unavailable, so the free-text note was not checked. The rules found no conflict in the coded data; review the note before signing.",
+    fixed headline "Free-text note not checked" and the fixed rationale "The model check was unavailable, so the free text (ED note and past medical history) was not checked. The rules found no conflict in the coded data; review it before signing.",
     never "No issue found by these checks" (a check that could not check the note must not look
     like a pass); a rules verdict of `WARNING` or `BLOCKED` is returned unchanged.
     `/api/check/rules` (rules only by design) is not affected.
@@ -213,13 +222,16 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
     analgesic) and its demo prescription is verified THE SYSTEM SHALL show a `NO_ISSUE` card with no alternative and no
     modal or blocking element.
   - AC-006.4: All patient data in presets SHALL be synthetic and labelled as such.
-  - AC-006.5: THE SYSTEM SHALL present presets A, B and C as predefined rooms of synthetic ED
+  - AC-006.5: THE SYSTEM SHALL present presets A, B, C, K and L as predefined rooms of synthetic ED
     patients (bed, sex, age, reason for consult) rather than as preset letters, and selecting a
-    room SHALL show its context as the patient's record (simulated).
+    room SHALL show its context as the patient's record (simulated). (Amended 2026-10-18: K and
+    L added, AC-016.6.)
   - AC-006.6: THE SYSTEM SHALL offer synthetic template patients: A, B, C, the three below, and
     G (warfarin + ibuprofen → rules `BLOCKED`), H (potassium 5.8 mmol/L + enalapril → rules
     `BLOCKED`) and I (pregnancy only in the note + ibuprofen → rules `NO_ISSUE`, the model's quote
-    decides) for the conflict breadth of AC-002.9 to AC-002.13. The first six are:
+    decides) for the conflict breadth of AC-002.9 to AC-002.13, and J (gastric ulcer with a GI
+    bleed in the past medical history text + ibuprofen → rules `NO_ISSUE`, the model's quote
+    decides), K and L (AC-016.6) for REQ-016. The first six are:
     each with a deterministic rules conflict and a demo prescription:
     D (coded active GI bleed, ibuprofen → rules `BLOCKED`, alternative paracetamol),
     E (penicillin allergy, amoxicillin-clavulanate → rules `BLOCKED`, no alternative),
@@ -401,6 +413,59 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
     DigitalOcean hosted-demo guides (the previous AC-015.4) and the "challenge judge" framing
     (previously Goals: G-4); the non-local opt-in mechanism itself is unchanged in code and is
     reused by the GCP plan (REQ-013).
+
+### REQ-016: Past medical history
+- Story: As an ED physician, I want the check to take the patient's past medical history into
+  account, so that an order that conflicts with something in the patient's past (a previous GI
+  bleed, a previous heart attack) raises an alert even when nothing current conflicts.
+- Priority: Should
+- Goals: G-1, G-2
+- Acceptance criteria:
+  - AC-016.1: THE SYSTEM SHALL accept the record's past medical history as free text
+    (`past_history`, at most 2,000 characters, default empty), show it in the record as "Past
+    medical history" (evidence quotes highlighted like the note's), let the demo edit it as text,
+    and send it to the model inside the untrusted-text block, like the note (AC-004.8). THE SYSTEM
+    SHALL also accept a coded past history for a record system's problem list (`history`:
+    `PAST_GI_BLEED` for previous gastrointestinal bleeding, peptic ulcer or perforation;
+    `ISCHAEMIC_HEART_DISEASE` for a previous ACS or MI, coronary stent or angina), default empty;
+    the demo record shows it read-only when present and does not edit it. (Amended 2026-10-18: the demo first edited the coded
+    history with checkboxes.)
+  - AC-016.2: WHEN an NSAID is ordered for a patient with `PAST_GI_BLEED` THE SYSTEM SHALL fire
+    `NSAID_HISTORY_GI_BLEED` (WARNING, HIGH, conflict `PAST_GI_BLEED`); WHEN an NSAID is ordered
+    for a patient with `ISCHAEMIC_HEART_DISEASE` THE SYSTEM SHALL fire
+    `NSAID_HISTORY_ISCHAEMIC_HEART_DISEASE` (WARNING, HIGH, conflict `ISCHAEMIC_HEART_DISEASE`).
+    The history rules have their own conflict types so they never confirm a model escalation
+    for a current conflict (AC-003.8). Neither rule SHALL fire for a drug outside the NSAID class
+    or without that history. Adding history SHALL never lower a verdict (REQ-004). The
+    alternative for these conflicts (paracetamol) is unreviewed too, so its dose is not shown
+    (NFR-011).
+  - AC-016.3: The two rules SHALL follow AC-002.8 and NFR-011: a cited source and no review mark
+    until the clinical specialist confirms them; the review sheet and the specialist questions
+    SHALL list them.
+  - AC-016.4: WHEN the model reports past history in `note_history` THE SYSTEM SHALL keep a
+    history finding only under AC-003.6, except that "history of", "previous", "prior" and "h/o"
+    SHALL NOT count as negation for history findings, and the quote SHALL contain a specific term
+    of the code (for example "GI bleed", "peptic ulcer", "PUD", "MI", "coronary stent", "PCI",
+    "angina"; not a bare "ulcer", "stent" or "infarct"). A denial up to six words before the term
+    ("no known history of", "denies", "never", "nil"), stopping at "since" or "after", or a
+    blood relative in the same clause or a family-history label ("family history", "FHx")
+    earlier in the sentence SHALL drop it. Kept history findings SHALL be added to `history` and
+    shown as evidence (AC-003.7).
+  - AC-016.5: The evaluation set SHALL include cases for coded history, history only in the note,
+    denied history and family history, with family and denied history expected to stay silent.
+  - AC-016.6: THE SYSTEM SHALL offer two predefined rooms where today's visit is unrelated to
+    the past medical history text and an NSAID is proposed, so the rules alone give `NO_ISSUE`
+    and the final card is `WARNING` with the history's words as evidence once the model's history
+    finding is kept: Bed 14 (preset K: knee injury after a fall; "Myocardial infarction in 2020,
+    treated with a coronary stent" in the history) and Bed 15 (preset L) : a routine wrist sprain with normal
+    labs, and "Upper GI bleed from a duodenal ulcer in 2021" as one line of a long past medical
+    history.
+  - AC-016.7: A current ACS or active GI bleed finding SHALL be dropped when a past-history label
+    ("past medical history:", "PMH:", "medical history:", "background:") comes earlier in its
+    sentence: an acute event in a past-history list is not a current one (ADR 0009). The same
+    holds for an ACS, active GI bleed or pregnancy quoted from the past medical history text. Chronic
+    conditions and pregnancy in such a list or text (heart failure, "Background: 28 weeks
+    pregnant") SHALL still count as current.
 
 ## Non-functional requirements
 | ID | Category | Requirement (measurable) | Verification |

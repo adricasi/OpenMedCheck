@@ -25,7 +25,7 @@ def _inside_note(user: str) -> str:
 
 
 def test_prompt_version_is_set() -> None:
-    assert prompt.PROMPT_VERSION == "7"
+    assert prompt.PROMPT_VERSION == "8"
 
 
 def test_ac_009_2_antiplatelet_acs_guidance_is_conjunctive_for_an_nsaid() -> None:
@@ -209,3 +209,14 @@ def test_ac_003_4_non_nsaid_guidance_still_allows_other_conflicts() -> None:
 def test_req_005_unknown_drug_id_raises_instead_of_guessing_a_class() -> None:
     with pytest.raises(KeyError):
         prompt.guidance_for("not-a-drug")
+
+
+@pytest.mark.parametrize("drug", DRUGS, ids=lambda drug: drug.drug_id)
+def test_ac_016_4_history_conflict_guidance_is_sent_exactly_for_nsaids(drug: Drug) -> None:
+    guidance = prompt.guidance_for(drug.drug_id)
+
+    assert (prompt.NSAID_HISTORY_GUIDANCE in guidance) == (drug.drug_class == "NSAID")
+    if drug.drug_class != "NSAID":
+        assert "PAST_GI_BLEED and ISCHAEMIC_HEART_DISEASE do not apply" in " ".join(
+            guidance.split()
+        )

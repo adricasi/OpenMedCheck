@@ -258,3 +258,11 @@ def test_ac_001_4_unknown_field_names_are_not_echoed(
     assert response.status_code == 422
     assert [error["field"] for error in response.json()["errors"]] == ["context.<unknown field>"]
     assert "onerror" not in response.text
+
+
+def test_static_assets_are_revalidated_so_an_upgrade_is_never_stale(client: TestClient) -> None:
+    response = client.get("/static/style.css")
+
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-cache"
+    assert response.headers["etag"]

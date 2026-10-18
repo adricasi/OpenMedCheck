@@ -12,6 +12,7 @@ from openmedcheck import note_findings, rules_engine
 from openmedcheck.check_service import final_card
 from openmedcheck.contracts import (
     CheckRequest,
+    ConflictType,
     FindingKind,
     NoteFinding,
     Order,
@@ -262,30 +263,52 @@ _findings = st.lists(
             st.sampled_from(note_findings.ALLERGY_CODES),
             st.just("x"),
         ),
+        st.builds(
+            finding,
+            st.just(FindingKind.HISTORY),
+            st.sampled_from(note_findings.HISTORY_CODES),
+            st.just("x"),
+        ),
     ),
     max_size=4,
 )
 _orders = st.sampled_from(note_findings.MEDICATION_CODES)
+
+
+def _context(
+    diagnoses: list[str],
+    chronic: list[str],
+    allergies: list[str],
+    creatinine: float | None,
+    egfr: float | None,
+    age: int,
+    weight: float,
+    potassium: float | None,
+    platelets: float | None,
+    history: list[str],
+) -> PatientContext:
+    return PRESET_A.request.context.model_copy(
+        update={
+            "diagnoses": diagnoses,
+            "history": history,
+            "chronic_medications": chronic,
+            "allergies": allergies,
+            "age": age,
+            "weight_kg": weight,
+            "labs": PRESET_A.request.context.labs.model_copy(
+                update={
+                    "creatinine_mg_dl": creatinine,
+                    "egfr_ml_min_1_73m2": egfr,
+                    "potassium_mmol_l": potassium,
+                    "platelets_per_ul": platelets,
+                }
+            ),
+        }
+    )
+
+
 _contexts = st.builds(
-    lambda diagnoses, chronic, allergies, creatinine, egfr, age, weight, potassium, platelets: (
-        PRESET_A.request.context.model_copy(
-            update={
-                "diagnoses": diagnoses,
-                "chronic_medications": chronic,
-                "allergies": allergies,
-                "age": age,
-                "weight_kg": weight,
-                "labs": PRESET_A.request.context.labs.model_copy(
-                    update={
-                        "creatinine_mg_dl": creatinine,
-                        "egfr_ml_min_1_73m2": egfr,
-                        "potassium_mmol_l": potassium,
-                        "platelets_per_ul": platelets,
-                    }
-                ),
-            }
-        )
-    ),
+    _context,
     st.lists(st.sampled_from(note_findings.CONDITION_CODES), unique=True),
     st.lists(st.sampled_from(note_findings.MEDICATION_CODES), max_size=3, unique=True),
     st.lists(st.sampled_from(note_findings.ALLERGY_CODES), max_size=2, unique=True),
@@ -295,6 +318,7 @@ _contexts = st.builds(
     st.floats(min_value=35, max_value=150),
     st.one_of(st.none(), st.floats(min_value=1.5, max_value=9)),
     st.one_of(st.none(), st.floats(min_value=1_000, max_value=2_000_000)),
+    st.lists(st.sampled_from(note_findings.HISTORY_CODES), unique=True),
 )
 
 
@@ -316,7 +340,7 @@ def test_req_004_findings_never_make_the_rules_verdict_less_strict(
 _model_status = st.sampled_from(["NO_ISSUE", "WARNING", "BLOCKED"])
 
 
-_conflicts = st.sampled_from(["ANTIPLATELET_ACS", "GI_BLEED", "ALLERGY", "RENAL", "OTHER"])
+_conflicts = st.sampled_from([item.value for item in ConflictType])
 _tiers = st.sampled_from(["LOW", "MODERATE", "HIGH", "CRITICAL"])
 
 
@@ -553,6 +577,20 @@ _GATE_CASES = {
             order=Order(drug_id="ibuprofen", dose_text="x", route="PO", frequency="x"),
         ),
     ),
+    **{
+        code: (
+            PRESET_C.request.model_copy(
+                update={
+                    "order": Order(drug_id="ibuprofen", dose_text="x", route="PO", frequency="x")
+                }
+            ),
+            CheckRequest(
+                context=PRESET_C.request.context.model_copy(update={"history": [code]}),
+                order=Order(drug_id="ibuprofen", dose_text="x", route="PO", frequency="x"),
+            ),
+        )
+        for code in ("PAST_GI_BLEED", "ISCHAEMIC_HEART_DISEASE")
+    },
 }
 
 
@@ -578,10 +616,36 @@ def test_ac_003_8_unconfirmed_escalation_is_set_aside_for_each_type(conflict: st
 
 
 @pytest.mark.parametrize("conflict", sorted(_GATE_CASES))
-def test_ac_003_8_escalation_confirmed_by_a_rule_is_kept_for_each_type(conflict: str) -> None:
+def test_ac_003_8_escalation_confirmed_by_a_rule_counts_for_each_type(conflict: str) -> None:
+    """A same-type rule confirms the conflict; only the past-history types are capped at the
+    rule's level (ADR 0009)."""
     _, confirmed = _GATE_CASES[conflict]
+    coded = rules_engine.evaluate(confirmed.context, confirmed.order)
+    assert any(r.conflict_type.value == conflict for r in coded.fired_rules)
 
     card = run(confirmed, model_json(**_escalation(conflict)))
+
+    capped = conflict in {"PAST_GI_BLEED", "ISCHAEMIC_HEART_DISEASE"}
+    assert card.status is (coded.status if capped else Status.BLOCKED)
+
+
+def test_ac_003_8_note_lab_escalation_is_not_capped_by_the_missing_lab_rule() -> None:
+    """Note lab values are never findings: a model BLOCKED for "K 6.9" in the note stays BLOCKED
+    although only the missing-potassium WARNING fired (safety review)."""
+    request = CheckRequest(
+        context=PRESET_C.request.context.model_copy(
+            update={
+                "ed_note": "Repeat K 6.9 on the blood gas.",
+                "labs": PRESET_C.request.context.labs.model_copy(update={"potassium_mmol_l": None}),
+            }
+        ),
+        order=Order(drug_id="enalapril", dose_text="x", route="PO", frequency="x"),
+    )
+    coded = rules_engine.evaluate(request.context, request.order)
+    assert coded.status is Status.WARNING
+    assert {r.conflict_type for r in coded.fired_rules} == {ConflictType.HYPERKALAEMIA}
+
+    card = run(request, model_json(**_escalation("HYPERKALAEMIA")))
 
     assert card.status is Status.BLOCKED
 

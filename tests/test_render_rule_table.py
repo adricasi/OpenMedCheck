@@ -36,10 +36,20 @@ def test_nfr_011_review_sheet_lists_every_rule_and_preset() -> None:
         assert rule_id in text
     for preset in ("Preset A", "Preset B", "Preset C"):
         assert preset in text
-    assert "**Status: REVIEWED** by Clinical specialist (name not recorded) on 2026-10-18" in text
+    # T-006 signed off the 2026-10-18 table; the history rules (AC-016.3) came later.
+    assert (
+        "**Status: NOT FULLY REVIEWED.** Clinical specialist (name not recorded) confirmed 44 of "
+        "54 rules and alternatives on 2026-10-18" in text
+    )
+    assert (
+        "Awaiting sign-off: NSAID_HISTORY_GI_BLEED, NSAID_HISTORY_ISCHAEMIC_HEART_DISEASE, "
+        "dexketoprofen / PAST_GI_BLEED → paracetamol" in text
+    )
+    # The specialist sees what triggers a history rule and which presets carry history.
+    assert "Past medical history PAST_GI_BLEED (recorded or a quoted note finding)" in text
+    assert "Past medical history (free text): Hypertension. Hypercholesterolaemia." in text
     assert "## Source check (2026-10-18)" in text
     assert "Questions for the specialist" in text
-    assert "Reviewer name and role: ____" not in text
 
 
 def test_nfr_011_review_sheet_flags_an_unreviewed_entry(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -30,11 +30,17 @@ how often it stays silent. **All patients are invented.** Contributions are welc
 ```
 
 - `context` and `order` are the same request the app sends to `/api/check` (synthetic
-  `patient_id` starting with `SYN-`; drug IDs from the drug list).
-- `expected.findings`: what the note or reason for consult **states**, as `KIND:CODE`.
+  `patient_id` starting with `SYN-`; drug IDs from the drug list). `context.history` is the
+  coded past medical history (`PAST_GI_BLEED`, `ISCHAEMIC_HEART_DISEASE`; REQ-016), empty if
+  absent; `context.past_history` is the record's past medical history as free text, read by the
+  model like the note (empty if absent).
+- `expected.findings`: what the note, the reason for consult or the past medical history text
+  **states**, as `KIND:CODE`.
   Kinds and codes: `CONDITION:ACS`, `CONDITION:ACTIVE_GI_BLEED`, `CONDITION:HEART_FAILURE`,
   `CONDITION:PREGNANCY`, `MEDICATION:<drug ID>`, `ALLERGY:<drug ID, active ingredient or class
-  ID>`. A denied, ruled-out or past-history mention is **not** a finding. Clinical shorthand
+  ID>`, `HISTORY:PAST_GI_BLEED`, `HISTORY:ISCHAEMIC_HEART_DISEASE`. A past event the note
+  states for the patient is a `HISTORY` finding, never a current `CONDITION` (REQ-016, ADR
+  0009); a denied, ruled-out or relative's mention is **not** a finding. Clinical shorthand
   for a suspicion counts: `?ACS`, `query ACS`, `possible ACS` and `r/o ACS` (still to be ruled
   out) state a suspected ACS; only `ACS ruled out` or `ACS excluded` is a rule-out.
 - `expected.rules_status`: the rules on the coded record alone.
@@ -46,7 +52,9 @@ rules, and checks that every rule fires in at least one case.
 
 ## Tags
 
-`note_only` (the fact is only in free text), `coded`, `negation`, `past_history`,
+`note_only` (the fact is only in free text), `coded`, `history` (past medical history,
+REQ-016), `past_history_text` (the history is in the record's free-text past medical history),
+`negation`, `past_history`,
 `family_history`, `abbreviation`, `wording` (typos, unusual phrasing), `clean` (should stay
 silent), `non_nsaid`, `missing_lab`, `boundary`, `known_limit`, plus the topic (`acs`,
 `gi_bleed`, `allergy`, `anticoagulant`, `potassium`, `heart_failure`, `platelets`, `pregnancy`,

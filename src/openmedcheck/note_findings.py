@@ -2,7 +2,8 @@
 
 Pure: no I/O, no logging of patient context. The model reads the free text and returns
 findings (a kind, a code and a quote); a finding is kept only if its code is valid for its kind
-and its quote appears word for word in the ED note or the reason for consult. Kept findings are
+and its quote appears word for word in the ED note, the reason for consult or the past medical
+history. Kept findings are
 added to the coded context and Layer 1 runs again. Findings only add facts, so the result is
 never less strict than the verdict on the coded context alone (ADR 0006).
 """
@@ -24,11 +25,14 @@ from openmedcheck.contracts import (
 )
 from openmedcheck.rule_table import ContextRule
 
-MAX_FINDINGS = 10  # the prompt asks for at most 4 conditions, 3 medications and 3 allergies
+# The prompt asks for at most 4 conditions, 3 medications, 3 allergies and 3 history items.
+MAX_FINDINGS = 13
 MIN_QUOTE_CHARS = 3
 MAX_QUOTE_CHARS = 120
 
 CONDITION_CODES: tuple[str, ...] = ("ACS", "ACTIVE_GI_BLEED", "HEART_FAILURE", "PREGNANCY")
+# Past medical history (REQ-016): past events, kept apart from the current conditions.
+HISTORY_CODES: tuple[str, ...] = ("PAST_GI_BLEED", "ISCHAEMIC_HEART_DISEASE")
 MEDICATION_CODES: tuple[str, ...] = rule_table.DRUG_IDS
 ALLERGY_CODES: tuple[str, ...] = tuple(
     dict.fromkeys(
@@ -43,6 +47,7 @@ CODES_BY_KIND: dict[FindingKind, tuple[str, ...]] = {
     FindingKind.CONDITION: CONDITION_CODES,
     FindingKind.MEDICATION: MEDICATION_CODES,
     FindingKind.ALLERGY: ALLERGY_CODES,
+    FindingKind.HISTORY: HISTORY_CODES,
 }
 ALL_CODES: tuple[str, ...] = tuple(
     dict.fromkeys(code for codes in CODES_BY_KIND.values() for code in codes)
@@ -66,6 +71,99 @@ CONDITION_TERMS: dict[str, tuple[str, ...]] = {
     "HEART_FAILURE": ("heart failure", "cardiac failure", "hfref", "hfpef", "chf", "ccf"),
     "PREGNANCY": ("pregnan", "gestation"),
 }
+# Specific phrases only (safety review): a bare "ulcer", "stent" or "infarct" also names a
+# diabetic foot ulcer, a ureteric stent or a cerebral infarct.
+HISTORY_TERMS: dict[str, tuple[str, ...]] = {
+    "PAST_GI_BLEED": (
+        "gi bleed",
+        "gi haemorrhage",
+        "gi hemorrhage",
+        "gib",
+        "ugib",
+        "gastrointestinal bleed",
+        "gastrointestinal haemorrhage",
+        "gastrointestinal hemorrhage",
+        "melena",
+        "melaena",
+        "haematemesis",
+        "hematemesis",
+        "coffee-ground",
+        "coffee ground",
+        "peptic ulcer",
+        "gastric ulcer",
+        "duodenal ulcer",
+        "stomach ulcer",
+        "bleeding ulcer",
+        "perforated ulcer",
+        "pud",
+        "gi perforation",
+        "gastrointestinal perforation",
+        "bowel perforation",
+    ),
+    "ISCHAEMIC_HEART_DISEASE": (
+        "acs",
+        "stemi",
+        "nstemi",
+        "angina",
+        "myocardial infarct",
+        "mi",
+        "heart attack",
+        "coronary stent",
+        "cardiac stent",
+        "pci",
+        "ptca",
+        "cabg",
+        "coronary artery bypass",
+        "coronary bypass",
+        "ihd",
+        "cad",
+        "chd",
+        "ischaemic heart",
+        "ischemic heart",
+        "coronary artery disease",
+        "coronary heart disease",
+        "coronary disease",
+    ),
+}
+# Short history terms ("mi", "cad") must be whole words, a plural "s" aside: "mild" is not an
+# MI, "two previous MIs" is.
+_SHORT_TERM = 3
+# Past history is evidence, not negation (ADR 0009): for history findings only denials count,
+# and "resolved" says the event happened. The denial looks a little further back ("no known
+# history of peptic ulcer") but stops at "since" and its kin ("no chest pain since MI").
+_PRE_NEGATION_HISTORY = re.compile(
+    r"\b(?:no|not|never|nil|without|denies|denied|negative\s+for|free\s+of)\b", re.IGNORECASE
+)
+_HISTORY_DENIAL_WORDS = 6
+_DENIAL_STOP = re.compile(r"\b(?:since|after|following|post|s/p)\b", re.IGNORECASE)
+_POST_NEGATION_HISTORY = re.compile(
+    r"^(?P<gap>\W*(?:[\w']+\W+){0,2}?)(?:ruled\s+out|rules\s+out|excluded|unlikely)\b",
+    re.IGNORECASE,
+)
+# A relative's history is not the patient's (AC-016.4). A blood relative counts in the term's
+# comma-delimited clause ("Mother: MI at 60", "father and uncle had MIs"); a family-history
+# label counts anywhere earlier in the sentence ("Family history of diabetes and MI"). Spouses
+# and children are left out: "brought in by daughter, previous MI" is the patient's history.
+_RELATIVE = re.compile(
+    r"\b(?:(?:father|mother|dad|mum|mom|brother|sister|sibling|parent|uncle|aunt|cousin)s?|"
+    r"grand\w*)\b",
+    re.IGNORECASE,
+)
+_FAMILY = re.compile(r"\b(?:family|fhx|fh|f/h)\b", re.IGNORECASE)
+# An acute event in a past-history list ("PMH: hypertension, upper GI bleed in 2021") is not a
+# current one (AC-016.7): the label counts anywhere earlier in the sentence. Only for events:
+# a chronic condition or a pregnancy in such a list ("Background: COPD, heart failure") still
+# holds today.
+_PAST_LIST_EVENT_CODES = frozenset({"ACS", "ACTIVE_GI_BLEED"})
+# The record's past medical history text is all past: a pregnancy written there ("Pregnancy in
+# 2015, caesarean section") is not a current one either; a chronic condition still holds.
+_PAST_HISTORY_TEXT_CODES = _PAST_LIST_EVENT_CODES | {"PREGNANCY"}
+_PAST_HISTORY_LABEL = re.compile(
+    r"\b(?:past\s+medical\s+history|past\s+history|medical\s+history|pmhx?|background)\s*:",
+    re.IGNORECASE,
+)
+_SENTENCE_END = re.compile(r"[.;!?\n]")
+_RELATIVE_CLAUSE_END = re.compile(r"[,.;!?\n]")
 # Negation is local (safety review): a cue counts only inside the clause of the matched term,
 # a few words before it ("no GI bleeding", "history of ACS", "not on aspirin") or right after it
 # ("ACS ruled out"). Clauses end at punctuation, "but", "except", "although" and "however", so
@@ -115,6 +213,8 @@ def _words(text: str) -> list[str]:
 def _code_terms(kind: FindingKind, code: str) -> tuple[str, ...]:
     if kind is FindingKind.CONDITION:
         return CONDITION_TERMS[code]
+    if kind is FindingKind.HISTORY:
+        return HISTORY_TERMS[code]
     drug = rule_table.DRUGS_BY_ID.get(code)
     if drug is None:  # an allergy coded as a class ID or an active ingredient
         return tuple(_words(code)) or (code.casefold(),)
@@ -122,15 +222,29 @@ def _code_terms(kind: FindingKind, code: str) -> tuple[str, ...]:
     return tuple({*_words(drug.drug_id), *_words(drug.active_ingredient)})
 
 
-def _term_in(span: re.Match[str], terms: Sequence[str]) -> re.Match[str] | None:
-    """First code term inside the matched quote, at a word start ("sacs" is not ACS)."""
-    pattern = "|".join(rf"(?<![a-z]){re.escape(term)}" for term in terms)
+def _phrase(term: str) -> str:
+    return r"\s+".join(re.escape(word) for word in term.split())
+
+
+def _term_in(
+    span: re.Match[str], terms: Sequence[str], *, whole_short: bool = False
+) -> re.Match[str] | None:
+    """First code term inside the matched quote, at a word start ("sacs" is not ACS).
+
+    Words of a term match across any spacing. ``whole_short``: terms of up to three letters
+    must also end a word, a plural "s" aside ("mild" is not MI).
+    """
+    pattern = "|".join(
+        rf"(?<![a-z]){_phrase(term)}"
+        + (r"s?(?![a-z])" if whole_short and len(term) <= _SHORT_TERM else "")
+        for term in terms
+    )
     return re.compile(pattern, re.IGNORECASE).search(span.string, span.start(), span.end())
 
 
-def _post_negated(clause_after: str) -> bool:
+def _post_negated(clause_after: str, pattern: re.Pattern[str] = _POST_NEGATION) -> bool:
     """A post-term cue ("ruled out") with no negator between it and the term."""
-    match = _POST_NEGATION.search(clause_after)
+    match = pattern.search(clause_after)
     return match is not None and not _NEGATOR.search(match.group("gap"))
 
 
@@ -147,6 +261,8 @@ def _negated(text: str, term: re.Match[str], kind: FindingKind, code: str) -> bo
     after = text[word_end:]
     stop = _CLAUSE_END.search(after)
     clause_after = after[: stop.start()] if stop else after
+    if kind is FindingKind.HISTORY:
+        return _history_negated(before, after, clause_before, clause_after)
     return bool(
         _PRE_NEGATION.search(window)
         or _post_negated(clause_after)
@@ -154,11 +270,33 @@ def _negated(text: str, term: re.Match[str], kind: FindingKind, code: str) -> bo
             code == "PREGNANCY"
             and bool(_POST_PREGNANCY_TEST_NEGATIVE.search(after) or _NON_PREFIX.search(before))
         )
+        or (
+            code in _PAST_LIST_EVENT_CODES
+            and kind is FindingKind.CONDITION
+            and bool(_PAST_HISTORY_LABEL.search(_SENTENCE_END.split(before)[-1]))
+        )
         # Stopping a drug only negates a medication finding, checked on the raw text before it.
         or (
             kind is FindingKind.MEDICATION
             and (_ADJACENT_PRE_NEGATION.search(before) or _POST_STOPPED.search(after))
         )
+    )
+
+
+def _history_negated(before: str, after: str, clause_before: str, clause_after: str) -> bool:
+    """A denial near the term, or the history of a relative (ADR 0009, AC-016.4)."""
+    stops = list(_DENIAL_STOP.finditer(clause_before))
+    denial_span = clause_before[stops[-1].end() :] if stops else clause_before
+    denial_window = " ".join(denial_span.split()[-_HISTORY_DENIAL_WORDS:])
+    relative_before = _RELATIVE_CLAUSE_END.split(before)[-1]
+    relative_after = _RELATIVE_CLAUSE_END.split(after, maxsplit=1)[0]
+    return bool(
+        _PRE_NEGATION_HISTORY.search(denial_window)
+        or _post_negated(clause_after, _POST_NEGATION_HISTORY)
+        or _RELATIVE.search(relative_before)
+        or _RELATIVE.search(relative_after)
+        or _FAMILY.search(_SENTENCE_END.split(before)[-1])
+        or _FAMILY.search(relative_after)
     )
 
 
@@ -174,14 +312,31 @@ def _find(quote: str, text: str) -> re.Match[str] | None:
 def _verified(finding: NoteFinding, context: PatientContext) -> NoteFinding | None:
     if finding.code not in CODES_BY_KIND[finding.kind]:
         return None
-    for text in (context.ed_note, context.reason_for_consult):
+    sources = (
+        (context.ed_note, False),
+        (context.reason_for_consult, False),
+        (context.past_history, True),
+    )
+    for text, is_past_history in sources:
         match = _find(finding.quote, text)
         if match is None:
             continue
+        # The record's past medical history holds past events: an ACS, a GI bleed or a pregnancy
+        # written there is never a current one; a chronic condition there still holds (AC-016.7).
+        if (
+            is_past_history
+            and finding.kind is FindingKind.CONDITION
+            and finding.code in _PAST_HISTORY_TEXT_CODES
+        ):
+            return None
         span = match.group()
         if not MIN_QUOTE_CHARS <= len(span) <= MAX_QUOTE_CHARS:
             return None
-        term = _term_in(match, _code_terms(finding.kind, finding.code))
+        term = _term_in(
+            match,
+            _code_terms(finding.kind, finding.code),
+            whole_short=finding.kind is FindingKind.HISTORY,
+        )
         if term is None or _negated(match.string, term, finding.kind, finding.code):
             return None
         # Show the note's own words, not the model's copy of them.
@@ -220,6 +375,7 @@ def augment(context: PatientContext, findings: Sequence[NoteFinding]) -> Patient
                 context.chronic_medications, codes(FindingKind.MEDICATION)
             ),
             "allergies": _union(context.allergies, codes(FindingKind.ALLERGY)),
+            "history": _union(context.history, codes(FindingKind.HISTORY)),
         }
     )
 
@@ -241,6 +397,13 @@ def _context_quotes(rule: ContextRule, findings: Sequence[NoteFinding]) -> list[
         if rule.diagnosis is not None
         and finding.kind is FindingKind.CONDITION
         and finding.code == rule.diagnosis
+    ]
+    quotes += [
+        finding.quote
+        for finding in findings
+        if rule.history is not None
+        and finding.kind is FindingKind.HISTORY
+        and finding.code == rule.history
     ]
     if rule.chronic_class is not None:
         quotes += [

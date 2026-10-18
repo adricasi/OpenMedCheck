@@ -92,9 +92,9 @@ def load_cases(path: Path) -> list[dict[str, Any]]:
 
 
 def finding_type(item: str) -> str:
-    """CONDITION:<code> keeps its code; medications and allergies are grouped by kind."""
+    """CONDITION and HISTORY keep their code; medications and allergies are grouped by kind."""
     kind = item.split(":")[0]
-    return item if kind == "CONDITION" else kind
+    return item if kind in ("CONDITION", "HISTORY") else kind
 
 
 def record(tally: Tally, case: dict[str, Any], final: Status, kept: set[str]) -> None:

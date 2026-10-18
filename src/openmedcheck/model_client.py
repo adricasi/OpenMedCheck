@@ -37,8 +37,9 @@ MAX_HEADLINE_WORDS = 8
 MAX_HEADLINE_CHARS = 60
 MAX_RATIONALE_CHARS = 300
 MAX_RATIONALE_SENTENCES = 2
-# 600 tokens: the verdict plus up to four note findings with quotes (prompt v5, ADR 0006).
-OLLAMA_OPTIONS: dict[str, Any] = {"temperature": 0, "num_predict": 600}
+# 800 tokens: the verdict plus up to 13 note findings with quotes (prompt v8, ADR 0006, ADR
+# 0009); a truncated answer is invalid JSON and costs the retry.
+OLLAMA_OPTIONS: dict[str, Any] = {"temperature": 0, "num_predict": 800}
 OLLAMA_KEEP_ALIVE = "10m"
 CONNECT_TIMEOUT_S = 2.0
 HEALTH_TIMEOUT_S = 2.0
@@ -98,6 +99,15 @@ class NoteAllergy(BaseModel):
     quote: str
 
 
+class NoteHistory(BaseModel):
+    """A past event the note states for this patient, as the model returns it (AC-016.4)."""
+
+    model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
+
+    code: str
+    quote: str
+
+
 class ModelOutput(ModelVerdict):
     """``ModelVerdict`` plus the model-output limits of AC-001.2 (parsed from the model only).
 
@@ -112,6 +122,7 @@ class ModelOutput(ModelVerdict):
     note_pregnancy_quote: str | None = None
     note_medications: tuple[NoteMedication, ...] = ()
     note_allergies: tuple[NoteAllergy, ...] = ()
+    note_history: tuple[NoteHistory, ...] = ()
 
     def to_verdict(self) -> ModelVerdict:
         found = list(self.note_findings)
@@ -130,6 +141,10 @@ class ModelOutput(ModelVerdict):
         found += [
             NoteFinding(kind=FindingKind.ALLERGY, code=item.code, quote=item.quote)
             for item in self.note_allergies
+        ]
+        found += [
+            NoteFinding(kind=FindingKind.HISTORY, code=item.code, quote=item.quote)
+            for item in self.note_history
         ]
         return ModelVerdict(
             **self.model_dump(include=set(ModelVerdict.model_fields) - {"note_findings"}),

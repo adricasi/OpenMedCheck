@@ -112,20 +112,76 @@ SOURCE_CHECK_ROWS: tuple[tuple[str, str, str], ...] = (
         "Status unchanged (no gestational age). Adding the week-20 advice as a separate source is "
         "proposed to the specialist (question 1), not applied",
     ),
+    (
+        "NSAID_HISTORY_GI_BLEED",
+        "Ibuprofen SmPC texts, section 4.3: history of NSAID-related gastrointestinal bleeding or "
+        "perforation, and active or recurrent peptic ulcer or haemorrhage, are contraindications",
+        "Added after the review and not reviewed. The rule fires for any recorded history (wider "
+        "than the label) and is a WARNING; the dexketoprofen wording was not checked (question "
+        "on past medical history)",
+    ),
+    (
+        "NSAID_HISTORY_ISCHAEMIC_HEART_DISEASE",
+        "EMA diclofenac referral (2013): contraindicated in established ischaemic heart disease; "
+        "other NSAIDs carry a section 4.4 warning on cardiovascular thrombotic risk",
+        "Added after the review and not reviewed. WARNING for every NSAID, including diclofenac "
+        "(question on past medical history)",
+    ),
 )
 
 
-def _status_line() -> str:
-    entries = [
+def _all_entries() -> list[RuleEntry | rule_table.AllowedAlternative]:
+    return [
         *rule_table.RULES_BY_ID.values(),
         *(alt for alts in rule_table.ALLOWED_ALTERNATIVES.values() for alt in alts),
     ]
-    if all(rule_table.is_reviewed(entry) for entry in entries):
+
+
+def _unreviewed_rule_ids() -> list[str]:
+    return [
+        rule_id
+        for rule_id, rule in rule_table.RULES_BY_ID.items()
+        if not rule_table.is_reviewed(rule)
+    ]
+
+
+def _unreviewed_alternatives() -> list[str]:
+    return [
+        f"{proposed} / {conflict} → {alt.drug_id}"
+        for (proposed, conflict), alternatives in rule_table.ALLOWED_ALTERNATIVES.items()
+        for alt in alternatives
+        if not rule_table.is_reviewed(alt)
+    ]
+
+
+def _pending_text() -> str:
+    rules, alternatives = _unreviewed_rule_ids(), _unreviewed_alternatives()
+    parts = []
+    if rules:
+        parts.append("rules " + ", ".join(rules))
+    if alternatives:
+        parts.append(f"{len(alternatives)} alternatives")
+    return " and ".join(parts)
+
+
+def _status_line() -> str:
+    entries = _all_entries()
+    reviewed = [entry for entry in entries if rule_table.is_reviewed(entry)]
+    if len(reviewed) == len(entries):
         return (
             f"**Status: REVIEWED** by {rule_table.SPECIALIST_REVIEWER} on "
             f"{rule_table.SPECIALIST_REVIEW_DATE}. Every rule and alternative below was confirmed "
             "as it stands. The project is a concept demonstrator, not a medical device. Every "
             "patient is synthetic."
+        )
+    if reviewed:
+        pending = _pending_text()
+        return (
+            f"**Status: NOT FULLY REVIEWED.** {rule_table.SPECIALIST_REVIEWER} confirmed "
+            f"{len(reviewed)} of {len(entries)} rules and alternatives on "
+            f"{rule_table.SPECIALIST_REVIEW_DATE}. Entries marked *not reviewed* were added or "
+            f"changed later and have not been checked by a clinical specialist ({pending}). The "
+            "project is a concept demonstrator, not a medical device. Every patient is synthetic."
         )
     return (
         "**Status: NOT FULLY REVIEWED.** Entries marked *not reviewed* have not been checked by a "
@@ -179,6 +235,8 @@ def _rule_section() -> str:
             parts.append(f"Coded diagnosis {rule.diagnosis} (coded or a quoted note finding)")
         if rule.chronic_class:
             parts.append(f"a chronic medication of class {rule.chronic_class}")
+        if rule.history:
+            parts.append(f"Past medical history {rule.history} (recorded or a quoted note finding)")
         condition = ", and ".join(parts)
         rows.append(
             [
@@ -332,9 +390,11 @@ def _preset_section(preset: Preset) -> str:
         f"*{preset.synthetic_label}.*\n\n"
         f"- Patient: {context.age} years, sex {context.sex}, {context.weight_kg:g} kg; "
         f"creatinine {labs.creatinine_mg_dl} mg/dL, eGFR {labs.egfr_ml_min_1_73m2}\n"
-        f"- Coded diagnoses: {', '.join(context.diagnoses) or 'none'}; chronic medication: "
+        f"- Coded diagnoses: {', '.join(context.diagnoses) or 'none'}; past medical history: "
+        f"{', '.join(context.history) or 'none'}; chronic medication: "
         f"{', '.join(context.chronic_medications) or 'none'}; allergies: "
         f"{', '.join(context.allergies) or 'none'}\n"
+        f"- Past medical history (free text): {context.past_history or 'none recorded'}\n"
         f"- Note: {context.ed_note}\n"
         f"- Proposed order: {order.drug_id} {order.dose_text} {order.route} {order.frequency}\n\n"
         f"Rules card (Layer 1 only):\n\n{_card_block(card)}\n"
@@ -374,21 +434,29 @@ def _question_section() -> str:
 
 
 def _signoff_section() -> str:
-    if all(rule_table.is_reviewed(rule) for rule in rule_table.RULES_BY_ID.values()):
-        return (
-            "## Sign-off\n\n"
-            f"Reviewed by: {rule_table.SPECIALIST_REVIEWER}. Date: "
-            f"{rule_table.SPECIALIST_REVIEW_DATE}. Outcome: confirmed without corrections; Q-5 "
-            'answered ("consult SmPC", no numeric renal dose).\n\n'
-            "Later corrections are applied in the rule table; a new or changed "
-            "entry is unreviewed until the specialist signs it off."
-        )
-    return (
-        "## Sign-off\n\n"
+    pending = _unreviewed_rule_ids() + _unreviewed_alternatives()
+    blank = (
         "Reviewer name and role: ____________________  Date: ____________\n\n"
         "Corrections are applied in the rule table; the reviewer name and date "
         "are then recorded on each confirmed entry."
     )
+    earlier = (
+        f"Reviewed by: {rule_table.SPECIALIST_REVIEWER}. Date: "
+        f"{rule_table.SPECIALIST_REVIEW_DATE}. Outcome: confirmed without corrections; Q-5 "
+        'answered ("consult SmPC", no numeric renal dose).'
+    )
+    if not pending:
+        return (
+            f"## Sign-off\n\n{earlier}\n\n"
+            "Later corrections are applied in the rule table; a new or changed "
+            "entry is unreviewed until the specialist signs it off."
+        )
+    if len(pending) < len(_all_entries()):
+        return (
+            f"## Sign-off\n\n{earlier} That review covered every entry that carries a review "
+            f"date.\n\nAwaiting sign-off: {', '.join(pending)}.\n\n{blank}"
+        )
+    return f"## Sign-off\n\n{blank}"
 
 
 def render() -> str:

@@ -80,7 +80,8 @@ requirement's story, are dropped.
 - Negative / risks: judges can only see the product running in the demo video, not try it live
   in a browser, unless the owner deploys the GCP plan later. Mitigation: the video shows presets
   A, B, C and the model-down fallback (T-012); the README and the DEV post link the documented
-  GCP plan and the one-command local run.
+  GCP plan and the one-command local run. (Update 2026-10-18: no demo video will be published;
+  the post shows the demo with screenshots.)
 - Follow-ups: `README.md`, `docs/spec/requirements.md` (REQ-015), `docs/spec/tasks.md` (T-011,
   T-016 amendment notes), `docs/spec/design.md` (GCP section expanded), `scripts/eval_set.py`
   (stale doc reference), and `docs/adr/0007-hosted-demo-profile.md` (marked superseded) are

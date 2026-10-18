@@ -48,7 +48,7 @@ safety invariant in a self-hosted deployment.
 - G-3: Run open-weights Gemma 4 fully locally (Ollama) with zero egress of patient context,
   and document the self-hosted GCP reference architecture a hospital would deploy (not
   deployed in this version).
-- G-4: Submit a working, clinically reviewed local demo (open-source repo, demo video/GIF) and
+- G-4: Submit a working, clinically reviewed local demo (open-source repo, screenshots of the running demo; no video) and
   a DEV post to the DEV Hacktoberfest Open-Source AI Challenge, Week 2 ("Side Hustle" +
   "Best Use of Gemma"), by **Sun 2026-10-18 22:00 CEST**.
 
@@ -64,7 +64,7 @@ safety invariant in a self-hosted deployment.
 | Clinical review | Specialist finds no critical error in the rule table and the 3 cards | Review notes recorded in the repo; quote in the post |
 | Runs for others | A reader can start the demo locally with the README steps (Ollama + app) | Fresh-clone run-through before submission |
 | Cost | €0 cloud spend | No cloud resources created |
-| Delivery | Public repo + demo video/GIF + DEV post submitted before Sun 2026-10-18 22:00 CEST | Submission confirmation |
+| Delivery | Public repo + DEV post with demo screenshots submitted before Sun 2026-10-18 22:00 CEST | Submission confirmation |
 
 ## Scope
 ### In scope (this version)
@@ -77,6 +77,9 @@ safety invariant in a self-hosted deployment.
   proposed drug, chosen from a fixed list of about 15 drugs.
 - Layer 1: about 6 deterministic rules (renal cut-offs, NSAID + antiplatelet + coded ACS,
   NSAID + active GI bleed, exact-match allergy).
+- Past medical history (added 2026-10-18, REQ-016, ADR 0009): a coded history in the record
+  (previous GI bleed or ulcer, ischaemic heart disease) and past history read from the note,
+  checked by two NSAID rules (unreviewed until the specialist confirms them).
 - Layer 2: Gemma 4 E4B decision card under the escalate-only invariant. Alternatives come only
   from the rule table and are re-checked by Layer 1.
 - The rules card shows first and is then replaced by the final card (no streaming). One-click
@@ -88,8 +91,8 @@ safety invariant in a self-hosted deployment.
 - Infrastructure **documented, not implemented**, as the last piece of work: the GCP
   reference architecture (Cloud Run + L4 GPU, internal-only model ingress, zero egress, cost
   estimate) and a step-by-step deployment plan, in design.md and an ADR.
-- Tests for the invariant and the presets; latency/validity measurement; 60 s demo GIF/video;
-  DEV post.
+- Tests for the invariant and the presets; latency/validity measurement; DEV post with demo
+  screenshots (no demo video, decided 2026-10-18).
 
 ### Non-goals (explicitly out of scope)
 - Implementing GCP infrastructure: no cloud deployment, no hosted public demo URL, no

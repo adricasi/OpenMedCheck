@@ -39,8 +39,8 @@ MODEL_UNAVAILABLE_NOTE = "Model check unavailable — rules only"
 # AC-005.3: without the model the note was not read, so a clean rules verdict is not a pass.
 NOTE_UNCHECKED_HEADLINE = "Free-text note not checked"
 NOTE_UNCHECKED_RATIONALE = (
-    "The model check was unavailable, so the free-text note was not checked. The rules found no "
-    "conflict in the coded data; review the note before signing."
+    "The model check was unavailable, so the free text (ED note and past medical history) was not "
+    "checked. The rules found no conflict in the coded data; review it before signing."
 )
 # Conflicts the rules decide from coded data and kept note findings (AC-003.8, ADR 0006): the
 # model's own escalation with one of these counts only if a rule of that type fired.
@@ -53,8 +53,16 @@ RULE_DECIDED_CONFLICTS = frozenset(
         ConflictType.HYPERKALAEMIA,
         ConflictType.HEART_FAILURE,
         ConflictType.PREGNANCY,
+        ConflictType.PAST_GI_BLEED,
+        ConflictType.ISCHAEMIC_HEART_DISEASE,
     }
 )
+
+# Past-history conflicts (ADR 0009): a confirmed escalation counts only up to the status and tier
+# of the history rules, which are WARNING until the specialist decides. Not for the current
+# types: note lab values are never findings, so a model BLOCKED for "K 6.9" in the note would
+# otherwise drop to the missing-lab WARNING.
+CAPPED_CONFLICTS = frozenset({ConflictType.PAST_GI_BLEED, ConflictType.ISCHAEMIC_HEART_DISEASE})
 
 BLOCKED_HEADLINE = "Order conflicts with patient context"
 WARNING_HEADLINE = "Review this order before signing"
@@ -156,15 +164,37 @@ def _names_unshown_drug(model: ModelVerdict, card: DecisionCard, request: CheckR
 def _gate_rule_decided(
     model: ModelVerdict | None, verdict: RulesVerdict
 ) -> tuple[ModelVerdict | None, bool]:
-    """Drop the model's own escalation for a rule-decided conflict the rules did not confirm.
+    """Set aside or cap the model's own escalation for a rule-decided conflict (AC-003.8).
 
-    The rules floor is untouched: the combiner still never goes below ``verdict``. Only the
-    model's unsupported opinion is set aside ("ACS ruled out" read as ACS, prompt v5 eval).
+    Without a fired rule of the same type the escalation is dropped ("ACS ruled out" read as
+    ACS, prompt v5 eval); with one it counts, capped at that rule's status and tier for the
+    past-history types. The rules floor
+    is untouched: the combiner still never goes below ``verdict``. Returns the gated verdict and
+    whether anything was set aside.
     """
     if model is None or model.conflict_type not in RULE_DECIDED_CONFLICTS:
         return model, False
-    if any(rule.conflict_type is model.conflict_type for rule in verdict.fired_rules):
+    same_type = [
+        rule_table.RULES_BY_ID[rule.rule_id]
+        for rule in verdict.fired_rules
+        if rule.conflict_type is model.conflict_type
+    ]
+    if same_type and model.conflict_type not in CAPPED_CONFLICTS:
         return model, False
+    if same_type:
+        status = max((rule.status for rule in same_type), key=lambda item: item.rank)
+        tier = max((rule.risk_level for rule in same_type), key=lambda item: item.rank)
+        if model.status.rank <= status.rank and model.risk_level.rank <= tier.rank:
+            return model, False
+        capped = model.model_copy(
+            update={
+                "status": min((model.status, status), key=lambda item: item.rank),
+                "risk_level": min((model.risk_level, tier), key=lambda item: item.rank),
+                "headline": "",
+                "rationale": "",
+            }
+        )
+        return capped, True
     neutral = model.model_copy(
         update={
             "status": Status.NO_ISSUE,

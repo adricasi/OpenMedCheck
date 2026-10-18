@@ -54,9 +54,10 @@ flowchart LR
 | `rules_engine` | Applies all rules to a context + order → RulesVerdict; no I/O | Pure Python | REQ-002, AC-001.5, REQ-005 |
 | `prompt` | Versioned system prompt + per-request user message; note is delimited as untrusted data; card JSON schema built per request (alternative enum = allowed alternatives for this drug) | Python | REQ-003, AC-003.5 |
 | `model_client` | `ModelClient` protocol; `OllamaClient` (httpx, `/api/chat`, `format`=schema, temperature 0, timeout); `FakeModelClient` for tests | httpx | REQ-003, REQ-005, NFR-004 |
+| `note_findings` | Verifies the model's note findings (code valid for its kind, verbatim quote that names the code, not negated; history findings not denied and not a relative's), adds kept findings to the context and re-runs Layer 1 with quotes as evidence | Pure Python | AC-003.6, AC-003.7, AC-016.4 |
 | `combiner` | Pure escalate-only merge of RulesVerdict + ModelVerdict; text-source selection; flags union | Pure Python | REQ-004 |
 | `check_service` | Orchestrates rules → model (validate, retry once) → combine → alternative re-check → DecisionCard; timing; one log line | Python | REQ-001, REQ-003–005, NFR-007 |
-| `presets` | Synthetic presets A, B, C | Python data | REQ-006 |
+| `presets` | Synthetic presets A, B, C, K, L (rooms) and templates D–J | Python data | REQ-006 |
 | `web` | FastAPI app, routes, Jinja2 template, static CSS/JS, trusted-host and body-size middleware, model health/warm-up | FastAPI, Jinja2, uvicorn | REQ-007–011, REQ-014, NFR-001 |
 | `logging_setup` | JSON log formatter, allowlisted fields only | stdlib `logging` | NFR-002, NFR-007 |
 | `config` | Reads and validates environment variables | stdlib + explicit validation | AC-011.3 |
@@ -69,7 +70,11 @@ No persistence. All data is synthetic, in memory for one request only, classifie
 
 - **PatientContext**: `patient_id` (synthetic label), `age` (18–110), `sex` (`M`/`F`),
   `weight_kg` (30–250), `reason_for_consult` (≤ 200 chars), `ed_note` (free text, ≤ 2,000 chars),
+  `past_history` (the record's past medical history as free text, ≤ 2,000 chars, read by the
+  model as untrusted text; REQ-016),
   `diagnoses[]` (coded, from a small fixed list, e.g. `ACS`, `ACTIVE_GI_BLEED`),
+  `history[]` (coded past history from a record system's problem list: `PAST_GI_BLEED`,
+  `ISCHAEMIC_HEART_DISEASE`; REQ-016; not edited in the demo),
   `chronic_medications[]` (drug IDs from the drug list), `allergies[]` (active ingredient or
   class IDs), `labs`: `creatinine_mg_dl` (0.1–20, optional), `egfr_ml_min_1_73m2` (0–200,
   optional), `potassium_mmol_l` (1.5–9, optional), `platelets_per_ul` (1,000–2,000,000,
@@ -135,6 +140,11 @@ non-loopback host or Ollama URL unless set; AC-011.4).
 3. Build prompt (system prompt + context + order + rules verdict + allowed alternatives); call
    the model with the per-request schema; validate schema, then content (AC-003.5); retry once
    on invalid. One 10 s deadline covers both attempts; on expiry → fallback.
+3a. Note findings (ADR 0006, ADR 0009): `note_findings` keeps the verified findings (current
+   conditions, medications, allergies, past history), adds them to the context and re-runs
+   Layer 1; that verdict is the rules verdict from here on. Gate (AC-003.8): a model escalation
+   with a rule-decided conflict type is set aside unless a rule of that type fired; for the two
+   past-history types it is also capped at the status and tier of those rules.
 4. Combiner (pure):
    - status = max(rules, model); risk = max(rules, model); renal flag = rules OR model; if the
      renal flag is set, status = max(status, `WARNING`).
@@ -575,6 +585,7 @@ Each AC is referenced in the test name or docstring (e.g. `test_ac_004_3_rules_b
 | D-5 | Two API calls for the progressive card (no streaming) | this document |
 | D-6 | Rule table as a typed Python module, rendered to Markdown for review | this document |
 | D-7 | Dropped the opt-in hosted demo (Render + DigitalOcean); the GCP plan above is the only documented non-local deployment target | docs/adr/0008-drop-opt-in-hosted-demo.md |
+| D-8 | Past medical history is an input: a coded `history` field, two NSAID rules keyed on it, and past history read from the note as history findings (never as current conditions) | docs/adr/0009-patient-history-is-an-input.md |
 
 ## Traceability
 | Requirement | Design section(s) |
@@ -594,6 +605,7 @@ Each AC is referenced in the test name or docstring (e.g. `test_ac_004_3_rules_b
 | REQ-013 | GCP reference architecture; Deployment plan; ADR 0005 |
 | REQ-014 | Interfaces (`/api/model/warmup`, health) |
 | REQ-015 | Security design (non-local opt-in); GCP reference architecture (reuses the same opt-in); ADR 0008 |
+| REQ-016 | Data model (`history`); Components (`rule_table`, `note_findings`, `prompt`); ADR 0009 |
 | NFR-001 | Security design (network exposure, output encoding, supply chain) |
 | NFR-002 | Data model (classification); Security (data protection) |
 | NFR-003 | Reliability (failure modes) |

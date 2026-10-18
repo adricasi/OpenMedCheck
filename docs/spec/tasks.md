@@ -148,6 +148,28 @@ pytest --cov` pass and CI is green, unless stated otherwise.
 - [x] T-017: Clinician contribution guide and English-only names
   - Scope: CONTRIBUTING.md (propose a rule with a source, review marks, evaluation set as the
     regression guard, contributing synthetic cases); English for all technical names and text.
+- [~] T-018: Past medical history in the record
+  - Requirements: REQ-016 (AC-016.1 to AC-016.3, AC-016.5), REQ-004, NFR-011
+  - Depends on: T-006
+  - Scope: `PatientContext.history`; `ContextRule.history`; rules `NSAID_HISTORY_GI_BLEED` and
+    `NSAID_HISTORY_ISCHAEMIC_HEART_DISEASE` (WARNING, unreviewed) with their own conflict types
+    and unreviewed paracetamol alternatives; the AC-003.8 gate caps a confirmed model escalation
+    for the history types at the rules' level; the recorded history in the
+    model's user message (prompt v8); "Past medical history" in the UI; templates J and K;
+    review sheet; evaluation cases; AC-named and property tests. ADR 0009.
+  - Done when: tests pass with the rules engine at 100% coverage; reviews of the escalate-only
+    invariant and the clinical wording find no blocking issue.
+- [~] T-019: Past history read from the note
+  - Requirements: REQ-016 (AC-016.4 to AC-016.7), AC-003.6, AC-006.5
+  - Depends on: T-018
+  - Scope: `FindingKind.HISTORY`; the `note_history` question and schema (prompt v8); history
+    findings kept unless denied or about a relative; evaluation set updated (`gi-past`,
+    `acs-past-history` now WARNING; denied and family history silent).
+  - Note (2026-10-18): predefined room Bed 15 (preset L, AC-016.6): a past GI bleed buried in a
+    long past-history list in the note; past-history labels drop current-condition findings
+    (AC-016.7).
+  - Done when: tests pass; the model evaluation has run prompt v8 on the real model (human,
+    GPU) and the result is recorded in `docs/measurements/`; merge only after that.
 - [x] T-008: Hardening: local exposure, XSS, wording, concurrency
   - Requirements: NFR-001, NFR-005, NFR-008, REQ-010 (AC-010.2)
   - Depends on: T-007
@@ -192,18 +214,20 @@ pytest --cov` pass and CI is green, unless stated otherwise.
     module file tree, and a command-level step list; added a standalone walkthrough,
     `docs/deploy/gcp-reference-architecture.md`. Still not implemented; `git diff --stat main --
     infra/` stays empty.
-- [~] T-012: Demo video and DEV post
+- [~] T-012: DEV post with demo screenshots (demo video dropped 2026-10-18)
   - Requirements: G-4 (supports REQ-006, REQ-010)
   - Depends on: T-010 (T-011 for the architecture section)
-  - Scope: 60 s demo GIF/video of presets A → alternative, B, C, and the model-down fallback;
+  - Scope: demo screenshots of presets A → alternative, B, C, and the model-down fallback;
     DEV post draft (problem with sourced figures, the escalate-only invariant, preset A as the
     Gemma case, measured numbers, specialist quote, local zero-egress run, documented GCP
     plan, disclaimers); check the challenge rules for hosted-demo requirements (Q-6).
-  - Note (2026-10-18): open the video on preset A (rules alone = `NO_ISSUE`, Gemma reads the
+  - Note (2026-10-18): lead the demo with preset A (rules alone = `NO_ISSUE`, Gemma reads the
     note = `BLOCKED`) rather than on the UI tour — that one case is the clearest, fastest way to
     show why Layer 2 exists, and the post draft's "76 synthetic cases" section backs it with the
     aggregate 72%→97% figure. Gemma's role is the headline, not a footnote after the rules.
-  - Done when: video is linked from the README; the post draft passes the wording rules
+  - Note (2026-10-18): the demo video and its tooling were removed on the owner's decision; the
+    post shows the demo with screenshots instead.
+  - Done when: the post shows the demo with screenshots; the post draft passes the wording rules
     (REQ-010); Q-6 answered; the user publishes and submits before Sun 22:00 CEST (human step).
 
 ## Coverage check
@@ -224,6 +248,7 @@ pytest --cov` pass and CI is green, unless stated otherwise.
 | REQ-013 (Should) | T-011 |
 | REQ-014 (Could) | T-007 (optional) |
 | REQ-015 (Should) | T-016 |
+| REQ-016 (Should) | T-018, T-019 |
 | NFR-001, NFR-005, NFR-008 | T-008 |
 | NFR-002, NFR-003, NFR-007 | T-005 |
 | NFR-004, NFR-012 | T-001, T-009 |
