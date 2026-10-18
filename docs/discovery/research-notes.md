@@ -52,7 +52,17 @@ Most findings come from search summaries rather than full-text reads.
 | Quirónsalud — Casiopea | Not found |
 
 ## Market signals
-### Alert fatigue (the problem)
+### Update 2026-10-18: recent evidence (use these; the entries below are older)
+- Systematic review, 2025, drug-drug interaction alerts: no significant improvement in
+  patient-important outcomes; overrides common because alerts are generic or irrelevant to the
+  patient. https://pmc.ncbi.nlm.nih.gov/articles/PMC12451929/
+- Systematic review, 2026, alert fatigue measurement: only one article defined alert fatigue;
+  the most common metrics were alert quantity, override rate and acceptance rate. https://pmc.ncbi.nlm.nih.gov/articles/PMC13385993/
+- Prospective study, JMIR 2025 (MedGuard): alerts with embedded diagnostic recommendations on
+  about 2.3% of prescriptions; about 57% of recommendations accepted. https://www.jmir.org/2025/1/e70731
+- Not yet checked in full text; read from abstracts and summaries.
+
+### Alert fatigue (the problem; older sources, superseded by the update above)
 - van der Sijs et al., JAMIA 2006 (17 papers): drug safety alerts overridden in 49–96% of cases;
   some overrides justified. https://pmc.ncbi.nlm.nih.gov/articles/PMC1447540
 - JMIR Med Inform 2020 systematic review (23 articles): overrides 46.2–96.2%; appropriate

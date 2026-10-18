@@ -24,9 +24,18 @@ The EHR prescribing modules (Diraya, Orion Clinic, IANUS, HCIS/Selene, ECAP…) 
 against drug databases (e.g. Bot PLUS). Those checks are mostly drug-pair tables that ignore
 labs and acuity. They show SmPC text instead of an alternative, and they can't see the ED's
 free-text impression ("suspected ACS"), because coded diagnoses only arrive with the
-discharge report. Clinicians override half to over 90% of medication alerts, depending on
-alert type and setting (49–96%, van der Sijs 2006; 46–96%, JMIR 2020; 64% in one ED, Yoo
-2020). The alert that matters gets lost in the noise. Lab-aware commercial products exist
+discharge report. Recent evidence (read 2026-10-18) points at the alerts themselves:
+- Drug-interaction alerts are often overridden because they are generic or not relevant
+  to the patient, and a systematic review of drug-drug interaction alerts found no significant
+  improvement in patient-important outcomes (systematic review, 2025: https://pmc.ncbi.nlm.nih.gov/articles/PMC12451929/).
+- Fewer alerts with a concrete recommendation can be acted on: in one study, a medication-alert
+  system that fired on about 2% of prescriptions saw about 57% of its embedded recommendations
+  accepted (no comparison group) (prospective study, JMIR 2025: https://www.jmir.org/2025/1/e70731).
+- "Alert fatigue" is rarely defined; studies mostly count overrides (systematic review, 2026:
+  https://pmc.ncbi.nlm.nih.gov/articles/PMC13385993/). This project therefore does not claim to reduce alert fatigue; a pilot measures alert
+  rate and acceptance instead (see "Pilot metrics").
+
+The gap is alerts without the patient's context. Lab-aware commercial products exist
 (FDB Targeted Medication Warnings, Sentri7). What none of them do is read the free-text ED
 note at order time, answer with a concrete alternative and offer a verifiable escalate-only
 safety invariant in a self-hosted deployment.
@@ -48,7 +57,7 @@ safety invariant in a self-hosted deployment.
 - G-3: Run open-weights Gemma 4 fully locally (Ollama) with zero egress of patient context,
   and document the self-hosted GCP reference architecture a hospital would deploy (not
   deployed in this version).
-- G-4: Submit a working, clinically reviewed local demo (open-source repo, screenshots of the running demo; no video) and
+- G-4: Submit a working, clinically reviewed local demo (open-source repo, demo video and screenshots) and
   a DEV post to the DEV Hacktoberfest Open-Source AI Challenge, Week 2 ("Side Hustle" +
   "Best Use of Gemma"), by **Sun 2026-10-18 22:00 CEST**.
 
@@ -64,7 +73,19 @@ safety invariant in a self-hosted deployment.
 | Clinical review | Specialist finds no critical error in the rule table and the 3 cards | Review notes recorded in the repo; quote in the post |
 | Runs for others | A reader can start the demo locally with the README steps (Ollama + app) | Fresh-clone run-through before submission |
 | Cost | €0 cloud spend | No cloud resources created |
-| Delivery | Public repo + DEV post with demo screenshots submitted before Sun 2026-10-18 22:00 CEST | Submission confirmation |
+| Delivery | Public repo + demo video + DEV post submitted before Sun 2026-10-18 22:00 CEST | Submission confirmation |
+
+### Pilot metrics (defined before a pilot; not measured in v0.1)
+Defined up front because the literature rarely defines alert fatigue (systematic review, 2026).
+None of these needs patient data: they are counts per check and per card action.
+
+| Metric | Definition |
+|---|---|
+| Alert rate | Share of checked orders that end in `WARNING` or `BLOCKED` |
+| Acceptance rate | Share of alert cards where the prescriber chose "Use alternative" |
+| Acknowledged orders | Share of alert cards where the prescriber chose "Acknowledge and keep order", with the reason given (see the proposal in tasks.md) |
+| Override appropriateness | Share of acknowledged orders a pharmacist judges appropriate, on a sample |
+| Patient outcomes | Adverse drug events in the pilot population, against the period before (long term; v0.1 makes no outcome claim) |
 
 ## Scope
 ### In scope (this version)
@@ -91,8 +112,8 @@ safety invariant in a self-hosted deployment.
 - Infrastructure **documented, not implemented**, as the last piece of work: the GCP
   reference architecture (Cloud Run + L4 GPU, internal-only model ingress, zero egress, cost
   estimate) and a step-by-step deployment plan, in design.md and an ADR.
-- Tests for the invariant and the presets; latency/validity measurement; DEV post with demo
-  screenshots (no demo video, decided 2026-10-18).
+- Tests for the invariant and the presets; latency/validity measurement; DEV post; a demo video
+  on Bed 3 and Bed 5 (dropped and then reinstated by the owner on 2026-10-18).
 
 ### Non-goals (explicitly out of scope)
 - Implementing GCP infrastructure: no cloud deployment, no hosted public demo URL, no

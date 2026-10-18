@@ -89,6 +89,20 @@ with CDS Hooks) is not implemented in v0.1 and is out of scope for this version 
 
 ## 🧠 How it works
 
+**In plain words:** three parts, each with one job.
+
+1. **Gemma reads.** The local AI model reads the free text (today's note, the past medical
+   history) and reports the facts it finds, each with the exact words as proof ("Suspected ACS").
+2. **Code checks.** A plain program, no AI, checks every fact: are those exact words really in the
+   text, do they say what Gemma claims, are they denied ("ACS ruled out"), a relative's ("Father
+   had an MI") or an old event? Anything that fails is dropped.
+3. **Rules decide.** A fixed table of if-then rules, written by people from drug labels and
+   guidelines, some thresholds as stated project policy (for example: anti-inflammatory + suspected ACS + aspirin → `BLOCKED`), makes the
+   decision on the record plus the checked facts. Same facts, same answer, every time.
+
+**The full explanation, with worked examples and screenshots, is in
+[docs/how-it-works.md](docs/how-it-works.md).** The technical summary:
+
 **Gemma reads, the rules decide** ([ADR
 0006](docs/adr/0006-model-extracts-note-findings-rules-decide.md)), and nothing the model says can
 lower a verdict (**escalate-only**, [ADR 0003](docs/adr/0003-escalate-only-two-layer-engine.md)):
@@ -157,7 +171,10 @@ against the note, the exact model pinned and re-tested), no per-call fee, and no
 
 **Who would pay.** Not the ED doctor, but whoever owns medication safety: hospital pharmacy,
 medication-safety and clinical-informatics teams, who carry the cost of medication errors (WHO
-estimates about US$42 billion a year, *Medication Without Harm*) and of alert fatigue; and EHR or
+estimates about US$42 billion a year, *Medication Without Harm*) and of alerts that do not work:
+drug-interaction alerts are often overridden because they are generic, and have shown no
+significant improvement in patient outcomes
+([systematic review, 2025](https://pmc.ncbi.nlm.nih.gov/articles/PMC12451929/)); and EHR or
 clinical-decision-support vendors, who could embed an open, inspectable, escalate-only component.
 The lab-aware products we looked at (FDB Targeted Medication Warnings, Sentri7) do not, as far as we
 found, read the ED note at order time, and many hospitals will not send their notes to a hosted
@@ -181,6 +198,8 @@ figures.
 OpenMedCheck is built to **run on-premises inside the hospital**, so patient context never leaves
 the building. There is no hosted demo: v0.1 ships local-only
 ([ADR 0008](docs/adr/0008-drop-opt-in-hosted-demo.md)).
+
+**Demo video:** [to be added after the live recording on the GPU — T-012, `scripts/demo_video/`].
 
 | Run it | Command | Details |
 |---|---|---|

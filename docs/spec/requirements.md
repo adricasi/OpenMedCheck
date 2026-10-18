@@ -139,7 +139,8 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
     plus the kept findings (added to diagnoses, chronic medication and allergies; nothing is
     removed), use that verdict as the rules verdict for the combiner and the alternative
     re-check, and show on the card, under each rule that fired only because of a finding, the
-    supporting quote labelled "From the clinician's note". Quotes are not subject to AC-003.5:
+    supporting quote labelled "From the clinician's note" (or "From the past medical history" when
+    the quote is from the past medical history text). Quotes are not subject to AC-003.5:
     they can only repeat the clinician's own text (accepted risk, ADR 0006).
   - AC-003.8: IF the model's own verdict escalates with a conflict type the rules decide
     (`ANTIPLATELET_ACS`, `GI_BLEED`, `ALLERGY`, `BLEEDING`, `HYPERKALAEMIA`, `HEART_FAILURE`,

@@ -1,0 +1,67 @@
+{
+  "comment": "Demo video (T-012), under 2 minutes. Each scene is a slide from slides.html or a cut of the app recording between two marks written by record_app.py. Narration is spoken as written: spell out abbreviations that should not be read as words.",
+  "voice": "af_heart",
+  "speed": 1.1,
+  "scenes": [
+    {
+      "id": "intro",
+      "slide": "intro",
+      "narration": "This is Open Med Check: an open-source prescribing check for emergency doctors that reads the note and the patient's history."
+    },
+    {
+      "id": "problem",
+      "slide": "problem",
+      "narration": "Emergency orders are written under pressure, and the key fact is often only in free text: today's note, or one line in a long history. Today's alerts mostly check drug pairs: a 2025 review of drug-interaction alerts found them often overridden, with no significant improvement in patient outcomes."
+    },
+    {
+      "id": "bed3-open",
+      "clip": [
+        "start",
+        "verify3"
+      ],
+      "narration": "Bed three: chest pain, and daily aspirin in the record. A suspected acute coronary syndrome is written only in today's note. The doctor orders dexketoprofen, an anti-inflammatory."
+    },
+    {
+      "id": "bed3-verdict",
+      "clip": [
+        "verify3",
+        "alternative"
+      ],
+      "narration": "Gemma 4 reads the note and quotes it. Code checks the quote word for word, and a specialist-reviewed rule, from the drug label and a cardiology statement, decides: blocked, with the doctor's own words as evidence."
+    },
+    {
+      "id": "bed3-alternative",
+      "clip": [
+        "alternative",
+        "room5"
+      ],
+      "narration": "Accepting the suggestion changes the prescription to paracetamol, and the rules check it again: no issue found by these checks."
+    },
+    {
+      "id": "bed5-open",
+      "clip": [
+        "room5",
+        "verify5"
+      ],
+      "narration": "Bed five: a wrist sprain and ibuprofen. One line in his long past medical history matters: an upper G I bleed from a duodenal ulcer."
+    },
+    {
+      "id": "bed5-verdict",
+      "clip": [
+        "verify5",
+        "end"
+      ],
+      "narration": "Gemma finds that line, code checks it, and a new rule, not yet specialist-reviewed, raises a warning, so the suggested paracetamol shows no dose. The prescriber still decides."
+    },
+    {
+      "id": "open",
+      "slide": "open",
+      "narration": "Gemma's weights are open, so it can run on the hospital's own hardware and the note never leaves the building. We think the buyer is the medication-safety team, paying for a maintained rule table, integration and support: a hypothesis still to test."
+    },
+    {
+      "id": "end",
+      "slide": "end",
+      "narration": "Open Med Check is a demonstrator on synthetic patients: not for clinical use, and not a medical device. Next, we're looking for a clinical pilot. It's open source, on GitHub."
+    }
+  ]
+}
