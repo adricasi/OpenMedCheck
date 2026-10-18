@@ -242,9 +242,9 @@ flowchart LR
   (SQLi/XSS) in preview mode first.
   Probes: do **not** probe `/api/model/health` (it reports the model state, and `web` must stay
   up, rules-only, when the model is down, REQ-005). Use a TCP startup probe (the Cloud Run
-  default); add an HTTP liveness probe on `GET /` only after confirming which `Host` header the
-  probe sends, because `TrustedHostMiddleware` would answer 400 to an unexpected one (see the
-  trusted-hosts row below).
+  default) and an HTTP liveness probe on `GET /healthz`: it is process health only, and it is
+  exempt from the trusted-host check (`web.py`), so a probe's internal `Host` header does not get
+  a 400.
 - **gemma**: Cloud Run service with 1 NVIDIA L4, Ollama with the model weights baked into the
   image (no download at start), `OLLAMA_HOST=0.0.0.0:<container port>` so Ollama listens on the
   Cloud Run port instead of its loopback default, ingress `internal`, invoker role granted only
@@ -351,7 +351,7 @@ zone that makes this work):
 | Priority | Direction | Action | Target | Match | Purpose |
 |---|---|---|---|---|---|
 | 900 | Egress | Allow | `web`, `gemma` (via Direct VPC egress) | tcp:443 to `199.36.153.8/30` (`private.googleapis.com`), or `199.36.153.4/30` (`restricted.googleapis.com`) once VPC Service Controls is on | The only outbound path: Cloud Run's own API and (for `web`) the `gemma` service |
-| 65534 (default) | Egress | Deny | all | `0.0.0.0/0` | Everything else outbound is blocked — this is the "zero egress" enforcement point |
+| 65534 | Egress | Deny | all | `0.0.0.0/0` | Everything else outbound is blocked — this is the "zero egress" enforcement point. Must be created explicitly: a VPC's implied egress rule is *allow* all (priority 65535) |
 | *(none — ingress is Cloud Run's own, not a VPC firewall)* | Ingress | — | `web` | Only the load balancer's serverless NEG, enforced by `roles/run.invoker` above, not a firewall rule | Cloud Run ingress control, not VPC firewall |
 | *(none)* | Ingress | — | `gemma` | `ingress: internal` (Cloud Run setting) + invoker role on `web-sa` only | `gemma` has no path from the internet at all |
 
@@ -360,9 +360,13 @@ no "allow from VPC" ingress rule, because Cloud Run's `internal` ingress setting
 IAM binding together provide an access control that a firewall rule alone could not.
 
 ### Monitoring, alerting and operations (not implemented)
-- **Uptime check:** HTTPS check on the load balancer's public URL, path `/`. Not
-  `/api/model/health` or `/api/check` (the trusted-host and body-size behaviour would 400/413 a
-  generic prober; `/` is the UI shell and always 200 when `web` is up, model or no model).
+- **Uptime check:** path `/healthz` (process health, exempt from the trusted-host check), not
+  `/api/model/health` (model state; `web` must stay up when the model is down) or `/api/check`.
+  Caveat: the load balancer sits behind IAP and a Cloud Armor allowlist of hospital IP ranges,
+  so an external uptime checker is blocked by both unless its source ranges are allowed in Cloud
+  Armor and it can pass IAP; whether Cloud Monitoring's checker can authenticate through IAP is
+  not verified here. The simpler path is to alert on Cloud Run's own request and instance
+  metrics for `web` and keep the external check optional.
 - **Alerting policies:** (a) `web` 5xx rate > 1% over 5 minutes; (b) `gemma` revision fails to
   become ready; (c) billing budget 50/90/100% (already in the resource inventory); (d) Cloud
   Armor policy denies spike (possible probing). Notification channel: the same place the repo's
@@ -476,9 +480,11 @@ with it.
    - `web` calling `gemma` over the VPC with an ID token succeeds; the same call without a
      token, or from outside `web-sa`'s identity, is refused (403).
    - Both revisions report ready in `gcloud run services describe`.
-   - Neither service can reach an external host: from inside each container, a request to a
-     public IP outside the Google API range times out or is refused (the firewall in "Firewall
-     rules" above enforces this; confirm it was not accidentally widened).
+   - Neither service can reach an external host. Cloud Run has no shell into a running
+     container, so test it with a short-lived Cloud Run job (or a throwaway test revision) on the
+     same subnet and network tags that tries a request to a public IP outside the Google API
+     range: it must time out or be refused (the firewall in "Firewall rules" above enforces this;
+     confirm it was not accidentally widened). Delete the job afterwards.
    - A request to the load balancer with an unexpected `Host` header is rejected (400), per the
      trusted-hosts code change in step 2.
    - A Google account outside the clinician group gets 403 from IAP; the `run.app` URL called
@@ -497,8 +503,12 @@ with it.
    infrastructure change, `terraform plan` the revert and apply it the same way as step 5 — both
    services are stateless, and `prevent_destroy` protects the static IP and the versioned GCS
    state bucket from an accidental `destroy`. To stop GPU spend immediately without a rollback,
-   set `gemma`'s `max-instances` to 0 or delete the service; `web` alone then serves rules-only
-   cards for every check (REQ-005), it does not go down.
+   remove `web-sa`'s `roles/run.invoker` binding on `gemma` (through Terraform, reviewed like any
+   change) or delete the `gemma` service: `web` then gets 403/unreachable from the model and serves
+   rules-only cards for every check (REQ-005); it does not go down. **Do not set
+   `max-instances` to 0**: in Cloud Run that removes the service-level cap (up to the default
+   limit), the opposite of stopping it. With `min-instances=0` an idle `gemma` already costs
+   nothing; spend only happens while it is being called.
 8. **Teardown (when the deployment is no longer needed):** `terraform plan -destroy` reviewed
    the same way as step 5, then a human-run `terraform destroy`; separately remove the budget
    and confirm in Billing that no charges continue. Only a human runs `destroy`.

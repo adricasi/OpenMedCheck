@@ -137,7 +137,7 @@ environment is live if any of them fails.
 | 2 | `web` calling `gemma` with its ID token (through the app's own health/warm-up path) | Succeeds |
 | 3 | The same call with no token, or from an identity that isn't `web-sa` | 403 |
 | 4 | `gcloud run services describe web/gemma --region=europe-west1` | Both report the new revision `Ready` |
-| 5 | From inside either container, a request to a public IP outside the Google API range | Times out or is refused |
+| 5 | A short-lived Cloud Run job on the same subnet and network tags (Cloud Run has no shell into a running container) requests a public IP outside the Google API range; delete the job afterwards | Times out or is refused |
 | 6 | A request to the load balancer with an unexpected `Host` header | 400 |
 | 7 | A Google account outside the clinician group, through IAP | 403 |
 | 8 | The `gemma` `run.app` URL called directly, no token | 403 |
@@ -158,11 +158,16 @@ state bucket stops an accidental `destroy` from taking the public address or the
 with it.
 
 ### Stop GPU spend immediately (no rollback needed)
+With `min-instances=0`, an idle `gemma` already costs nothing; spend only happens while it is
+being called. To stop it being called at all, take away `web-sa`'s permission to invoke it:
+remove the `roles/run.invoker` binding for `web-sa` on `gemma` in the `iam` module, then plan
+and apply it as in step 4 (HUMAN ONLY). Or, for an emergency, delete the `gemma` service:
 ```bash
-gcloud run services update gemma --region=europe-west1 --max-instances=0   # HUMAN ONLY
+gcloud run services delete gemma --region=europe-west1   # HUMAN ONLY
 ```
-`web` keeps serving — every check falls back to a rules-only card (REQ-005); the app does not go
-down.
+Either way `web` keeps serving: every check falls back to a rules-only card (REQ-005), and the
+app does not go down. **Do not use `--max-instances=0`**: in Cloud Run, 0 removes the
+service-level instance cap (up to the default limit); it does not stop the service.
 
 ### Teardown
 ```bash

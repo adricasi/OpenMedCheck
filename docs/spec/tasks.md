@@ -199,6 +199,10 @@ pytest --cov` pass and CI is green, unless stated otherwise.
     DEV post draft (problem with sourced figures, the escalate-only invariant, preset A as the
     Gemma case, measured numbers, specialist quote, local zero-egress run, documented GCP
     plan, disclaimers); check the challenge rules for hosted-demo requirements (Q-6).
+  - Note (2026-10-18): open the video on preset A (rules alone = `NO_ISSUE`, Gemma reads the
+    note = `BLOCKED`) rather than on the UI tour — that one case is the clearest, fastest way to
+    show why Layer 2 exists, and the post draft's "76 synthetic cases" section backs it with the
+    aggregate 72%→97% figure. Gemma's role is the headline, not a footnote after the rules.
   - Done when: video is linked from the README; the post draft passes the wording rules
     (REQ-010); Q-6 answered; the user publishes and submits before Sun 22:00 CEST (human step).
 
