@@ -105,14 +105,23 @@
 
   /* end */
   .url { font-family: "AHM"; font-size: 44px; color: #7fc7c3; margin-top: 40px; }
+  .corner { position: absolute; top: 56px; right: 140px; display: flex; align-items: center; gap: 14px;
+            font-size: 28px; font-weight: 700; color: var(--teal); }
+  .corner .mark { width: 48px; height: 48px; border: 2px solid var(--teal); border-radius: 5px; display: grid;
+                  place-items: center; font-family: "AHM"; font-size: 20px; }
+  .roadmap { display: flex; align-items: center; gap: 18px; margin-top: 56px; font-size: 30px; }
+  .roadmap .now { background: #2b4152; border: 2px solid #7fc7c3; border-radius: 8px; padding: 16px 26px; }
+  .roadmap .next { border: 2px dashed #5d7586; border-radius: 8px; padding: 16px 26px; color: #c9d3da; }
+  .roadmap .to { color: #7fc7c3; font-size: 40px; }
 </style>
 </head>
 <body>
 
-<section class="slide dark" id="title">
+<section class="slide dark" id="solution">
+  <div class="kicker">The solution</div>
   <div class="logo"><div class="mark">OM</div><div class="name">OpenMedCheck</div></div>
   <h1>The prescribing check<br>that reads the doctor's note</h1>
-  <div class="chips"><span class="chip">Gemma 4 · open weights</span><span class="chip">Built to run on a hospital's own hardware</span><span class="chip">Open source</span></div>
+  <div class="chips"><span class="chip">Gemma 4 · open weights</span><span class="chip">Can run on a hospital's own hardware</span><span class="chip">Open source</span></div>
   <svg class="ecg" viewBox="0 0 1920 160" preserveAspectRatio="none" aria-hidden="true">
     <polyline fill="none" stroke="#c94b4b" stroke-width="4" points="0,100 520,100 560,100 590,40 620,150 650,20 690,120 720,100 1100,100 1140,100 1170,40 1200,150 1230,20 1270,120 1300,100 1920,100"/>
   </svg>
@@ -120,13 +129,14 @@
 </section>
 
 <section class="slide" id="problem">
+  <div class="corner"><div class="mark">OM</div>OpenMedCheck</div>
   <div class="kicker">The problem</div>
   <h2>Drug-pair checks don't read<br>the free-text note</h2>
   <div class="stats">
     <div class="stat"><div class="big">49–96%</div><div class="what">of medication alerts are overridden by clinicians, depending on alert type and setting</div></div>
     <div class="stat"><div class="big">$42 bn</div><div class="what">estimated yearly global cost of medication errors, almost 1% of health spending</div></div>
   </div>
-  <div class="src">Sources: van der Sijs et al. 2006; JMIR 2020; Yoo et al. 2020; WHO, Medication Without Harm, 2017.</div>
+  <div class="src">Free-text gap: in the prescribing checks we reviewed. Sources: van der Sijs et al. 2006; JMIR 2020; Yoo et al. 2020; WHO, Medication Without Harm, 2017.</div>
   <div class="banner">Not for clinical use — synthetic patients. Not a medical device.</div>
 </section>
 
@@ -202,7 +212,7 @@
   <div class="logo"><div class="mark">OM</div><div class="name">OpenMedCheck</div></div>
   <h1>Gemma reads the note.<br>The rules decide.</h1>
   <div class="url">github.com/adricasi/OpenMedCheck</div>
-  <div class="chips"><span class="chip">Apache-2.0</span><span class="chip">Gemma 4 E4B via Ollama</span><span class="chip">Synthetic patients only</span></div>
+  <div class="roadmap"><span class="now">Today: open demonstrator, synthetic patients</span><span class="to">→</span><span class="next">Next: clinical pilot with a hospital pharmacy</span><span class="to">→</span><span class="next">Later: clinical validation, then CE marking</span></div>
   <div class="banner">Not for clinical use — synthetic patients. Not a medical device.</div>
 </section>
 
