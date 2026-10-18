@@ -15,13 +15,13 @@ locally, can only escalate.
 
 [Quick start](#-quick-start) ·
 [How it works](#-how-it-works) ·
-[Configuration](#️-configuration) ·
+[Configuration](#-configuration) ·
 [Architecture](#-architecture--deployment) ·
 [Contributing](#-contributing)
 
 </div>
 
-## ⚠️ Disclaimer
+## 🚨 Disclaimer
 
 > **Not for clinical use — synthetic patients. Not a medical device.** OpenMedCheck is a concept
 > demonstrator built for the DEV Hacktoberfest Open-Source AI Challenge. It works on synthetic
@@ -34,7 +34,7 @@ locally, can only escalate.
 - [Try it](#-try-it)
 - [Quick start](#-quick-start)
 - [Using the demo](#using-the-demo)
-- [Configuration](#️-configuration)
+- [Configuration](#-configuration)
 - [Tests and checks](#-tests-and-checks)
 - [Evaluation set](#-evaluation-set)
 - [Measurements](#-measurements)
@@ -65,15 +65,19 @@ with CDS Hooks) is not implemented in v0.1 and is out of scope for this version 
 
 ## 🧠 How it works
 
-Two layers, and the second can only make the first stricter (**escalate-only**):
+**Gemma reads, the rules decide** ([ADR 0006](docs/adr/0006-model-extracts-note-findings-rules-decide.md)),
+and nothing the model says can lower a verdict (**escalate-only**,
+[ADR 0003](docs/adr/0003-escalate-only-two-layer-engine.md)):
 
 ```mermaid
 flowchart LR
-    O["Order + patient context<br/>(labs, diagnoses, meds, allergies, note)"] --> R
-    R["Layer 1 — rules engine<br/>(deterministic, cites a source,<br/>sets the floor)"] --> C
-    O -. free-text note .-> M
-    M["Layer 2 — Gemma 4 E4B<br/>(reads the note, can only<br/>raise status/risk, never lower)"] --> C
-    C["Combiner (pure)<br/>status = max(rules, model)"] --> D["Decision card<br/>NO_ISSUE / WARNING / BLOCKED"]
+    O["Order + patient record<br/>(labs, coded diagnoses, meds,<br/>allergies, free-text ED note)"] --> G
+    G["Gemma 4 E4B (local)<br/>reads the note, extracts findings<br/>with verbatim quotes"] -- findings + quotes --> V
+    V["Verifier (code)<br/>quote must appear word for word,<br/>negation checked"] -- kept findings --> R
+    O --> R["Layer 1 — rules<br/>coded record + kept findings<br/>(deterministic, cited, reviewed)"]
+    R --> C["Combiner (pure)<br/>never below the rules"]
+    G -. own verdict, escalate-only .-> C
+    C --> D["Decision card<br/>quotes shown as evidence"]
 ```
 
 1. **Layer 1, deterministic rules.** A rule table in code (every entry cites a source and carries
@@ -82,20 +86,29 @@ flowchart LR
    against labs, allergies and listed diagnoses. It sets the floor: the final status is never
    below the rules' status, and a rules `BLOCKED` is final. The renal flag cannot be cleared, and
    the reasons of every fired rule always appear on the card.
-2. **Layer 2, Gemma 4 E4B.** The local model reads the free-text ED note and can raise the status
-   or risk tier. It can never lower a verdict. Alternatives are suggested by name only, drawn
-   from the drug list; doses come only from the rule table (never from the model), and until a
-   specialist has signed off an entry the card shows "Dose: consult SmPC" instead of a number.
-   Every alternative is re-checked by Layer 1 before it is shown, and "Use alternative" in the UI
-   sends the changed order through the full check again.
+2. **Layer 2, Gemma 4 E4B.** The local model reads the free-text ED note and extracts the
+   conditions, medications and allergies it mentions (for example "Suspected ACS … on daily
+   aspirin"), each with a verbatim quote. Code keeps a finding only if its code is valid, the
+   quote appears word for word (ignoring case and spacing) in the note or reason for consult and
+   names what it is coded as, and it is not negated ("ACS ruled out"). The rules then re-run on
+   the coded record plus the kept findings, so the reviewed allergy, diagnosis and
+   home-medication rules also apply to what is only written in free text (lab-based rules use
+   the record's labs only), and the card shows the doctor's own words as evidence. Gemma's own
+   verdict is a second, escalate-only signal; for the conflict types the rules decide, it counts
+   only if a rule of that type fired. It can never lower a verdict. Alternatives are suggested by name only, drawn from the drug list;
+   doses come only from the rule table (never from the model), and until a specialist has signed
+   off an entry the card shows "Dose: consult SmPC" instead of a number. Every alternative is
+   re-checked by Layer 1 before it is shown, and "Use alternative" in the UI sends the changed
+   order through the full check again.
 
 If the model times out, is unreachable, or returns invalid output twice, the app returns the
 rules-only card instead of an error. See [design.md](docs/spec/design.md) for the details.
 
 > **Why Layer 2 isn't a footnote:** on the 76-case evaluation set below, rules alone match the
-> expected outcome on 72% of cases and miss half of everything that's only in the free-text note
-> (21/42). Reading that note is Gemma's job, not the rules': adding it lifts the match rate to
-> **97%** and the misses to **1/42**. Preset A — a suspected ACS visible only in the note — is
+> expected outcome on 72% of cases and miss every case where the conflict is only in the
+> free-text note: 21 of the 42 cases that should be flagged. Reading that note is Gemma's job,
+> not the rules': adding it lifts the match rate to **97%** and cuts misses to **1/42**, with no
+> false alarm on the 34 cases that should stay silent. Preset A — a suspected ACS visible only in the note — is
 > `NO_ISSUE` from rules alone and `BLOCKED` only once Gemma reads it. Full numbers: see
 > [Evaluation set](#-evaluation-set).
 
@@ -183,7 +196,7 @@ The checks are also available over HTTP: `GET /api/presets/{A–F}` returns a re
 that you can `POST` as JSON to `/api/check/rules` (rules only) or `/api/check` (final card), and
 `GET /api/model/health` reports `ready`, `warming` or `unavailable`.
 
-## ⚙️ Configuration
+## 🔧 Configuration
 
 All settings are environment variables read at start-up (`src/openmedcheck/config.py`). The app
 refuses to start with an invalid value.
@@ -227,7 +240,7 @@ clinician), and a test keeps every case consistent with the rules. Result on the
 | Rules only | 72% | 0/34 | 21/42 (50%) | n/a |
 | **Rules + Gemma 4 E4B** | **97%** | **0/34** | **1/42 (2%)** | 1.87 s |
 | Rules + Gemma 3 4B | 78% | 5/34 | 11/42 | 5.59 s |
-| Rules + Gemma 4 12B | 80% | 0/34 | 14/42 (timeouts on an 8 GB GPU) | 9.62 s |
+| Rules + Gemma 4 12B | 80% | 0/34 | 14/42 (32 of 76 calls timed out on an 8 GB GPU) | 9.62 s |
 
 Note findings from Gemma 4 E4B: 100% precision for every type, 100% recall except allergy (5/6)
 and active GI bleed (3/4). The cases, prompt and verifier were developed together, so 97% is a
@@ -269,7 +282,7 @@ At temperature 0 repeated calls on one fixed preset are nearly deterministic, so
 show stability on three presets, not robustness to other wordings. Each measurement file lists
 its caveats.
 
-## 🏗️ Architecture & deployment
+## 🧱 Architecture & deployment
 
 - [Specification](docs/spec/): [product](docs/spec/product.md),
   [requirements](docs/spec/requirements.md), [design](docs/spec/design.md) and
@@ -279,6 +292,8 @@ its caveats.
   [0003 escalate-only two-layer engine](docs/adr/0003-escalate-only-two-layer-engine.md),
   [0004 Gemma 4 E4B served locally with Ollama](docs/adr/0004-serve-gemma-4-e4b-locally-with-ollama.md),
   [0005 GCP reference architecture, documented only](docs/adr/0005-gcp-reference-architecture-documented-only.md),
+  [0006 Gemma extracts note findings, the rules decide](docs/adr/0006-model-extracts-note-findings-rules-decide.md),
+  [0007 opt-in hosted demo (superseded)](docs/adr/0007-hosted-demo-profile.md),
   [0008 dropped the opt-in hosted demo](docs/adr/0008-drop-opt-in-hosted-demo.md).
 - Deployment guides in [docs/deploy](docs/deploy/):
   [local Docker](docs/deploy/local-docker.md) (the only one actually run) and the
@@ -308,7 +323,7 @@ built with open-weight models or open-source AI that someone would actually pay 
   prompt or patient context goes to a third-party model API (see [Privacy and zero
   egress](#-privacy-and-zero-egress)).
 - **Cost.** Inference runs on local/self-hosted GPU hardware; there is no per-call model fee.
-- **Auditability.** The safety floor is plain, reviewed code and a cited rule table a pharmacist
+- **Auditability.** The rules floor is plain, reviewed code and a cited rule table a pharmacist
   can read — Gemma can only escalate it, never weaken it (see [How it works](#-how-it-works)).
   That invariant is checkable because the model is swappable and inspectable, not a black-box
   API.
@@ -335,9 +350,9 @@ sourced alert-fatigue figures.
 
 Licensed under the [Apache License 2.0](LICENSE). Copyright 2026 adricasi.
 
-The language model is Gemma 4, developed by Google and used here through Ollama. Gemma is
-provided under and subject to the Gemma Terms of Use: <https://ai.google.dev/gemma/terms>. The
-model weights are not part of this repository.
+The language model is Gemma 4, developed by Google and used here through Ollama. Gemma 4 is
+released under the Apache License 2.0 (earlier Gemma versions used the Gemma Terms of Use); check
+the model card of the version you pull. The model weights are not part of this repository.
 
 Clinical content in the rule table is a demonstrator and has not been signed off for clinical
 use; see [docs/clinical-review.md](docs/clinical-review.md) for the review status and open
@@ -348,7 +363,7 @@ questions for a specialist.
 Clinicians and developers are welcome: propose a rule with its source, review a rule, or add
 synthetic evaluation cases. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## 🛠️ Development workflow (spec-driven)
+## 🧰 Development workflow (spec-driven)
 
 The specification in
 `docs/spec/` is the source of truth, and each task is implemented from it with tests named after

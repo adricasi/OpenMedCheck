@@ -54,6 +54,10 @@ Terraform or create resources in this version.
     vLLM/TGI with an OpenAI-compatible API, not Ollama's. This project already committed to
     Ollama's own API (ADR 0004); moving to Vertex AI means replacing `model_client.py`'s client
     and re-validating the prompt/schema against a different serving stack, not a config change.
+    Vertex AI also accepts custom containers, so Ollama itself could run there; but that path
+    gives up Model Garden's prebuilt deployment (the main reason to pick Vertex AI here) and
+    still needs Ollama's routes adapted to Vertex's prediction-container contract. So this
+    argument is about cost of change, not impossibility.
   - **One more networking construct for the same guarantee.** Vertex AI's private-endpoint story
     needs Private Service Connect on top of the VPC this plan already has; Cloud Run's
     `ingress: internal` plus an invoker-only IAM binding gets "never reachable except by `web`"
