@@ -39,8 +39,8 @@ MODEL_UNAVAILABLE_NOTE = "Model check unavailable — rules only"
 # AC-005.3: without the model the note was not read, so a clean rules verdict is not a pass.
 NOTE_UNCHECKED_HEADLINE = "Free-text note not checked"
 NOTE_UNCHECKED_RATIONALE = (
-    "The model check was unavailable, so the free-text note was not checked. The rules found no "
-    "conflict in the coded data; review the note before signing."
+    "The model check was unavailable, so the free text (ED note and past medical history) was not "
+    "checked. The rules found no conflict in the coded data; review it before signing."
 )
 # Conflicts the rules decide from coded data and kept note findings (AC-003.8, ADR 0006): the
 # model's own escalation with one of these counts only if a rule of that type fired.

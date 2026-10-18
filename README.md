@@ -54,19 +54,22 @@ doctor's own words as evidence, and suggests paracetamol 1 g every 8 hours, re-c
 The prescriber still decides.
 
 **It also looks at the patient's past.** A previous GI bleed or a previous heart attack is a
-reason to think twice about an NSAID even when nothing current conflicts. OpenMedCheck checks the
-order against the past medical history in the record and, through Gemma, against past history
-written in the note ("Previous GI bleed in 2015, none since") — while "No history of GI
-bleeding" or "Mother had a GI bleed" stay silent, and an old event never counts as a current one
-([ADR 0009](docs/adr/0009-patient-history-is-an-input.md)).
+reason to think twice about an NSAID even when nothing current conflicts. Gemma reads the
+record's past medical history (free text, as charts usually keep it) and the ED note, and quotes
+the line that matters ("Myocardial infarction in 2020, treated with a coronary stent", "Previous
+GI bleed in 2015, none since"); the history rules then fire on the verified quote. "No history of
+GI bleeding" or "Mother had a GI bleed" stay silent, and an old event never counts as a current
+one ([ADR 0009](docs/adr/0009-patient-history-is-an-input.md)).
 
-Room **Bed 15** shows why this matters. Today's visit is routine: a wrist sprain after a fall,
-normal labs, nothing in the coded history, ibuprofen for the pain. The line these checks look for,
-"upper GI bleed from a duodenal ulcer in 2021", sits between the knee arthroscopy and the
-cataract surgery in a long past-history list: a line that can be missed under time pressure. The
+Rooms **Bed 14** and **Bed 15** show why this matters. In Bed 15 today's visit is routine: a
+wrist sprain after a fall, normal labs, ibuprofen for the pain. The line these checks look for,
+"Upper GI bleed from a duodenal ulcer in 2021", sits between the knee arthroscopy and the
+cataract surgery in a long past medical history: a line that can be missed under time pressure.
+Bed 14 is a knee injury after a fall in a man whose history records a myocardial infarction
+with a coronary stent. The
 rules alone say `NO_ISSUE`; when Gemma finds the line and the verifier confirms it word for word,
-the card becomes a `WARNING` that quotes it. (NSAID with an ACE inhibitor, also relevant for this
-patient, is not in the rule table.)
+the card becomes a `WARNING` that quotes it. (NSAID with an ACE inhibitor, also relevant for the
+Bed 15 patient, is not in the rule table.)
 
 One proposed medication order plus a synthetic patient context goes in; one triage-coded decision
 card comes out: a status (`NO_ISSUE`, `WARNING` or `BLOCKED`), a risk level, a short rationale, a
@@ -105,14 +108,16 @@ flowchart LR
    a review status; 23 of the 25 rules were reviewed by a clinical specialist on 2026-10-18, the
    two past-history rules added after that review are marked *not reviewed* and await sign-off,
    and an entry not yet reviewed shows "consult SmPC" instead of a numeric dose) checks the order
-   against labs, allergies, listed diagnoses and the recorded past medical history. It sets the floor: the final status is never
+   against labs, allergies, listed diagnoses and the coded past history a record system sends. It sets the floor: the final status is never
    below the rules' status, and a rules `BLOCKED` is final. The renal flag cannot be cleared, and
    the reasons of every fired rule always appear on the card.
-2. **Layer 2, Gemma 4 E4B.** The local model reads the free-text ED note and extracts the
+2. **Layer 2, Gemma 4 E4B.** The local model reads the free-text ED note and past medical history
+   and extracts the
    conditions, medications, allergies and past history it mentions (for example "Suspected ACS …
    on daily aspirin" or "h/o peptic ulcer"), each with a verbatim quote. A past event becomes a
    history finding, never a current condition. Code keeps a finding only if its code is valid, the quote
-   appears word for word (ignoring case and spacing) in the note or reason for consult and names
+   appears word for word (ignoring case and spacing) in the note, the reason for consult or the
+   past medical history and names
    what it is coded as, and it is not negated ("ACS ruled out", "denies previous MI") or a relative's
    ("Father had an MI"). The rules then re-run on the coded
    record plus the kept findings, so the reviewed allergy, diagnosis and home-medication rules also
@@ -217,7 +222,7 @@ B, C, K and L).
 bleed, a penicillin allergy, reduced kidney function, warfarin, high potassium, a pregnancy
 stated only in the note, a previous GI bleed and ischaemic heart disease in the past medical
 history). "Add patient" opens an empty record to
-fill in, including conditions, past medical history, chronic medication and allergies; "Save patient" keeps it. Added
+fill in, including conditions, past medical history (free text), chronic medication and allergies; "Save patient" keeps it. Added
 rooms and patients exist only in the open page: nothing is stored, and a reload shows the five
 predefined rooms again. "Edit scenario (demo only)" unlocks a record so you can try other cases,
 and "What the record system would send" shows the request body. When the page loads it asks the
@@ -233,15 +238,15 @@ the model ready (the rules column is what `/api/check/rules` returns):
 | A (Bed 3) | `NO_ISSUE` ("No issue found by these checks") | `BLOCKED` after the model reads the note; alternative: Paracetamol 1 g, PO, every 8 hours |
 | B (Bed 7) | `WARNING` with the renal-adjustment flag | `WARNING`, renal flag kept, "Renal adjustment required — consult SmPC", no alternative |
 | C (Bed 12) | `NO_ISSUE` | `NO_ISSUE`, no alternative |
-| L (Bed 15) | `NO_ISSUE`: the past GI bleed is only in the note's past-history list | `WARNING` (NSAID_HISTORY_GI_BLEED; not yet reviewed, so no dose shown) with the note's words once Gemma's history finding is kept; alternative: Paracetamol, "Dose: consult SmPC"; not measured yet (prompt v8) |
+| L (Bed 15) | `NO_ISSUE`: the past GI bleed is only in the free-text past medical history | `WARNING` (NSAID_HISTORY_GI_BLEED; not yet reviewed, so no dose shown) with the history's words once Gemma's history finding is kept; alternative: Paracetamol, "Dose: consult SmPC"; not measured yet (prompt v8) |
 | D (added room) | `BLOCKED`: NSAID with a coded active GI bleed | `BLOCKED`; alternative: Paracetamol 1 g, PO, every 8 hours |
 | E (added room) | `BLOCKED`: recorded penicillin allergy | `BLOCKED`, no alternative |
 | F (added room) | `BLOCKED`: dexketoprofen with estimated CrCl below 60 mL/min, renal flag | `BLOCKED`, renal flag kept; alternative: Paracetamol 1 g, PO, every 8 hours |
 | G (added room) | `BLOCKED`: NSAID with an oral anticoagulant (warfarin) | `BLOCKED`; alternative: Paracetamol 1 g, PO, every 8 hours |
 | H (added room) | `BLOCKED`: ACE inhibitor (enalapril) with potassium above 5.5 mmol/L | `BLOCKED`, no alternative |
 | I (added room) | `NO_ISSUE`: the pregnancy is stated only in the note | `WARNING` (PREGNANCY_NSAID) once Gemma's quoted finding is kept; not measured on this preset |
-| J (added room) | `WARNING`: NSAID with a previous GI bleed in the past medical history (rule not reviewed yet) | `WARNING`; alternative: Paracetamol, "Dose: consult SmPC"; not measured on this preset |
-| K (Bed 14) | `WARNING`: NSAID with ischaemic heart disease in the past medical history (rule not reviewed yet) | `WARNING`; alternative: Paracetamol, "Dose: consult SmPC"; not measured on this preset |
+| J (added room) | `NO_ISSUE`: the gastric ulcer with a GI bleed is only in the free-text past medical history | `WARNING` (NSAID_HISTORY_GI_BLEED) once Gemma's history finding is kept; alternative: Paracetamol, "Dose: consult SmPC"; not measured yet (prompt v8) |
+| K (Bed 14) | `NO_ISSUE`: the myocardial infarction with a stent is only in the free-text past medical history | `WARNING` (NSAID_HISTORY_ISCHAEMIC_HEART_DISEASE) once Gemma's history finding is kept; alternative: Paracetamol, "Dose: consult SmPC"; not measured yet (prompt v8) |
 
 "Use alternative" on preset A fills in the specialist-reviewed rule-table dose (paracetamol 1 g,
 PO, every 8 hours) and verifies the changed order again on the same patient; that second check
@@ -294,13 +299,13 @@ model.
 
 ## 🧪 Evaluation set
 
-An open set of **87 synthetic ED cases** ([evals/](evals/README.md)) covers every rule, notes
+An open set of **89 synthetic ED cases** ([evals/](evals/README.md)) covers every rule, notes
 where the conflict is only in free text, negations ("ACS ruled out", "not pregnant", "stopped
 warfarin"), past medical history (recorded, in the note, denied and a relative's), abbreviations,
 typos and clean notes that must stay silent. Each case states the findings the authors expect the
 note to state (not yet reviewed by a clinician), and a test keeps every case consistent with the
 rules. The results below are for prompt v7 on the first 76 cases; prompt v8 (past history in the
-note) and the eleven history cases have not been run on the real model yet. Result on the same
+note) and the thirteen history cases have not been run on the real model yet. Result on the same
 machine ([comparison](docs/measurements/2026-10-18-model-comparison.md)):
 
 | | Final status matches label | False alarms | Misses | Model step p50 |

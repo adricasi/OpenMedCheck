@@ -72,6 +72,13 @@ for the new types is unreviewed, so the card shows "Dose: consult SmPC" (NFR-011
   in words it does not know ("LAD stent", "bypass surgery") is dropped, and only the recorded
   history then raises the alert. A dropped note finding never removes an alert the record
   supports.
+- Update (2026-10-18): the demo record now holds the past medical history as free text
+  (`past_history`), as charts usually do, and the model reads it like the note; the coded
+  `history` stays in the API for a record system's problem list. The rules alone no longer see
+  the demo's history, so Beds 14 and 15 show the model's role: rules `NO_ISSUE`, then a
+  `WARNING` with the history's own words once the quote is verified. An ACS or GI bleed quoted
+  from that text is never a current one (AC-016.7). Without the model, the card is "Free-text
+  note not checked".
 - Follow-ups: specialist review of both rules (and the BLOCKED question); more history codes
   (stroke, renal transplant) only with a source and a rule; record-system integration would read
   the coded history from the problem list.

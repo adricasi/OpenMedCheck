@@ -127,7 +127,7 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
     `note_medications` (up to 3 drug IDs from the drug list), `note_allergies` (up to 3 drug
     IDs, active ingredients or class IDs) and `note_history` (up to 3 past-history codes,
     REQ-016). THE SYSTEM SHALL keep a finding only if its code is valid for its kind, its quote
-    (3–120 characters) appears word for word in the ED note or the reason for consult (ignoring
+    (3–120 characters) appears word for word in the ED note, the reason for consult or the past medical history text (ignoring
     case and spacing), the quote names what it is coded as (the drug or class name, or a term of
     the condition), and the clause it comes from does not deny it or rule it out. A current
     condition SHALL NOT be kept from a sentence that gives only past history; past history is
@@ -199,7 +199,7 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
     the rules cover (presets B and the coded variants of A return their rules status).
   - AC-005.3: IF the model is unavailable (AC-005.1, including a full model-call cap) AND the
     rules verdict is `NO_ISSUE` THEN THE SYSTEM SHALL return `WARNING` / `MODERATE` with the
-    fixed headline "Free-text note not checked" and the fixed rationale "The model check was unavailable, so the free-text note was not checked. The rules found no conflict in the coded data; review the note before signing.",
+    fixed headline "Free-text note not checked" and the fixed rationale "The model check was unavailable, so the free text (ED note and past medical history) was not checked. The rules found no conflict in the coded data; review it before signing.",
     never "No issue found by these checks" (a check that could not check the note must not look
     like a pass); a rules verdict of `WARNING` or `BLOCKED` is returned unchanged.
     `/api/check/rules` (rules only by design) is not affected.
@@ -229,9 +229,9 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
   - AC-006.6: THE SYSTEM SHALL offer synthetic template patients: A, B, C, the three below, and
     G (warfarin + ibuprofen → rules `BLOCKED`), H (potassium 5.8 mmol/L + enalapril → rules
     `BLOCKED`) and I (pregnancy only in the note + ibuprofen → rules `NO_ISSUE`, the model's quote
-    decides) for the conflict breadth of AC-002.9 to AC-002.13, and J (previous GI bleed in the
-    past medical history + ibuprofen → rules `WARNING`) and K (ischaemic heart disease in the
-    past medical history + ibuprofen → rules `WARNING`) for REQ-016, and L (AC-016.6). The first six are:
+    decides) for the conflict breadth of AC-002.9 to AC-002.13, and J (gastric ulcer with a GI
+    bleed in the past medical history text + ibuprofen → rules `NO_ISSUE`, the model's quote
+    decides), K and L (AC-016.6) for REQ-016. The first six are:
     each with a deterministic rules conflict and a demo prescription:
     D (coded active GI bleed, ibuprofen → rules `BLOCKED`, alternative paracetamol),
     E (penicillin allergy, amoxicillin-clavulanate → rules `BLOCKED`, no alternative),
@@ -421,10 +421,15 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
 - Priority: Should
 - Goals: G-1, G-2
 - Acceptance criteria:
-  - AC-016.1: THE SYSTEM SHALL accept a coded past medical history in the patient context
-    (`history`: `PAST_GI_BLEED` for previous gastrointestinal bleeding, peptic ulcer or
-    perforation; `ISCHAEMIC_HEART_DISEASE` for a previous ACS or MI, coronary stent or angina),
-    default empty, show it in the record as "Past medical history" and let the demo edit it.
+  - AC-016.1: THE SYSTEM SHALL accept the record's past medical history as free text
+    (`past_history`, at most 2,000 characters, default empty), show it in the record as "Past
+    medical history" (evidence quotes highlighted like the note's), let the demo edit it as text,
+    and send it to the model inside the untrusted-text block, like the note (AC-004.8). THE SYSTEM
+    SHALL also accept a coded past history for a record system's problem list (`history`:
+    `PAST_GI_BLEED` for previous gastrointestinal bleeding, peptic ulcer or perforation;
+    `ISCHAEMIC_HEART_DISEASE` for a previous ACS or MI, coronary stent or angina), default empty;
+    the demo record does not edit it. (Amended 2026-10-18: the demo first edited the coded
+    history with checkboxes.)
   - AC-016.2: WHEN an NSAID is ordered for a patient with `PAST_GI_BLEED` THE SYSTEM SHALL fire
     `NSAID_HISTORY_GI_BLEED` (WARNING, HIGH, conflict `PAST_GI_BLEED`); WHEN an NSAID is ordered
     for a patient with `ISCHAEMIC_HEART_DISEASE` THE SYSTEM SHALL fire
@@ -448,19 +453,19 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
     shown as evidence (AC-003.7).
   - AC-016.5: The evaluation set SHALL include cases for coded history, history only in the note,
     denied history and family history, with family and denied history expected to stay silent.
-  - AC-016.6: THE SYSTEM SHALL offer a predefined room with a coded past history and an unrelated
-    visit (preset K, Bed 14: knee injury after a fall, ischaemic heart disease in the record, an
-    NSAID proposed → rules `WARNING`, and the model is told to report the same history conflict),
-    and a predefined room (preset L, Bed 15) where today's visit
-    looks routine (a minor injury, normal labs, an empty coded history) and a past GI bleed is
-    one item in a long past-medical-history list in the note, with an NSAID proposed: the rules
-    alone give `NO_ISSUE`, and the final card is `WARNING` with the note's words as evidence once
-    the model's history finding is kept.
+  - AC-016.6: THE SYSTEM SHALL offer two predefined rooms where today's visit is unrelated to
+    the past medical history text and an NSAID is proposed, so the rules alone give `NO_ISSUE`
+    and the final card is `WARNING` with the history's words as evidence once the model's history
+    finding is kept: Bed 14 (preset K: knee injury after a fall; "Myocardial infarction in 2020,
+    treated with a coronary stent" in the history) and Bed 15 (preset L) : a routine wrist sprain with normal
+    labs, and "Upper GI bleed from a duodenal ulcer in 2021" as one line of a long past medical
+    history.
   - AC-016.7: A current ACS or active GI bleed finding SHALL be dropped when a past-history label
     ("past medical history:", "PMH:", "medical history:", "background:") comes earlier in its
-    sentence: an acute event in a past-history list is not a current one (ADR 0009). Chronic
-    conditions and pregnancy in such a list (heart failure, "Background: 28 weeks pregnant") SHALL
-    still count as current.
+    sentence: an acute event in a past-history list is not a current one (ADR 0009). The same
+    holds for an ACS or active GI bleed quoted from the past medical history text. Chronic
+    conditions and pregnancy in such a list or text (heart failure, "Background: 28 weeks
+    pregnant") SHALL still count as current.
 
 ## Non-functional requirements
 | ID | Category | Requirement (measurable) | Verification |

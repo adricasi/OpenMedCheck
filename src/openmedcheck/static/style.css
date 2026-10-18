@@ -459,8 +459,7 @@ h3 {
 
 .edit-toggle input,
 .chronic-list input,
-.conditions input,
-.past-history input {
+.conditions input {
   width: 1.15rem;
   height: 1.15rem;
   accent-color: var(--teal);
@@ -688,15 +687,13 @@ textarea:hover:not([readonly]) {
 }
 
 .conditions,
-.past-history,
 .chronic {
   padding: 0.75rem;
   border: 1px solid var(--line);
   border-radius: var(--radius);
 }
 
-.conditions,
-.past-history {
+.conditions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem 1.5rem;
@@ -712,8 +709,7 @@ textarea:hover:not([readonly]) {
 }
 
 .chronic-list label,
-.conditions label,
-.past-history label {
+.conditions label {
   display: inline-flex;
   gap: 0.45rem;
   align-items: center;

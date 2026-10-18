@@ -47,7 +47,7 @@ def test_nfr_011_review_sheet_lists_every_rule_and_preset() -> None:
     )
     # The specialist sees what triggers a history rule and which presets carry history.
     assert "Past medical history PAST_GI_BLEED (recorded or a quoted note finding)" in text
-    assert "past medical history: ISCHAEMIC_HEART_DISEASE" in text
+    assert "Past medical history (free text): Hypertension. Hypercholesterolaemia." in text
     assert "## Source check (2026-10-18)" in text
     assert "Questions for the specialist" in text
 

@@ -2,10 +2,10 @@
 
 A, B, C, K and L are the predefined rooms (``bed`` set); D to J are only offered as templates when
 a room is added (AC-006.6, AC-006.7). G, H and I show the conflict breadth of T-014; in I the
-pregnancy is only in the note, so the rules alone say NO_ISSUE and the model's quote decides. J
-and K carry a coded past medical history (K: an unrelated injury today, so the order is written
-without the history in mind); in L the past GI bleed is one item of a long history
-in the note, so again only the model's quote reveals it (REQ-016, AC-016.6).
+pregnancy is only in the note, so the rules alone say NO_ISSUE and the model's quote decides. J,
+K and L carry a past medical history as free text in the record, and today's visit is unrelated
+to it (K and L are rooms): the rules alone say NO_ISSUE and only the model's verified quote
+reveals the history (REQ-016, AC-016.6).
 """
 
 from __future__ import annotations
@@ -266,7 +266,7 @@ PRESET_J = Preset(
     preset_id="J",
     title="Previous GI bleed in the past medical history; ibuprofen proposed",
     bed=None,
-    expected_rules_status=Status.WARNING,
+    expected_rules_status=Status.NO_ISSUE,
     request=CheckRequest(
         context=PatientContext(
             patient_id="SYN-J",
@@ -278,8 +278,12 @@ PRESET_J = Preset(
                 "61-year-old woman with low back pain after lifting a box yesterday. No "
                 "neurological signs. Haemodynamically stable."
             ),
+            past_history=(
+                "Osteoarthritis of both knees. Hysterectomy in 2010. Gastric ulcer with an upper "
+                "GI bleed in 2019, treated with a proton pump inhibitor. Hypothyroidism."
+            ),
             diagnoses=[],
-            history=["PAST_GI_BLEED"],
+            history=[],
             chronic_medications=[],
             allergies=[],
             labs=Labs(creatinine_mg_dl=0.8, egfr_ml_min_1_73m2=79),
@@ -293,7 +297,7 @@ PRESET_K = Preset(
     title="Knee injury after a fall; ischaemic heart disease in the past medical history; "
     "ibuprofen proposed",
     bed="Bed 14",
-    expected_rules_status=Status.WARNING,
+    expected_rules_status=Status.NO_ISSUE,
     request=CheckRequest(
         context=PatientContext(
             patient_id="SYN-K",
@@ -305,8 +309,13 @@ PRESET_K = Preset(
                 "67-year-old man with right knee pain and swelling after a fall at home. No chest "
                 "pain today. Walks with pain."
             ),
+            past_history=(
+                "Hypertension. Hypercholesterolaemia. Myocardial infarction in 2020, treated with "
+                "a coronary stent; on aspirin since. Benign prostatic hyperplasia. Left inguinal "
+                "hernia repair in 2012."
+            ),
             diagnoses=[],
-            history=["ISCHAEMIC_HEART_DISEASE"],
+            history=[],
             chronic_medications=["aspirin"],
             allergies=[],
             labs=Labs(creatinine_mg_dl=1.0, egfr_ml_min_1_73m2=77),
@@ -317,8 +326,8 @@ PRESET_K = Preset(
 
 PRESET_L = Preset(
     preset_id="L",
-    title="Routine wrist sprain; a past GI bleed buried in a long history in the note; ibuprofen "
-    "proposed",
+    title="Routine wrist sprain; a past GI bleed buried in a long past medical history; "
+    "ibuprofen proposed",
     bed="Bed 15",
     expected_rules_status=Status.NO_ISSUE,
     request=CheckRequest(
@@ -332,10 +341,13 @@ PRESET_L = Preset(
                 "66-year-old man who fell off his bicycle this morning onto an outstretched right "
                 "hand. Wrist swollen and tender over the radial side; X-ray shows no fracture. "
                 "Alert, haemodynamically stable, pain 7/10, asking for something stronger than "
-                "paracetamol. Past medical history: hypertension, type 2 diabetes, "
-                "hypercholesterolaemia, gout, knee arthroscopy in 2015, appendicectomy as a child, "
-                "upper GI bleed from a duodenal ulcer in 2021 treated endoscopically, cataract "
-                "surgery in 2023. Ex-smoker, lives with his wife, retired bus driver."
+                "paracetamol. Ex-smoker, lives with his wife, retired bus driver."
+            ),
+            past_history=(
+                "Hypertension. Type 2 diabetes. Hypercholesterolaemia. Gout. Knee arthroscopy in "
+                "2015. Appendicectomy as a child. Upper GI bleed from a duodenal ulcer in 2021, "
+                "treated endoscopically. Cataract surgery in 2023. Benign skin lesion removed in "
+                "2024."
             ),
             diagnoses=[],
             history=[],

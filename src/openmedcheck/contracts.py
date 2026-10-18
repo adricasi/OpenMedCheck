@@ -92,7 +92,11 @@ class PatientContext(_Strict):
     diagnoses: list[Literal["ACS", "ACTIVE_GI_BLEED", "HEART_FAILURE", "PREGNANCY"]] = Field(
         default_factory=list, max_length=10
     )
-    # Past medical history (REQ-016, ADR 0009): past events, never current conditions.
+    # Past medical history as written in the record (REQ-016, AC-016.1): free text, read by the
+    # model like the note and untrusted like it.
+    past_history: str = Field(default="", max_length=2_000)
+    # Coded past history (REQ-016, ADR 0009): past events, never current conditions. For a record
+    # system's coded problem list; the demo record uses the free text above.
     history: list[Literal["PAST_GI_BLEED", "ISCHAEMIC_HEART_DISEASE"]] = Field(
         default_factory=list, max_length=10
     )

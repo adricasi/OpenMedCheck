@@ -122,7 +122,6 @@
             <legend>Medical history</legend>
             <div class="history-view">
               <p class="read-only">Recorded conditions: <span id="ro-conditions">none</span></p>
-              <p class="read-only">Past medical history: <span id="ro-history">none</span></p>
               <p class="read-only">Chronic medication: <span id="ro-chronic">none</span></p>
               <p class="read-only">Recorded allergies: <span id="ro-allergies">none</span></p>
             </div>
@@ -134,11 +133,6 @@
                 <label><input type="checkbox" id="f-cond-hf" value="HEART_FAILURE" data-history> Heart failure</label>
                 <label><input type="checkbox" id="f-cond-preg" value="PREGNANCY" data-history> Pregnancy</label>
               </fieldset>
-              <fieldset class="past-history">
-                <legend>Past medical history</legend>
-                <label><input type="checkbox" id="f-hist-gi" value="PAST_GI_BLEED" data-history> Previous gastrointestinal bleeding, peptic ulcer or perforation</label>
-                <label><input type="checkbox" id="f-hist-ihd" value="ISCHAEMIC_HEART_DISEASE" data-history> Ischaemic heart disease (previous ACS or heart attack, coronary stent, angina)</label>
-              </fieldset>
               <fieldset class="chronic">
                 <legend>Chronic medication</legend>
                 <div id="f-chronic" class="chronic-list"></div>
@@ -148,6 +142,16 @@
                 <input id="f-allergies" type="text" maxlength="500" data-history aria-describedby="e-allergies">
                 <span id="e-allergies" class="field-error" hidden></span>
               </div>
+            </div>
+          </fieldset>
+
+          <fieldset class="record-fields">
+            <legend>Past medical history</legend>
+            <div class="field field-wide">
+              <label id="l-past-history" for="f-past-history">From the record (free text)</label>
+              <div id="past-history-view" class="note-view" role="group" aria-labelledby="l-past-history" tabindex="0"></div>
+              <textarea id="f-past-history" rows="5" maxlength="2000" data-path="context.past_history" data-record aria-describedby="e-past-history" hidden></textarea>
+              <span id="e-past-history" class="field-error" hidden></span>
             </div>
           </fieldset>
 

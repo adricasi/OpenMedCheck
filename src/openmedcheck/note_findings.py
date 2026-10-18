@@ -2,7 +2,8 @@
 
 Pure: no I/O, no logging of patient context. The model reads the free text and returns
 findings (a kind, a code and a quote); a finding is kept only if its code is valid for its kind
-and its quote appears word for word in the ED note or the reason for consult. Kept findings are
+and its quote appears word for word in the ED note, the reason for consult or the past medical
+history. Kept findings are
 added to the coded context and Layer 1 runs again. Findings only add facts, so the result is
 never less strict than the verdict on the coded context alone (ADR 0006).
 """
@@ -308,10 +309,23 @@ def _find(quote: str, text: str) -> re.Match[str] | None:
 def _verified(finding: NoteFinding, context: PatientContext) -> NoteFinding | None:
     if finding.code not in CODES_BY_KIND[finding.kind]:
         return None
-    for text in (context.ed_note, context.reason_for_consult):
+    sources = (
+        (context.ed_note, False),
+        (context.reason_for_consult, False),
+        (context.past_history, True),
+    )
+    for text, is_past_history in sources:
         match = _find(finding.quote, text)
         if match is None:
             continue
+        # The record's past medical history holds past events: an ACS or a GI bleed written
+        # there is never a current one; a chronic condition there still holds (AC-016.7).
+        if (
+            is_past_history
+            and finding.kind is FindingKind.CONDITION
+            and finding.code in _PAST_LIST_EVENT_CODES
+        ):
+            return None
         span = match.group()
         if not MIN_QUOTE_CHARS <= len(span) <= MAX_QUOTE_CHARS:
             return None

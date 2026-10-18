@@ -120,6 +120,7 @@ def test_ac_007_1_record_fields_are_marked_and_order_fields_are_not() -> None:
         "context.labs.potassium_mmol_l",
         "context.labs.platelets_per_ul",
         "context.ed_note",
+        "context.past_history",
     }
     assert not re.search(r'data-path="order\.[^"]+" data-record', html)
     assert "From the patient record (simulated)" in html

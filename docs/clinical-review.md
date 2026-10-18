@@ -126,6 +126,7 @@ None. Q-5 (specialist review): every renal card shows "Renal adjustment required
 
 - Patient: 64 years, sex M, 82 kg; creatinine 0.9 mg/dL, eGFR 92.0
 - Coded diagnoses: none; past medical history: none; chronic medication: aspirin; allergies: none
+- Past medical history (free text): none recorded
 - Note: 64-year-old man with a 2-hour history of crushing central chest pain radiating to the left arm, with diaphoresis. Suspected ACS; ECG and troponin pending. On daily aspirin.
 - Proposed order: dexketoprofen 25 mg PO every 8 hours
 
@@ -145,6 +146,7 @@ Rules card (Layer 1 only):
 
 - Patient: 78 years, sex F, 62 kg; creatinine 2.4 mg/dL, eGFR 21.0
 - Coded diagnoses: none; past medical history: none; chronic medication: none; allergies: none
+- Past medical history (free text): none recorded
 - Note: 78-year-old woman with 2 days of fever and dysuria. Suspected urinary tract infection. No known allergies.
 - Proposed order: ciprofloxacin 500 mg PO every 12 hours
 
@@ -164,6 +166,7 @@ Rules card (Layer 1 only):
 
 - Patient: 34 years, sex F, 68 kg; creatinine 0.8 mg/dL, eGFR 105.0
 - Coded diagnoses: none; past medical history: none; chronic medication: none; allergies: none
+- Past medical history (free text): none recorded
 - Note: 34-year-old woman with an ankle sprain after a minor fall. Moderate pain.
 - Proposed order: paracetamol 1 g PO every 8 hours
 
@@ -183,6 +186,7 @@ Rules card (Layer 1 only):
 
 - Patient: 58 years, sex M, 85 kg; creatinine 1.0 mg/dL, eGFR 82.0
 - Coded diagnoses: ACTIVE_GI_BLEED; past medical history: none; chronic medication: none; allergies: none
+- Past medical history (free text): none recorded
 - Note: 58-year-old man with two episodes of melena since yesterday and epigastric pain. Upper GI bleed recorded today; haemoglobin pending. Asks for something for his back pain.
 - Proposed order: ibuprofen 600 mg PO every 8 hours
 
@@ -202,6 +206,7 @@ Rules card (Layer 1 only):
 
 - Patient: 45 years, sex F, 64 kg; creatinine 0.8 mg/dL, eGFR 95.0
 - Coded diagnoses: none; past medical history: none; chronic medication: none; allergies: penicillin
+- Past medical history (free text): none recorded
 - Note: 45-year-old woman with 3 days of productive cough and fever. Suspected community-acquired pneumonia. Penicillin allergy (rash) in the record.
 - Proposed order: amoxicillin_clavulanate 875/125 mg PO every 8 hours
 
@@ -221,6 +226,7 @@ Rules card (Layer 1 only):
 
 - Patient: 72 years, sex M, 70 kg; creatinine 1.6 mg/dL, eGFR 43.0
 - Coded diagnoses: none; past medical history: none; chronic medication: none; allergies: none
+- Past medical history (free text): none recorded
 - Note: 72-year-old man with sudden right flank pain radiating to the groin, with nausea. Suspected renal colic.
 - Proposed order: dexketoprofen 50 mg IV every 12 hours
 
@@ -240,6 +246,7 @@ Rules card (Layer 1 only):
 
 - Patient: 76 years, sex M, 79 kg; creatinine 1.0 mg/dL, eGFR 72.0
 - Coded diagnoses: none; past medical history: none; chronic medication: warfarin; allergies: none
+- Past medical history (free text): none recorded
 - Note: 76-year-old man with left knee pain after a fall at home. Atrial fibrillation on long-term anticoagulation. No head injury.
 - Proposed order: ibuprofen 600 mg PO every 8 hours
 
@@ -259,6 +266,7 @@ Rules card (Layer 1 only):
 
 - Patient: 68 years, sex F, 71 kg; creatinine 1.1 mg/dL, eGFR 55.0
 - Coded diagnoses: none; past medical history: none; chronic medication: none; allergies: none
+- Past medical history (free text): none recorded
 - Note: 68-year-old woman referred for a blood pressure of 182/104 mmHg, no chest pain or neurological symptoms. Potassium 5.8 mmol/L on today's labs.
 - Proposed order: enalapril 5 mg PO once daily
 
@@ -278,6 +286,7 @@ Rules card (Layer 1 only):
 
 - Patient: 31 years, sex F, 70 kg; creatinine 0.6 mg/dL, eGFR 118.0
 - Coded diagnoses: none; past medical history: none; chronic medication: none; allergies: none
+- Past medical history (free text): none recorded
 - Note: 31-year-old woman with low back pain since yesterday, no trauma, no red flags. She is 30 weeks pregnant.
 - Proposed order: ibuprofen 400 mg PO every 8 hours
 
@@ -296,46 +305,49 @@ Rules card (Layer 1 only):
 *Synthetic patient — invented data, not a real person.*
 
 - Patient: 61 years, sex F, 70 kg; creatinine 0.8 mg/dL, eGFR 79.0
-- Coded diagnoses: none; past medical history: PAST_GI_BLEED; chronic medication: none; allergies: none
+- Coded diagnoses: none; past medical history: none; chronic medication: none; allergies: none
+- Past medical history (free text): Osteoarthritis of both knees. Hysterectomy in 2010. Gastric ulcer with an upper GI bleed in 2019, treated with a proton pump inhibitor. Hypothyroidism.
 - Note: 61-year-old woman with low back pain after lifting a box yesterday. No neurological signs. Haemodynamically stable.
 - Proposed order: ibuprofen 600 mg PO every 8 hours
 
 Rules card (Layer 1 only):
 
-- Status / tier: **WARNING** / HIGH
-- Headline: Review this order before signing
-- Rationale: NSAID with a recorded history of gastrointestinal bleeding, peptic ulcer or perforation.
+- Status / tier: **NO_ISSUE** / LOW
+- Headline: No issue found by these checks
+- Rationale: No rule in the current table conflicts with this order and context.
 - Renal adjustment flag: False; Cockcroft-Gault: not computed
 - Fired rules:
-  - `NSAID_HISTORY_GI_BLEED`: NSAID with a recorded history of gastrointestinal bleeding, peptic ulcer or perforation.
-- Source: `rules`; alternative: Paracetamol, Dose: consult SmPC
+  - none
+- Source: `rules`; alternative: none on the rules card
 
 ### Preset K: Knee injury after a fall; ischaemic heart disease in the past medical history; ibuprofen proposed
 
 *Synthetic patient — invented data, not a real person.*
 
 - Patient: 67 years, sex M, 84 kg; creatinine 1.0 mg/dL, eGFR 77.0
-- Coded diagnoses: none; past medical history: ISCHAEMIC_HEART_DISEASE; chronic medication: aspirin; allergies: none
+- Coded diagnoses: none; past medical history: none; chronic medication: aspirin; allergies: none
+- Past medical history (free text): Hypertension. Hypercholesterolaemia. Myocardial infarction in 2020, treated with a coronary stent; on aspirin since. Benign prostatic hyperplasia. Left inguinal hernia repair in 2012.
 - Note: 67-year-old man with right knee pain and swelling after a fall at home. No chest pain today. Walks with pain.
 - Proposed order: ibuprofen 400 mg PO every 8 hours
 
 Rules card (Layer 1 only):
 
-- Status / tier: **WARNING** / HIGH
-- Headline: Review this order before signing
-- Rationale: NSAID with a recorded history of ischaemic heart disease (previous ACS or infarction, coronary stent or angina).
+- Status / tier: **NO_ISSUE** / LOW
+- Headline: No issue found by these checks
+- Rationale: No rule in the current table conflicts with this order and context.
 - Renal adjustment flag: False; Cockcroft-Gault: not computed
 - Fired rules:
-  - `NSAID_HISTORY_ISCHAEMIC_HEART_DISEASE`: NSAID with a recorded history of ischaemic heart disease (previous ACS or infarction, coronary stent or angina).
-- Source: `rules`; alternative: Paracetamol, Dose: consult SmPC
+  - none
+- Source: `rules`; alternative: none on the rules card
 
-### Preset L: Routine wrist sprain; a past GI bleed buried in a long history in the note; ibuprofen proposed
+### Preset L: Routine wrist sprain; a past GI bleed buried in a long past medical history; ibuprofen proposed
 
 *Synthetic patient — invented data, not a real person.*
 
 - Patient: 66 years, sex M, 81 kg; creatinine 0.9 mg/dL, eGFR 86.0
 - Coded diagnoses: none; past medical history: none; chronic medication: enalapril, metformin; allergies: none
-- Note: 66-year-old man who fell off his bicycle this morning onto an outstretched right hand. Wrist swollen and tender over the radial side; X-ray shows no fracture. Alert, haemodynamically stable, pain 7/10, asking for something stronger than paracetamol. Past medical history: hypertension, type 2 diabetes, hypercholesterolaemia, gout, knee arthroscopy in 2015, appendicectomy as a child, upper GI bleed from a duodenal ulcer in 2021 treated endoscopically, cataract surgery in 2023. Ex-smoker, lives with his wife, retired bus driver.
+- Past medical history (free text): Hypertension. Type 2 diabetes. Hypercholesterolaemia. Gout. Knee arthroscopy in 2015. Appendicectomy as a child. Upper GI bleed from a duodenal ulcer in 2021, treated endoscopically. Cataract surgery in 2023. Benign skin lesion removed in 2024.
+- Note: 66-year-old man who fell off his bicycle this morning onto an outstretched right hand. Wrist swollen and tender over the radial side; X-ray shows no fracture. Alert, haemodynamically stable, pain 7/10, asking for something stronger than paracetamol. Ex-smoker, lives with his wife, retired bus driver.
 - Proposed order: ibuprofen 600 mg PO every 8 hours
 
 Rules card (Layer 1 only):

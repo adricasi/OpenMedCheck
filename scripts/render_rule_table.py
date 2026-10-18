@@ -394,6 +394,7 @@ def _preset_section(preset: Preset) -> str:
         f"{', '.join(context.history) or 'none'}; chronic medication: "
         f"{', '.join(context.chronic_medications) or 'none'}; allergies: "
         f"{', '.join(context.allergies) or 'none'}\n"
+        f"- Past medical history (free text): {context.past_history or 'none recorded'}\n"
         f"- Note: {context.ed_note}\n"
         f"- Proposed order: {order.drug_id} {order.dose_text} {order.route} {order.frequency}\n\n"
         f"Rules card (Layer 1 only):\n\n{_card_block(card)}\n"

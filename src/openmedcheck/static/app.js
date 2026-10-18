@@ -27,17 +27,13 @@ const CONDITION_LABELS = {
   HEART_FAILURE: "heart failure",
   PREGNANCY: "pregnancy",
 };
-const HISTORY_LABELS = {
-  PAST_GI_BLEED: "previous gastrointestinal bleeding, peptic ulcer or perforation",
-  ISCHAEMIC_HEART_DISEASE: "ischaemic heart disease",
-};
 const NO_MODEL_NOTE = "Model check unavailable — rules only";
 const VERIFYING_TEXT = "Verifying the prescription with Gemma…";
 // AC-005.3: same fixed text as the server's fallback; the note was not read, so no green card.
 const NOTE_UNCHECKED_HEADLINE = "Free-text note not checked";
 const NOTE_UNCHECKED_RATIONALE =
-  "The model check was unavailable, so the free-text note was not checked. The rules found no " +
-  "conflict in the coded data; review the note before signing.";
+  "The model check was unavailable, so the free text (ED note and past medical history) was not " +
+  "checked. The rules found no conflict in the coded data; review it before signing.";
 // Test helper for custom patients (AC-007.6): an NSAID so the check has something to look at.
 const SAMPLE_ORDER = { drug_id: "ibuprofen", dose_text: "400 mg", route: "PO", frequency: "every 8 hours" };
 const EMPTY_ORDER = { drug_id: "", dose_text: "", route: "PO", frequency: "" };
@@ -166,6 +162,7 @@ function fillContext(context) {
   $("f-potassium").value = context.labs.potassium_mmol_l ?? "";
   $("f-platelets").value = context.labs.platelets_per_ul ?? "";
   $("f-note").value = context.ed_note;
+  $("f-past-history").value = context.past_history || "";
   renderNoteView();
   state.hidden = {
     patient_id: context.patient_id,
@@ -185,16 +182,12 @@ function fillOrder(order) {
 }
 
 function showHistory() {
-  const { diagnoses, history, chronic_medications: chronic, allergies } = state.hidden;
+  const { diagnoses, chronic_medications: chronic, allergies } = state.hidden;
   $("ro-conditions").textContent = listText(diagnoses, (code) => CONDITION_LABELS[code] || code);
-  $("ro-history").textContent = listText(history, (code) => HISTORY_LABELS[code] || code);
   $("ro-chronic").textContent = listText(chronic, drugName);
   $("ro-allergies").textContent = listText(allergies);
   for (const box of document.querySelectorAll(".conditions input")) {
     box.checked = diagnoses.includes(box.value);
-  }
-  for (const box of document.querySelectorAll(".past-history input")) {
-    box.checked = history.includes(box.value);
   }
   for (const box of $("f-chronic").querySelectorAll("input")) box.checked = chronic.includes(box.value);
   $("f-allergies").value = allergies.join(", ");
@@ -203,9 +196,6 @@ function showHistory() {
 function readHistory() {
   // History editors write into state.hidden, which buildRequest sends (AC-007.5).
   state.hidden.diagnoses = Array.from(document.querySelectorAll(".conditions input"))
-    .filter((box) => box.checked)
-    .map((box) => box.value);
-  state.hidden.history = Array.from(document.querySelectorAll(".past-history input"))
     .filter((box) => box.checked)
     .map((box) => box.value);
   state.hidden.chronic_medications = Array.from($("f-chronic").querySelectorAll("input"))
@@ -230,6 +220,7 @@ function buildRequest() {
       weight_kg: numberOrNull($("f-weight").value),
       reason_for_consult: $("f-reason").value,
       ed_note: $("f-note").value,
+      past_history: $("f-past-history").value,
       diagnoses: state.hidden.diagnoses,
       history: state.hidden.history,
       chronic_medications: state.hidden.chronic_medications,
@@ -316,12 +307,21 @@ function quoteRanges(text, quotes) {
 }
 
 function renderNoteView(quotes = []) {
-  // The note as text nodes, with the clinician's quoted evidence marked (textContent only).
-  const view = $("note-view");
-  const text = $("f-note").value;
+  // Both free-text fields, each showing the quotes found in it.
+  renderTextView($("note-view"), $("f-note").value, "No free-text note recorded.", quotes);
+  renderTextView(
+    $("past-history-view"),
+    $("f-past-history").value,
+    "No past medical history recorded.",
+    quotes,
+  );
+}
+
+function renderTextView(view, text, emptyText, quotes) {
+  // Free text as text nodes, with the clinician's quoted evidence marked (textContent only).
   clear(view);
   if (!text) {
-    view.appendChild(el("span", { cls: "note-empty", text: "No free-text note recorded." }));
+    view.appendChild(el("span", { cls: "note-empty", text: emptyText }));
     return;
   }
   let at = 0;
@@ -355,6 +355,8 @@ function setRecordEditable(editable) {
   // The locked note is shown as text so the evidence can be highlighted in place.
   $("f-note").hidden = !editable;
   $("note-view").hidden = editable;
+  $("f-past-history").hidden = !editable;
+  $("past-history-view").hidden = editable;
   if (!editable) renderNoteView();
   document.querySelector(".history-view").hidden = editable;
   document.querySelector(".history-edit").hidden = !editable;
@@ -865,6 +867,7 @@ function customRoom() {
       weight_kg: null,
       reason_for_consult: "",
       ed_note: "",
+      past_history: "",
       diagnoses: [],
       history: [],
       chronic_medications: [],
