@@ -43,7 +43,8 @@ NOTE_UNCHECKED_RATIONALE = (
     "conflict in the coded data; review the note before signing."
 )
 # Conflicts the rules decide from coded data and kept note findings (AC-003.8, ADR 0006): the
-# model's own escalation with one of these counts only if a rule of that type fired.
+# model's own escalation with one of these counts only if a rule of that type fired, and never
+# above the status and tier of those rules (ADR 0009).
 RULE_DECIDED_CONFLICTS = frozenset(
     {
         ConflictType.ANTIPLATELET_ACS,
@@ -53,6 +54,8 @@ RULE_DECIDED_CONFLICTS = frozenset(
         ConflictType.HYPERKALAEMIA,
         ConflictType.HEART_FAILURE,
         ConflictType.PREGNANCY,
+        ConflictType.PAST_GI_BLEED,
+        ConflictType.ISCHAEMIC_HEART_DISEASE,
     }
 )
 
@@ -156,15 +159,36 @@ def _names_unshown_drug(model: ModelVerdict, card: DecisionCard, request: CheckR
 def _gate_rule_decided(
     model: ModelVerdict | None, verdict: RulesVerdict
 ) -> tuple[ModelVerdict | None, bool]:
-    """Drop the model's own escalation for a rule-decided conflict the rules did not confirm.
+    """Set aside or cap the model's own escalation for a rule-decided conflict (AC-003.8).
 
-    The rules floor is untouched: the combiner still never goes below ``verdict``. Only the
-    model's unsupported opinion is set aside ("ACS ruled out" read as ACS, prompt v5 eval).
+    Without a fired rule of the same type the escalation is dropped ("ACS ruled out" read as
+    ACS, prompt v5 eval); with one it is capped at that rule's status and tier. The rules floor
+    is untouched: the combiner still never goes below ``verdict``. Returns the gated verdict and
+    whether anything was set aside.
     """
     if model is None or model.conflict_type not in RULE_DECIDED_CONFLICTS:
         return model, False
-    if any(rule.conflict_type is model.conflict_type for rule in verdict.fired_rules):
-        return model, False
+    same_type = [
+        rule_table.RULES_BY_ID[rule.rule_id]
+        for rule in verdict.fired_rules
+        if rule.conflict_type is model.conflict_type
+    ]
+    if same_type:
+        # The rules decide how strict this conflict is: a WARNING rule does not become BLOCKED
+        # because the model says so (an open specialist question for the history rules).
+        status = max((rule.status for rule in same_type), key=lambda item: item.rank)
+        tier = max((rule.risk_level for rule in same_type), key=lambda item: item.rank)
+        if model.status.rank <= status.rank and model.risk_level.rank <= tier.rank:
+            return model, False
+        capped = model.model_copy(
+            update={
+                "status": min((model.status, status), key=lambda item: item.rank),
+                "risk_level": min((model.risk_level, tier), key=lambda item: item.rank),
+                "headline": "",
+                "rationale": "",
+            }
+        )
+        return capped, True
     neutral = model.model_copy(
         update={
             "status": Status.NO_ISSUE,

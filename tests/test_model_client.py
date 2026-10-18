@@ -390,7 +390,7 @@ def test_ac_003_1_request_matches_the_spike_contract() -> None:
     assert body["stream"] is False
     assert body["think"] is False
     assert body["keep_alive"] == "10m"
-    assert body["options"] == {"temperature": 0, "num_predict": 600}
+    assert body["options"] == {"temperature": 0, "num_predict": 800}
     assert body["format"]["properties"]["alternative_drug_id"]["enum"] == [
         "paracetamol",
         "metamizole",

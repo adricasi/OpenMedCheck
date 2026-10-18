@@ -15,10 +15,12 @@ from openmedcheck.alternatives import select_alternative
 from openmedcheck.check_service import combined_card, rules_card
 from openmedcheck.combiner import NO_ISSUE_HEADLINE
 from openmedcheck.contracts import (
+    Alternative,
     CheckRequest,
     ConflictType,
     ModelVerdict,
     Order,
+    PatientContext,
     RiskLevel,
     Source,
     Status,
@@ -412,29 +414,37 @@ def test_property_pipeline_invariants_hold_for_any_model_verdict(
     proposed_class = DRUGS_BY_ID[request.order.drug_id].drug_class
     if card.status.rank > rules.status.rank:
         assert DRUGS_BY_ID[alternative.drug_id].drug_class != proposed_class
-    # AC-004.6 (c): Layer 1 on the rewritten order is NO_ISSUE, or WARNING with a reviewed dose.
+    # AC-004.6 (c) and NFR-011: some listed entry explains the card. Its Layer 1 re-check is
+    # NO_ISSUE, or WARNING with a reviewed dose; the dose appears only when that entry is
+    # reviewed, and only from it. Several fired conflicts can list the same drug.
+    assert any(_entry_explains(request.context, alternative, entry) for entry in allowed)
+
+
+def _entry_explains(
+    context: PatientContext, alternative: Alternative, entry: AllowedAlternative
+) -> bool:
     rewritten = Order.model_validate(
         {
-            "drug_id": alternative.drug_id,
-            "dose_text": allowed[0].dose_text,
-            "route": allowed[0].route,
-            "frequency": allowed[0].frequency,
+            "drug_id": entry.drug_id,
+            "dose_text": entry.dose_text,
+            "route": entry.route,
+            "frequency": entry.frequency,
         }
     )
-    recheck = rules_engine.evaluate(request.context, rewritten).status
-    assert recheck is Status.NO_ISSUE or (
-        recheck is Status.WARNING and rule_table.is_reviewed(allowed[0])
-    )
-    # NFR-011: the dose appears only when the rule-table entry is reviewed, and only from it.
-    if rule_table.is_reviewed(allowed[0]):
-        assert (alternative.dose_text, alternative.route, alternative.frequency) == (
-            allowed[0].dose_text,
-            allowed[0].route,
-            allowed[0].frequency,
+    recheck = rules_engine.evaluate(context, rewritten).status
+    reviewed = rule_table.is_reviewed(entry)
+    if not (recheck is Status.NO_ISSUE or (recheck is Status.WARNING and reviewed)):
+        return False
+    if reviewed:
+        return (alternative.dose_text, alternative.route, alternative.frequency) == (
+            entry.dose_text,
+            entry.route,
+            entry.frequency,
         )
-    else:
-        assert alternative.dose_text == DOSE_FALLBACK_TEXT
-        assert (alternative.route, alternative.frequency) == ("", "")
+    return alternative.dose_text == DOSE_FALLBACK_TEXT and (
+        alternative.route,
+        alternative.frequency,
+    ) == ("", "")
 
 
 def test_nfr_011_unreviewed_alternative_after_model_escalation_has_no_dose(
@@ -454,5 +464,11 @@ def test_nfr_011_unreviewed_alternative_after_model_escalation_has_no_dose(
     assert not any(ch.isdigit() for ch in card.alternative.model_dump_json())
 
 
+HISTORY_CONFLICTS = {ConflictType.PAST_GI_BLEED, ConflictType.ISCHAEMIC_HEART_DISEASE}
+
+
 def test_nfr_011_every_alternative_is_reviewed_after_t_006() -> None:
-    assert all(rule_table.is_reviewed(a) for group in ALLOWED_ALTERNATIVES.values() for a in group)
+    """The T-006 alternatives are signed; the history ones (REQ-016) await the specialist."""
+    for (_, conflict), group in ALLOWED_ALTERNATIVES.items():
+        for alternative in group:
+            assert rule_table.is_reviewed(alternative) is (conflict not in HISTORY_CONFLICTS)

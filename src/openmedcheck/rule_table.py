@@ -1,9 +1,10 @@
 """The rule table: drug list, classes, rules and allowed alternatives (REQ-002, NFR-011).
 
-Pure data, no I/O. Every entry carries a source citation, a conflict type and a
-specialist-review mark (``reviewed_by`` / ``reviewed_on``). Every entry was reviewed by a
-clinical specialist on 2026-10-18 (T-006); an entry added later stays unreviewed, and its numeric
-doses hidden, until the specialist signs it off.
+Pure data, no I/O. Every entry carries a source citation and a conflict type; a reviewed entry
+also carries a specialist-review mark (``reviewed_by`` / ``reviewed_on``). The T-006 entries
+were reviewed by a clinical specialist on 2026-10-18; an entry added later (the past-history
+rules of REQ-016) stays unreviewed, and its numeric doses hidden, until the specialist signs it
+off.
 
 The citations name the active ingredient and section of the summary of product characteristics
 (SmPC) as published by the Spanish Agency of Medicines and Medical Devices in its online drug
@@ -324,14 +325,14 @@ CONTEXT_RULES: tuple[ContextRule, ...] = (
         rule_id="NSAID_HISTORY_GI_BLEED",
         status=Status.WARNING,
         risk_level=RiskLevel.HIGH,
-        conflict_type=ConflictType.GI_BLEED,
-        reason="NSAID with a recorded history of gastrointestinal bleeding, ulceration or "
+        conflict_type=ConflictType.PAST_GI_BLEED,
+        reason="NSAID with a recorded history of gastrointestinal bleeding, peptic ulcer or "
         "perforation.",
         source=f"{CIMA}: ibuprofen SmPC, section 4.3 (history of gastrointestinal bleeding or "
         "perforation related to previous NSAID therapy, and active or history of recurrent peptic "
         "ulcer or haemorrhage, are contraindications) and section 4.4 (higher risk with a history "
-        f"of ulcer); {_NSAID_SMPC}, sections 4.3 and 4.4 (some labels contraindicate any history "
-        "of gastrointestinal bleeding, ulceration or perforation)",
+        f"of ulcer); {_NSAID_SMPC}, sections 4.3 and 4.4 (the wording on past bleeding, ulcer and "
+        "perforation differs between labels; not yet checked against a live label)",
         applies_to_class="NSAID",
         history="PAST_GI_BLEED",
     ),
@@ -339,9 +340,9 @@ CONTEXT_RULES: tuple[ContextRule, ...] = (
         rule_id="NSAID_HISTORY_ISCHAEMIC_HEART_DISEASE",
         status=Status.WARNING,
         risk_level=RiskLevel.HIGH,
-        conflict_type=ConflictType.ANTIPLATELET_ACS,
+        conflict_type=ConflictType.ISCHAEMIC_HEART_DISEASE,
         reason="NSAID with a recorded history of ischaemic heart disease (previous ACS or "
-        "infarction, stent or angina).",
+        "infarction, coronary stent or angina).",
         source=f"{_NSAID_SMPC}, section 4.4 (cardiovascular thrombotic risk); European Medicines "
         "Agency, diclofenac-containing medicines referral, 2013 (diclofenac contraindicated in "
         "established ischaemic heart disease); Antman EM et al., Use of nonsteroidal "
@@ -594,7 +595,10 @@ _PARACETAMOL_SOURCE = (
 )
 
 
-def _paracetamol_for(proposed_drug_id: str, conflict_type: ConflictType) -> AllowedAlternative:
+def _paracetamol_for(
+    proposed_drug_id: str, conflict_type: ConflictType, *, reviewed: bool = True
+) -> AllowedAlternative:
+    """Paracetamol 1 g every 8 hours; ``reviewed`` only where the specialist confirmed it."""
     return AllowedAlternative(
         proposed_drug_id=proposed_drug_id,
         conflict_type=conflict_type,
@@ -604,8 +608,8 @@ def _paracetamol_for(proposed_drug_id: str, conflict_type: ConflictType) -> Allo
         frequency="every 8 hours",
         reason="Analgesic outside the NSAID class.",
         source=_PARACETAMOL_SOURCE,
-        reviewed_by=SPECIALIST_REVIEWER,
-        reviewed_on=SPECIALIST_REVIEW_DATE,
+        reviewed_by=SPECIALIST_REVIEWER if reviewed else None,
+        reviewed_on=SPECIALIST_REVIEW_DATE if reviewed else None,
     )
 
 
@@ -624,6 +628,13 @@ ALLOWED_ALTERNATIVES: dict[tuple[str, ConflictType], tuple[AllowedAlternative, .
         )
     },
     ("dexketoprofen", ConflictType.RENAL): (_paracetamol_for("dexketoprofen", ConflictType.RENAL),),
+    # Past medical history (REQ-016): not reviewed for these rules, so the card shows the drug
+    # with "Dose: consult SmPC" until the specialist confirms the dose (NFR-011).
+    **{
+        (drug_id, conflict_type): (_paracetamol_for(drug_id, conflict_type, reviewed=False),)
+        for drug_id in _NSAID_IDS
+        for conflict_type in (ConflictType.PAST_GI_BLEED, ConflictType.ISCHAEMIC_HEART_DISEASE)
+    },
 }
 
 # --- Questions for the clinical specialist (rendered into docs/clinical-review.md) -----------
@@ -725,12 +736,14 @@ SPECIALIST_QUESTIONS: tuple[str, ...] = (
     "Past medical history (REQ-016, added after your review, not reviewed yet): (a) "
     "NSAID_HISTORY_GI_BLEED is a WARNING for any recorded history of GI bleeding, ulcer or "
     "perforation. Ibuprofen labels contraindicate a history related to previous NSAID therapy "
-    "or recurrent ulcer/haemorrhage; some dexketoprofen labels contraindicate any history. "
+    "or recurrent ulcer/haemorrhage; dexketoprofen label wording differs and was not checked. "
     "Should it be BLOCKED, and should the record distinguish NSAID-related or recurrent events? "
     "(b) NSAID_HISTORY_ISCHAEMIC_HEART_DISEASE is a WARNING for every NSAID; EMA contraindicates "
     "diclofenac in established ischaemic heart disease. Should diclofenac be BLOCKED? (c) Past "
-    "history read from the note keeps 'history of', 'previous', 'prior' and 'h/o' and drops "
-    "denials and relatives (father, mother, sibling, family). Acceptable?",
+    "history read from the note counts only when the model quotes it word for word and the "
+    "quote names the event (for example 'GI bleed', 'peptic ulcer', 'MI', 'stent', 'angina'); "
+    "it is dropped when the sentence denies it ('no', 'never', 'denies') or names a relative "
+    "('father', 'mother', 'family history'). Acceptable, and which cues are missing?",
 )
 
 RULES_BY_ID: dict[str, RuleEntry] = {

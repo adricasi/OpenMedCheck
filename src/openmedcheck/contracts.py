@@ -50,6 +50,10 @@ class ConflictType(StrEnum):
     HYPERKALAEMIA = "HYPERKALAEMIA"
     HEART_FAILURE = "HEART_FAILURE"
     PREGNANCY = "PREGNANCY"
+    # Past medical history (REQ-016): own types, so a history rule never confirms a model
+    # escalation for a current conflict (AC-003.8).
+    PAST_GI_BLEED = "PAST_GI_BLEED"
+    ISCHAEMIC_HEART_DISEASE = "ISCHAEMIC_HEART_DISEASE"
     OTHER = "OTHER"
 
 

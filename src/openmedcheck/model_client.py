@@ -37,8 +37,9 @@ MAX_HEADLINE_WORDS = 8
 MAX_HEADLINE_CHARS = 60
 MAX_RATIONALE_CHARS = 300
 MAX_RATIONALE_SENTENCES = 2
-# 600 tokens: the verdict plus up to four note findings with quotes (prompt v5, ADR 0006).
-OLLAMA_OPTIONS: dict[str, Any] = {"temperature": 0, "num_predict": 600}
+# 800 tokens: the verdict plus up to 13 note findings with quotes (prompt v8, ADR 0006, ADR
+# 0009); a truncated answer is invalid JSON and costs the retry.
+OLLAMA_OPTIONS: dict[str, Any] = {"temperature": 0, "num_predict": 800}
 OLLAMA_KEEP_ALIVE = "10m"
 CONNECT_TIMEOUT_S = 2.0
 HEALTH_TIMEOUT_S = 2.0

@@ -17,8 +17,8 @@ ibuprofen and "History of ACS in 2019 with a stent" + ibuprofen.
 That protected against one error (treating an old event as a current one) by ignoring the past
 altogether, which is a clinical gap: NSAID SmPCs list a history of gastrointestinal bleeding or
 perforation related to previous NSAID therapy and a history of recurrent peptic ulcer or
-haemorrhage as contraindications (ibuprofen, section 4.3; some dexketoprofen labels list any
-history of GI bleeding, ulceration or perforation), and EMA contraindicates diclofenac in
+haemorrhage as contraindications (ibuprofen, section 4.3; the dexketoprofen wording differs
+between labels and was not checked against a live label), and EMA contraindicates diclofenac in
 established ischaemic heart disease (2013 referral). The product owner considers checking the
 order against the patient's history the core value of the product.
 
@@ -39,18 +39,24 @@ order against the patient's history the core value of the product.
 We will use option 3, in two steps. Step 1 (T-018): the coded `history` field, the rules
 `NSAID_HISTORY_GI_BLEED` and `NSAID_HISTORY_ISCHAEMIC_HEART_DISEASE` (both WARNING / HIGH), and the
 recorded history shown to the model. Step 2 (T-019): the `note_history` question; for history
-findings "history of", "previous", "prior" and "h/o" are evidence, not negation, while a denial
-("no history of", "denies") or a relative (father, mother, sibling, family) still drops the
-finding. Current-condition findings keep today's negation rules, so a past event never becomes a
+findings "history of", "previous", "prior" and "h/o" are evidence, not negation; the quote must
+contain a specific term of the code ("GI bleed", "peptic ulcer", "MI", "coronary stent", not a
+bare "ulcer" or "stent"); and a denial ("no known history of", "denies", "never") or a blood
+relative or family-history label ("mother", "FHx", "Family history:") still drops the finding. Current-condition findings keep today's negation rules, so a past event never becomes a
 current one.
 
 Both rules start at WARNING because the labels differ on how far the contraindication goes
 (NSAID-related or recurrent events in some labels, any history in others) and because they have
 not been reviewed yet; whether either should be `BLOCKED` (for example diclofenac with ischaemic
-heart disease) is a question for the specialist. The new rules reuse existing conflict types
-(`GI_BLEED`, `ANTIPLATELET_ACS`), so the model's conflict-type enum and the alternative table do
-not change, and the paracetamol alternative (reviewed dose) applies as for the current
-conditions.
+heart disease) is a question for the specialist.
+
+The rules have their own conflict types (`PAST_GI_BLEED`, `ISCHAEMIC_HEART_DISEASE`). Reusing
+`GI_BLEED` or `ANTIPLATELET_ACS` would let a WARNING history rule confirm the model's `BLOCKED`
+for a current bleed or ACS that the rules did not find (AC-003.8). Both types are rule-decided,
+and the gate now also caps a confirmed model escalation at the status and tier of the rules of
+that type: the rules, not the model, decide how strict a rule-decided conflict is. This also
+applies to the existing WARNING rules (`HEART_FAILURE`, `PREGNANCY`). The paracetamol alternative
+for the new types is unreviewed, so the card shows "Dose: consult SmPC" (NFR-011).
 
 ## Consequences
 - Positive: an NSAID ordered after a previous GI bleed or a previous heart attack raises an alert
@@ -58,8 +64,12 @@ conditions.
   only make the verdict stricter, so the escalate-only invariant (ADR 0003) is unchanged.
 - Negative / risks: two clinically unreviewed rules ship marked as such (NFR-011); prompt v8 can
   shift the model's behaviour on the other evaluation cases, so it must be evaluated on the real
-  model before merging, and step 2 stays a separate, revertible commit; a history mention the
-  verifier misreads (an unusual family phrasing) could add a WARNING, never remove one.
+  model before merging, and step 2 stays a separate, revertible commit. The verifier works on
+  wording, so it can err both ways: an unusual family phrasing it does not recognise, or a model
+  quote of a suspected event ("query MI") reported as history, adds a WARNING; a history written
+  in words it does not know ("LAD stent", "bypass surgery") is dropped, and only the recorded
+  history then raises the alert. A dropped note finding never removes an alert the record
+  supports.
 - Follow-ups: specialist review of both rules (and the BLOCKED question); more history codes
   (stroke, renal transplant) only with a source and a rule; record-system integration would read
   the coded history from the problem list.

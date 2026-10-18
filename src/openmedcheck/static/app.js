@@ -28,7 +28,7 @@ const CONDITION_LABELS = {
   PREGNANCY: "pregnancy",
 };
 const HISTORY_LABELS = {
-  PAST_GI_BLEED: "previous gastrointestinal bleeding, ulcer or perforation",
+  PAST_GI_BLEED: "previous gastrointestinal bleeding, peptic ulcer or perforation",
   ISCHAEMIC_HEART_DISEASE: "ischaemic heart disease",
 };
 const NO_MODEL_NOTE = "Model check unavailable — rules only";

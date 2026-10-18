@@ -272,27 +272,42 @@ _findings = st.lists(
     max_size=4,
 )
 _orders = st.sampled_from(note_findings.MEDICATION_CODES)
+
+
+def _context(
+    diagnoses: list[str],
+    chronic: list[str],
+    allergies: list[str],
+    creatinine: float | None,
+    egfr: float | None,
+    age: int,
+    weight: float,
+    potassium: float | None,
+    platelets: float | None,
+    history: list[str],
+) -> PatientContext:
+    return PRESET_A.request.context.model_copy(
+        update={
+            "diagnoses": diagnoses,
+            "history": history,
+            "chronic_medications": chronic,
+            "allergies": allergies,
+            "age": age,
+            "weight_kg": weight,
+            "labs": PRESET_A.request.context.labs.model_copy(
+                update={
+                    "creatinine_mg_dl": creatinine,
+                    "egfr_ml_min_1_73m2": egfr,
+                    "potassium_mmol_l": potassium,
+                    "platelets_per_ul": platelets,
+                }
+            ),
+        }
+    )
+
+
 _contexts = st.builds(
-    lambda diagnoses, chronic, allergies, creatinine, egfr, age, weight, potassium, platelets, history: (  # noqa: E501
-        PRESET_A.request.context.model_copy(
-            update={
-                "diagnoses": diagnoses,
-                "history": history,
-                "chronic_medications": chronic,
-                "allergies": allergies,
-                "age": age,
-                "weight_kg": weight,
-                "labs": PRESET_A.request.context.labs.model_copy(
-                    update={
-                        "creatinine_mg_dl": creatinine,
-                        "egfr_ml_min_1_73m2": egfr,
-                        "potassium_mmol_l": potassium,
-                        "platelets_per_ul": platelets,
-                    }
-                ),
-            }
-        )
-    ),
+    _context,
     st.lists(st.sampled_from(note_findings.CONDITION_CODES), unique=True),
     st.lists(st.sampled_from(note_findings.MEDICATION_CODES), max_size=3, unique=True),
     st.lists(st.sampled_from(note_findings.ALLERGY_CODES), max_size=2, unique=True),
@@ -324,7 +339,9 @@ def test_req_004_findings_never_make_the_rules_verdict_less_strict(
 _model_status = st.sampled_from(["NO_ISSUE", "WARNING", "BLOCKED"])
 
 
-_conflicts = st.sampled_from(["ANTIPLATELET_ACS", "GI_BLEED", "ALLERGY", "RENAL", "OTHER"])
+_conflicts = st.sampled_from(
+    ["ANTIPLATELET_ACS", "GI_BLEED", "ALLERGY", "RENAL", "PAST_GI_BLEED", "OTHER"]
+)
 _tiers = st.sampled_from(["LOW", "MODERATE", "HIGH", "CRITICAL"])
 
 
@@ -561,6 +578,20 @@ _GATE_CASES = {
             order=Order(drug_id="ibuprofen", dose_text="x", route="PO", frequency="x"),
         ),
     ),
+    **{
+        code: (
+            PRESET_C.request.model_copy(
+                update={
+                    "order": Order(drug_id="ibuprofen", dose_text="x", route="PO", frequency="x")
+                }
+            ),
+            CheckRequest(
+                context=PRESET_C.request.context.model_copy(update={"history": [code]}),
+                order=Order(drug_id="ibuprofen", dose_text="x", route="PO", frequency="x"),
+            ),
+        )
+        for code in ("PAST_GI_BLEED", "ISCHAEMIC_HEART_DISEASE")
+    },
 }
 
 
@@ -586,12 +617,16 @@ def test_ac_003_8_unconfirmed_escalation_is_set_aside_for_each_type(conflict: st
 
 
 @pytest.mark.parametrize("conflict", sorted(_GATE_CASES))
-def test_ac_003_8_escalation_confirmed_by_a_rule_is_kept_for_each_type(conflict: str) -> None:
+def test_ac_003_8_escalation_confirmed_by_a_rule_is_capped_at_its_level(conflict: str) -> None:
+    """A same-type rule confirms the conflict; its level, not the model's, decides the card."""
     _, confirmed = _GATE_CASES[conflict]
+    coded = rules_engine.evaluate(confirmed.context, confirmed.order)
+    same_type = [r for r in coded.fired_rules if r.conflict_type.value == conflict]
+    assert same_type
 
     card = run(confirmed, model_json(**_escalation(conflict)))
 
-    assert card.status is Status.BLOCKED
+    assert card.status is coded.status
 
 
 @pytest.mark.parametrize(

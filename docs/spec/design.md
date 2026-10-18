@@ -54,9 +54,10 @@ flowchart LR
 | `rules_engine` | Applies all rules to a context + order → RulesVerdict; no I/O | Pure Python | REQ-002, AC-001.5, REQ-005 |
 | `prompt` | Versioned system prompt + per-request user message; note is delimited as untrusted data; card JSON schema built per request (alternative enum = allowed alternatives for this drug) | Python | REQ-003, AC-003.5 |
 | `model_client` | `ModelClient` protocol; `OllamaClient` (httpx, `/api/chat`, `format`=schema, temperature 0, timeout); `FakeModelClient` for tests | httpx | REQ-003, REQ-005, NFR-004 |
+| `note_findings` | Verifies the model's note findings (code valid for its kind, verbatim quote that names the code, not negated; history findings not denied and not a relative's), adds kept findings to the context and re-runs Layer 1 with quotes as evidence | Pure Python | AC-003.6, AC-003.7, AC-016.4 |
 | `combiner` | Pure escalate-only merge of RulesVerdict + ModelVerdict; text-source selection; flags union | Pure Python | REQ-004 |
 | `check_service` | Orchestrates rules → model (validate, retry once) → combine → alternative re-check → DecisionCard; timing; one log line | Python | REQ-001, REQ-003–005, NFR-007 |
-| `presets` | Synthetic presets A, B, C | Python data | REQ-006 |
+| `presets` | Synthetic presets A, B, C (rooms) and templates D–K | Python data | REQ-006 |
 | `web` | FastAPI app, routes, Jinja2 template, static CSS/JS, trusted-host and body-size middleware, model health/warm-up | FastAPI, Jinja2, uvicorn | REQ-007–011, REQ-014, NFR-001 |
 | `logging_setup` | JSON log formatter, allowlisted fields only | stdlib `logging` | NFR-002, NFR-007 |
 | `config` | Reads and validates environment variables | stdlib + explicit validation | AC-011.3 |
@@ -136,6 +137,11 @@ non-loopback host or Ollama URL unless set; AC-011.4).
 3. Build prompt (system prompt + context + order + rules verdict + allowed alternatives); call
    the model with the per-request schema; validate schema, then content (AC-003.5); retry once
    on invalid. One 10 s deadline covers both attempts; on expiry → fallback.
+3a. Note findings (ADR 0006, ADR 0009): `note_findings` keeps the verified findings (current
+   conditions, medications, allergies, past history), adds them to the context and re-runs
+   Layer 1; that verdict is the rules verdict from here on. Gate (AC-003.8): a model escalation
+   with a rule-decided conflict type is set aside unless a rule of that type fired, and is capped
+   at the status and tier of those rules when one did.
 4. Combiner (pure):
    - status = max(rules, model); risk = max(rules, model); renal flag = rules OR model; if the
      renal flag is set, status = max(status, `WARNING`).

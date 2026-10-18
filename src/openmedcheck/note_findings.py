@@ -70,41 +70,87 @@ CONDITION_TERMS: dict[str, tuple[str, ...]] = {
     "HEART_FAILURE": ("heart failure", "cardiac failure", "hfref", "hfpef", "chf", "ccf"),
     "PREGNANCY": ("pregnan", "gestation"),
 }
+# Specific phrases only (safety review): a bare "ulcer", "stent" or "infarct" also names a
+# diabetic foot ulcer, a ureteric stent or a cerebral infarct.
 HISTORY_TERMS: dict[str, tuple[str, ...]] = {
     "PAST_GI_BLEED": (
-        *CONDITION_TERMS["ACTIVE_GI_BLEED"],
-        "ulcer",
-        "perforat",
+        "gi bleed",
+        "gi haemorrhage",
+        "gi hemorrhage",
+        "gib",
+        "ugib",
+        "gastrointestinal bleed",
+        "gastrointestinal haemorrhage",
+        "gastrointestinal hemorrhage",
+        "melena",
+        "melaena",
+        "haematemesis",
+        "hematemesis",
+        "coffee-ground",
+        "coffee ground",
+        "peptic ulcer",
+        "gastric ulcer",
+        "duodenal ulcer",
+        "stomach ulcer",
+        "bleeding ulcer",
+        "perforated ulcer",
+        "pud",
+        "gi perforation",
+        "gastrointestinal perforation",
+        "bowel perforation",
     ),
     "ISCHAEMIC_HEART_DISEASE": (
-        *CONDITION_TERMS["ACS"],
-        "heart attack",
-        "infarct",
+        "acs",
+        "stemi",
+        "nstemi",
+        "angina",
+        "myocardial infarct",
         "mi",
-        "stent",
+        "heart attack",
+        "coronary stent",
+        "cardiac stent",
         "pci",
+        "ptca",
         "cabg",
+        "coronary artery bypass",
+        "coronary bypass",
         "ihd",
         "cad",
+        "chd",
+        "ischaemic heart",
+        "ischemic heart",
+        "coronary artery disease",
+        "coronary heart disease",
+        "coronary disease",
     ),
 }
-# Short history terms ("mi", "cad") must be whole words: "mild" is not an MI.
+# Short history terms ("mi", "cad") must be whole words, a plural "s" aside: "mild" is not an
+# MI, "two previous MIs" is.
 _SHORT_TERM = 3
 # Past history is evidence, not negation (ADR 0009): for history findings only denials count,
-# and "resolved" says the event happened.
+# and "resolved" says the event happened. The denial looks a little further back ("no known
+# history of peptic ulcer") but stops at "since" and its kin ("no chest pain since MI").
 _PRE_NEGATION_HISTORY = re.compile(
-    r"\b(?:no|not|never|denies|denied|negative\s+for|free\s+of)\b", re.IGNORECASE
+    r"\b(?:no|not|never|nil|without|denies|denied|negative\s+for|free\s+of)\b", re.IGNORECASE
 )
+_HISTORY_DENIAL_WORDS = 6
+_DENIAL_STOP = re.compile(r"\b(?:since|after|following|post|s/p)\b", re.IGNORECASE)
 _POST_NEGATION_HISTORY = re.compile(
     r"^(?P<gap>\W*(?:[\w']+\W+){0,2}?)(?:ruled\s+out|rules\s+out|excluded|unlikely)\b",
     re.IGNORECASE,
 )
-# A relative's history is not the patient's (AC-016.4): anywhere in the term's clause.
+# A relative's history is not the patient's (AC-016.4). A blood relative counts in the term's
+# comma-delimited clause ("Mother: MI at 60", "father and uncle had MIs"); a family-history
+# label counts anywhere earlier in the sentence ("Family history of diabetes and MI"). Spouses
+# and children are left out: "brought in by daughter, previous MI" is the patient's history.
 _RELATIVE = re.compile(
-    r"\b(?:father|mother|dad|mum|mom|brother|sister|sibling|parent|son|daughter|uncle|aunt|"
-    r"cousin|grand\w*|wife|husband|partner|spouse|family|fhx|f/h)\b",
+    r"\b(?:(?:father|mother|dad|mum|mom|brother|sister|sibling|parent|uncle|aunt|cousin)s?|"
+    r"grand\w*)\b",
     re.IGNORECASE,
 )
+_FAMILY = re.compile(r"\b(?:family|fhx|fh|f/h)\b", re.IGNORECASE)
+_SENTENCE_END = re.compile(r"[.;!?\n]")
+_RELATIVE_CLAUSE_END = re.compile(r"[,.;!?\n]")
 # Negation is local (safety review): a cue counts only inside the clause of the matched term,
 # a few words before it ("no GI bleeding", "history of ACS", "not on aspirin") or right after it
 # ("ACS ruled out"). Clauses end at punctuation, "but", "except", "although" and "however", so
@@ -163,16 +209,21 @@ def _code_terms(kind: FindingKind, code: str) -> tuple[str, ...]:
     return tuple({*_words(drug.drug_id), *_words(drug.active_ingredient)})
 
 
+def _phrase(term: str) -> str:
+    return r"\s+".join(re.escape(word) for word in term.split())
+
+
 def _term_in(
     span: re.Match[str], terms: Sequence[str], *, whole_short: bool = False
 ) -> re.Match[str] | None:
     """First code term inside the matched quote, at a word start ("sacs" is not ACS).
 
-    ``whole_short``: terms of up to three letters must also end a word ("mild" is not MI).
+    Words of a term match across any spacing. ``whole_short``: terms of up to three letters
+    must also end a word, a plural "s" aside ("mild" is not MI).
     """
     pattern = "|".join(
-        rf"(?<![a-z]){re.escape(term)}"
-        + (r"(?![a-z])" if whole_short and len(term) <= _SHORT_TERM else "")
+        rf"(?<![a-z]){_phrase(term)}"
+        + (r"s?(?![a-z])" if whole_short and len(term) <= _SHORT_TERM else "")
         for term in terms
     )
     return re.compile(pattern, re.IGNORECASE).search(span.string, span.start(), span.end())
@@ -198,12 +249,7 @@ def _negated(text: str, term: re.Match[str], kind: FindingKind, code: str) -> bo
     stop = _CLAUSE_END.search(after)
     clause_after = after[: stop.start()] if stop else after
     if kind is FindingKind.HISTORY:
-        return bool(
-            _PRE_NEGATION_HISTORY.search(window)
-            or _post_negated(clause_after, _POST_NEGATION_HISTORY)
-            or _RELATIVE.search(clause_before)
-            or _RELATIVE.search(clause_after)
-        )
+        return _history_negated(before, after, clause_before, clause_after)
     return bool(
         _PRE_NEGATION.search(window)
         or _post_negated(clause_after)
@@ -216,6 +262,23 @@ def _negated(text: str, term: re.Match[str], kind: FindingKind, code: str) -> bo
             kind is FindingKind.MEDICATION
             and (_ADJACENT_PRE_NEGATION.search(before) or _POST_STOPPED.search(after))
         )
+    )
+
+
+def _history_negated(before: str, after: str, clause_before: str, clause_after: str) -> bool:
+    """A denial near the term, or the history of a relative (ADR 0009, AC-016.4)."""
+    stops = list(_DENIAL_STOP.finditer(clause_before))
+    denial_span = clause_before[stops[-1].end() :] if stops else clause_before
+    denial_window = " ".join(denial_span.split()[-_HISTORY_DENIAL_WORDS:])
+    relative_before = _RELATIVE_CLAUSE_END.split(before)[-1]
+    relative_after = _RELATIVE_CLAUSE_END.split(after, maxsplit=1)[0]
+    return bool(
+        _PRE_NEGATION_HISTORY.search(denial_window)
+        or _post_negated(clause_after, _POST_NEGATION_HISTORY)
+        or _RELATIVE.search(relative_before)
+        or _RELATIVE.search(relative_after)
+        or _FAMILY.search(_SENTENCE_END.split(before)[-1])
+        or _FAMILY.search(relative_after)
     )
 
 

@@ -39,11 +39,15 @@ def test_nfr_011_review_sheet_lists_every_rule_and_preset() -> None:
     # T-006 signed off the 2026-10-18 table; the history rules (AC-016.3) came later.
     assert (
         "**Status: NOT FULLY REVIEWED.** Clinical specialist (name not recorded) confirmed 44 of "
-        "46 rules and alternatives on 2026-10-18" in text
+        "54 rules and alternatives on 2026-10-18" in text
     )
     assert (
-        "Awaiting sign-off: NSAID_HISTORY_GI_BLEED, NSAID_HISTORY_ISCHAEMIC_HEART_DISEASE." in text
+        "Awaiting sign-off: NSAID_HISTORY_GI_BLEED, NSAID_HISTORY_ISCHAEMIC_HEART_DISEASE, "
+        "dexketoprofen / PAST_GI_BLEED → paracetamol" in text
     )
+    # The specialist sees what triggers a history rule and which presets carry history.
+    assert "Past medical history PAST_GI_BLEED (recorded or a quoted note finding)" in text
+    assert "past medical history: ISCHAEMIC_HEART_DISEASE" in text
     assert "## Source check (2026-10-18)" in text
     assert "Questions for the specialist" in text
 

@@ -1,6 +1,7 @@
 # 0006. The model extracts note findings with quotes; the rules decide
 
-- Status: Accepted
+- Status: Accepted; amended by [ADR 0009](0009-patient-history-is-an-input.md) (past history
+  in the note becomes a history finding; the gate caps confirmed escalations)
 - Date: 2026-10-18
 - Deciders: adricasi
 

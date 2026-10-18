@@ -18,6 +18,7 @@ from openmedcheck.contracts import (
     NoteFinding,
     Order,
     PatientContext,
+    Source,
     Status,
 )
 from openmedcheck.model_client import FakeModelClient, ModelOutput
@@ -164,7 +165,10 @@ def test_ac_016_3_history_rules_are_cited_and_await_review(rule_id: str) -> None
     assert rule.source.strip()
     assert not rule_table.is_reviewed(rule)
     assert rule.status is Status.WARNING
-    assert rule.conflict_type in (ConflictType.GI_BLEED, ConflictType.ANTIPLATELET_ACS)
+    assert rule.conflict_type in (
+        ConflictType.PAST_GI_BLEED,
+        ConflictType.ISCHAEMIC_HEART_DISEASE,
+    )
     assert any(rule_id in question for question in rule_table.SPECIALIST_QUESTIONS)
 
 
@@ -282,3 +286,113 @@ def test_ac_016_4_full_check_warns_on_history_only_in_the_note() -> None:
     assert rule.evidence == ["Previous GI bleed in 2015"]
     assert card.alternative is not None
     assert card.alternative.drug_id == "paracetamol"
+
+
+@pytest.mark.parametrize(
+    ("note", "code", "quote"),
+    [
+        ("Two previous MIs, last in 2019.", "ISCHAEMIC_HEART_DISEASE", "Two previous MIs"),
+        ("Hx PUD, on omeprazole.", "PAST_GI_BLEED", "Hx PUD"),
+        ("Ischaemic heart disease, on aspirin.", "ISCHAEMIC_HEART_DISEASE", "Ischaemic heart"),
+        ("No chest pain since MI in 2019.", "ISCHAEMIC_HEART_DISEASE", "MI in 2019"),
+        ("Brought in by daughter, previous MI.", "ISCHAEMIC_HEART_DISEASE", "previous MI"),
+        ("Previous MI; family history of diabetes.", "ISCHAEMIC_HEART_DISEASE", "Previous MI"),
+        ("Upper  GI   bleed in 2016.", "PAST_GI_BLEED", "GI bleed"),
+    ],
+)
+def test_ac_016_4_specific_history_wording_is_kept(note: str, code: str, quote: str) -> None:
+    assert kept(note, code, quote)
+
+
+@pytest.mark.parametrize(
+    ("note", "code", "quote"),
+    [
+        ("Family history: MI.", "ISCHAEMIC_HEART_DISEASE", "MI"),
+        ("Mother: MI at 60.", "ISCHAEMIC_HEART_DISEASE", "MI at 60"),
+        ("Brothers both had MIs.", "ISCHAEMIC_HEART_DISEASE", "MIs"),
+        ("Family history of diabetes and MI.", "ISCHAEMIC_HEART_DISEASE", "MI"),
+        ("FH of peptic ulcer.", "PAST_GI_BLEED", "peptic ulcer"),
+        ("No known history of peptic ulcer disease.", "PAST_GI_BLEED", "peptic ulcer disease"),
+        ("Nil previous GI bleed.", "PAST_GI_BLEED", "GI bleed"),
+        ("Diabetic foot ulcer, dressed.", "PAST_GI_BLEED", "foot ulcer"),
+        ("Ulcerative colitis in remission.", "PAST_GI_BLEED", "Ulcerative colitis"),
+        ("Perforated eardrum as a child.", "PAST_GI_BLEED", "Perforated eardrum"),
+        ("Nose bleed last week.", "PAST_GI_BLEED", "Nose bleed"),
+        ("Ureteric stent in 2020.", "ISCHAEMIC_HEART_DISEASE", "Ureteric stent"),
+        ("Old cerebral infarct on CT.", "ISCHAEMIC_HEART_DISEASE", "cerebral infarct"),
+        ("Angiogram: normal coronary arteries.", "ISCHAEMIC_HEART_DISEASE", "normal coronary"),
+    ],
+)
+def test_ac_016_4_family_denied_or_other_organ_history_is_dropped(
+    note: str, code: str, quote: str
+) -> None:
+    assert not kept(note, code, quote)
+
+
+# --- AC-003.8: a history rule decides only its own conflict ----------------------------------
+
+
+def _model(status: str, conflict_type: str) -> dict[str, Any]:
+    return {
+        **verdict_json(
+            status=status, conflict_type=conflict_type, alternative_drug_id="paracetamol"
+        ),
+        "note_acs_quote": None,
+    }
+
+
+def test_ac_003_8_a_history_rule_does_not_unlock_a_blocked_current_conflict() -> None:
+    """A past GI bleed (WARNING) does not confirm the model's BLOCKED active GI bleed."""
+    request = CheckRequest(context=context(history=["PAST_GI_BLEED"]), order=order("ibuprofen"))
+
+    card = final_card(request, FakeModelClient([_model("BLOCKED", "GI_BLEED")]))
+
+    assert card.status is Status.WARNING
+    assert [rule.rule_id for rule in card.fired_rules] == ["NSAID_HISTORY_GI_BLEED"]
+
+
+@pytest.mark.parametrize(
+    ("history", "conflict"),
+    [("PAST_GI_BLEED", "PAST_GI_BLEED"), ("ISCHAEMIC_HEART_DISEASE", "ISCHAEMIC_HEART_DISEASE")],
+)
+def test_ac_003_8_model_blocked_for_a_history_conflict_is_capped_at_warning(
+    history: str, conflict: str
+) -> None:
+    request = CheckRequest(context=context(history=[history]), order=order("ibuprofen"))
+
+    card = final_card(request, FakeModelClient([_model("BLOCKED", conflict)]))
+
+    assert card.status is Status.WARNING
+    assert card.alternative is not None
+    assert card.alternative.dose_text == rule_table.DOSE_FALLBACK_TEXT
+
+
+def test_ac_016_4_invalid_note_history_twice_gives_the_rules_only_card() -> None:
+    request = CheckRequest(context=context(history=["PAST_GI_BLEED"]), order=order("ibuprofen"))
+    bad = {**_model("WARNING", "PAST_GI_BLEED"), "note_history": [{"code": "PAST_GI_BLEED"}]}
+
+    card = final_card(request, FakeModelClient([bad, bad]))
+
+    assert card.source is Source.RULES
+    assert card.status is Status.WARNING
+
+
+def test_ac_016_4_an_unknown_history_code_is_dropped_by_the_verifier() -> None:
+    request = CheckRequest(context=context(ed_note="Stroke in 2019."), order=order("ibuprofen"))
+    answer = {
+        **_model("NO_ISSUE", "PAST_GI_BLEED"),
+        "conflict_type": None,
+        "alternative_drug_id": None,
+        "note_history": [{"code": "STROKE", "quote": "Stroke in 2019"}],
+    }
+
+    card = final_card(request, FakeModelClient([answer]))
+
+    assert card.source is Source.RULES_MODEL
+    assert card.status is Status.NO_ISSUE
+
+
+def test_ac_003_6_max_findings_matches_the_prompt_limits() -> None:
+    """One quote per condition plus three items for each of the three listed note fields."""
+    expected = len(note_findings.CONDITION_CODES) + 3 * prompt._MAX_LISTED
+    assert expected == note_findings.MAX_FINDINGS

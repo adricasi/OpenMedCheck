@@ -143,11 +143,14 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
     they can only repeat the clinician's own text (accepted risk, ADR 0006).
   - AC-003.8: IF the model's own verdict escalates with a conflict type the rules decide
     (`ANTIPLATELET_ACS`, `GI_BLEED`, `ALLERGY`, `BLEEDING`, `HYPERKALAEMIA`, `HEART_FAILURE`,
-    `PREGNANCY`) and no rule of that type fired on the coded context plus the kept
-    findings THEN THE SYSTEM SHALL set that escalation aside (the rules decide these conflicts)
-    and log `model_escalation_gated`; escalations of other types still count, and the final card
-    SHALL never be below the coded rules verdict (REQ-004). The final status SHALL never be below the
-    verdict on the coded context alone (REQ-004).
+    `PREGNANCY`, `PAST_GI_BLEED`, `ISCHAEMIC_HEART_DISEASE`) and no rule of that type fired on
+    the coded context plus the kept findings THEN THE SYSTEM SHALL set that escalation aside
+    (the rules decide these conflicts) and log `model_escalation_gated`; IF a rule of that type
+    fired THEN the escalation SHALL count only up to the highest status and tier of those rules
+    (a `WARNING` rule does not become `BLOCKED` because the model says so) and the capping is
+    logged the same way. Escalations of other types still count. The final status SHALL never be
+    below the verdict on the coded context alone (REQ-004). (Amended 2026-10-18, ADR 0009:
+    previously seven types and no cap.)
 
 ### REQ-004: Escalate-only safety invariant
 - Story: As a hospital pharmacist, I want a guarantee that the model can only make the verdict
@@ -225,7 +228,9 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
   - AC-006.6: THE SYSTEM SHALL offer synthetic template patients: A, B, C, the three below, and
     G (warfarin + ibuprofen → rules `BLOCKED`), H (potassium 5.8 mmol/L + enalapril → rules
     `BLOCKED`) and I (pregnancy only in the note + ibuprofen → rules `NO_ISSUE`, the model's quote
-    decides) for the conflict breadth of AC-002.9 to AC-002.13. The first six are:
+    decides) for the conflict breadth of AC-002.9 to AC-002.13, and J (previous GI bleed in the
+    past medical history + ibuprofen → rules `WARNING`) and K (ischaemic heart disease in the
+    past medical history + ibuprofen → rules `WARNING`) for REQ-016. The first six are:
     each with a deterministic rules conflict and a demo prescription:
     D (coded active GI bleed, ibuprofen → rules `BLOCKED`, alternative paracetamol),
     E (penicillin allergy, amoxicillin-clavulanate → rules `BLOCKED`, no alternative),
@@ -420,19 +425,26 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
     perforation; `ISCHAEMIC_HEART_DISEASE` for a previous ACS or MI, coronary stent or angina),
     default empty, show it in the record as "Past medical history" and let the demo edit it.
   - AC-016.2: WHEN an NSAID is ordered for a patient with `PAST_GI_BLEED` THE SYSTEM SHALL fire
-    `NSAID_HISTORY_GI_BLEED` (WARNING, HIGH, conflict `GI_BLEED`); WHEN an NSAID is ordered for a
-    patient with `ISCHAEMIC_HEART_DISEASE` THE SYSTEM SHALL fire
-    `NSAID_HISTORY_ISCHAEMIC_HEART_DISEASE` (WARNING, HIGH, conflict `ANTIPLATELET_ACS`). Neither
-    rule SHALL fire for a drug outside the NSAID class or without that history. Adding history
-    SHALL never lower a verdict (REQ-004).
+    `NSAID_HISTORY_GI_BLEED` (WARNING, HIGH, conflict `PAST_GI_BLEED`); WHEN an NSAID is ordered
+    for a patient with `ISCHAEMIC_HEART_DISEASE` THE SYSTEM SHALL fire
+    `NSAID_HISTORY_ISCHAEMIC_HEART_DISEASE` (WARNING, HIGH, conflict `ISCHAEMIC_HEART_DISEASE`).
+    The history rules have their own conflict types so they never confirm a model escalation
+    for a current conflict (AC-003.8). Neither rule SHALL fire for a drug outside the NSAID class
+    or without that history. Adding history SHALL never lower a verdict (REQ-004). The
+    alternative for these conflicts (paracetamol) is unreviewed too, so its dose is not shown
+    (NFR-011).
   - AC-016.3: The two rules SHALL follow AC-002.8 and NFR-011: a cited source and no review mark
     until the clinical specialist confirms them; the review sheet and the specialist questions
     SHALL list them.
   - AC-016.4: WHEN the model reports past history in `note_history` THE SYSTEM SHALL keep a
     history finding only under AC-003.6, except that "history of", "previous", "prior" and "h/o"
-    SHALL NOT count as negation for history findings; a clause that denies the history ("no
-    history of", "denies") or attributes it to a relative (father, mother, sibling, family) SHALL
-    drop it. Kept history findings SHALL be added to `history` and shown as evidence (AC-003.7).
+    SHALL NOT count as negation for history findings, and the quote SHALL contain a specific term
+    of the code (for example "GI bleed", "peptic ulcer", "PUD", "MI", "coronary stent", "PCI",
+    "angina"; not a bare "ulcer", "stent" or "infarct"). A denial up to six words before the term
+    ("no known history of", "denies", "never", "nil"), stopping at "since" or "after", or a
+    blood relative in the same clause or a family-history label ("family history", "FHx")
+    earlier in the sentence SHALL drop it. Kept history findings SHALL be added to `history` and
+    shown as evidence (AC-003.7).
   - AC-016.5: The evaluation set SHALL include cases for coded history, history only in the note,
     denied history and family history, with family and denied history expected to stay silent.
 

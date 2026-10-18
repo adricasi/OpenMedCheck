@@ -287,7 +287,7 @@ PRESET_J = Preset(
 
 PRESET_K = Preset(
     preset_id="K",
-    title="Previous myocardial infarction in the past medical history; diclofenac proposed",
+    title="Ischaemic heart disease in the past medical history; ibuprofen proposed",
     bed=None,
     expected_rules_status=Status.WARNING,
     request=CheckRequest(
@@ -307,7 +307,7 @@ PRESET_K = Preset(
             allergies=[],
             labs=Labs(creatinine_mg_dl=1.0, egfr_ml_min_1_73m2=77),
         ),
-        order=Order(drug_id="diclofenac", dose_text="50 mg", route="PO", frequency="every 8 hours"),
+        order=Order(drug_id="ibuprofen", dose_text="400 mg", route="PO", frequency="every 8 hours"),
     ),
 )
 
