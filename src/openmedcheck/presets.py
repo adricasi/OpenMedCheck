@@ -1,8 +1,10 @@
-"""Synthetic template patients A-I (REQ-006). All data is invented; no real patient (AC-006.4).
+"""Synthetic template patients A-L (REQ-006). All data is invented; no real patient (AC-006.4).
 
-A, B and C are the predefined rooms (``bed`` set); D to I are only offered as templates when a
-room is added (AC-006.6, AC-006.7). G, H and I show the conflict breadth of T-014; in I the
-pregnancy is only in the note, so the rules alone say NO_ISSUE and the model's quote decides.
+A, B, C and L are the predefined rooms (``bed`` set); D to K are only offered as templates when
+a room is added (AC-006.6, AC-006.7). G, H and I show the conflict breadth of T-014; in I the
+pregnancy is only in the note, so the rules alone say NO_ISSUE and the model's quote decides. J
+and K carry a coded past medical history; in L the past GI bleed is one item of a long history
+in the note, so again only the model's quote reveals it (REQ-016, AC-016.6).
 """
 
 from __future__ import annotations
@@ -311,6 +313,43 @@ PRESET_K = Preset(
     ),
 )
 
+PRESET_L = Preset(
+    preset_id="L",
+    title="Routine wrist sprain; a past GI bleed buried in a long history in the note; ibuprofen "
+    "proposed",
+    bed="Bed 15",
+    expected_rules_status=Status.NO_ISSUE,
+    request=CheckRequest(
+        context=PatientContext(
+            patient_id="SYN-L",
+            age=66,
+            sex="M",
+            weight_kg=81,
+            reason_for_consult="Wrist pain after a fall",
+            ed_note=(
+                "66-year-old man who fell off his bicycle this morning onto an outstretched right "
+                "hand. Wrist swollen and tender over the radial side; X-ray shows no fracture. "
+                "Alert, haemodynamically stable, pain 7/10, asking for something stronger than "
+                "paracetamol. Past medical history: hypertension, type 2 diabetes, "
+                "hypercholesterolaemia, gout, knee arthroscopy in 2015, appendicectomy as a child, "
+                "upper GI bleed from a duodenal ulcer in 2021 treated endoscopically, cataract "
+                "surgery in 2023. Ex-smoker, lives with his wife, retired bus driver."
+            ),
+            diagnoses=[],
+            history=[],
+            chronic_medications=["enalapril", "metformin"],
+            allergies=[],
+            labs=Labs(
+                creatinine_mg_dl=0.9,
+                egfr_ml_min_1_73m2=86,
+                potassium_mmol_l=4.3,
+                platelets_per_ul=245_000,
+            ),
+        ),
+        order=Order(drug_id="ibuprofen", dose_text="600 mg", route="PO", frequency="every 8 hours"),
+    ),
+)
+
 PRESETS: dict[str, Preset] = {
     p.preset_id: p
     for p in (
@@ -325,6 +364,7 @@ PRESETS: dict[str, Preset] = {
         PRESET_I,
         PRESET_J,
         PRESET_K,
+        PRESET_L,
     )
 }
 

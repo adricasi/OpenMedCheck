@@ -329,6 +329,25 @@ Rules card (Layer 1 only):
   - `NSAID_HISTORY_ISCHAEMIC_HEART_DISEASE`: NSAID with a recorded history of ischaemic heart disease (previous ACS or infarction, coronary stent or angina).
 - Source: `rules`; alternative: Paracetamol, Dose: consult SmPC
 
+### Preset L: Routine wrist sprain; a past GI bleed buried in a long history in the note; ibuprofen proposed
+
+*Synthetic patient — invented data, not a real person.*
+
+- Patient: 66 years, sex M, 81 kg; creatinine 0.9 mg/dL, eGFR 86.0
+- Coded diagnoses: none; past medical history: none; chronic medication: enalapril, metformin; allergies: none
+- Note: 66-year-old man who fell off his bicycle this morning onto an outstretched right hand. Wrist swollen and tender over the radial side; X-ray shows no fracture. Alert, haemodynamically stable, pain 7/10, asking for something stronger than paracetamol. Past medical history: hypertension, type 2 diabetes, hypercholesterolaemia, gout, knee arthroscopy in 2015, appendicectomy as a child, upper GI bleed from a duodenal ulcer in 2021 treated endoscopically, cataract surgery in 2023. Ex-smoker, lives with his wife, retired bus driver.
+- Proposed order: ibuprofen 600 mg PO every 8 hours
+
+Rules card (Layer 1 only):
+
+- Status / tier: **NO_ISSUE** / LOW
+- Headline: No issue found by these checks
+- Rationale: No rule in the current table conflicts with this order and context.
+- Renal adjustment flag: False; Cockcroft-Gault: not computed
+- Fired rules:
+  - none
+- Source: `rules`; alternative: none on the rules card
+
 ## Preset A: expected final card text
 
 On the coded record alone the rules say `NO_ISSUE`: the suspected ACS is only in the free-text note. The local model reads the note and returns the finding with a quote; once the quote is found word for word, the rules run again and `NSAID_ANTIPLATELET_ACS` fires, shown with the clinician's words, for example `From the clinician's note: “Suspected ACS; ECG and troponin pending.”` (ADR 0006). The wording below is illustrative, and the alternative must pass the rules again before it is shown.
@@ -393,6 +412,7 @@ Raised before the review. The specialist confirmed the table as it stands and di
 30. T-014 alternatives: paracetamol is offered for NSAIDs under BLEEDING, HEART_FAILURE and PREGNANCY. With acenocoumarol or warfarin, regular paracetamol can raise the INR (SmPC 4.5). Should the card add a monitoring note, or should no alternative be offered there?
 31. Missing renal lab gives WARNING 'renal function unknown' (design choice A-5, not SmPC). Is a warning right, or should some drugs (e.g. metformin) be stricter?
 32. Past medical history (REQ-016, added after your review, not reviewed yet): (a) NSAID_HISTORY_GI_BLEED is a WARNING for any recorded history of GI bleeding, ulcer or perforation. Ibuprofen labels contraindicate a history related to previous NSAID therapy or recurrent ulcer/haemorrhage; dexketoprofen label wording differs and was not checked. Should it be BLOCKED, and should the record distinguish NSAID-related or recurrent events? (b) NSAID_HISTORY_ISCHAEMIC_HEART_DISEASE is a WARNING for every NSAID; EMA contraindicates diclofenac in established ischaemic heart disease. Should diclofenac be BLOCKED? (c) Past history read from the note counts only when the model quotes it word for word and the quote names the event (for example 'GI bleed', 'peptic ulcer', 'MI', 'stent', 'angina'); it is dropped when the sentence denies it ('no', 'never', 'denies') or names a relative ('father', 'mother', 'family history'). Acceptable, and which cues are missing?
+33. Preset L (Bed 15, added after your review): (a) is a WARNING right for one endoscopically treated duodenal-ulcer bleed in 2021 (the ibuprofen SmPC names recurrent ulcer or haemorrhage), and should the card mention gastroprotection? (b) ibuprofen 600 mg every 8 hours with enalapril in a 66-year-old with diabetes: does NSAID with an ACE inhibitor need its own rule? (c) the patient found paracetamol not enough; is paracetamol still the right alternative to offer? (d) acute events (ACS, active GI bleed) in a 'PMH:' or 'Background:' list are not read as current; chronic conditions and pregnancy are. Agree?
 
 ## Sign-off
 

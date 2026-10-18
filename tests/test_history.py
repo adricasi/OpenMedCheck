@@ -396,3 +396,88 @@ def test_ac_003_6_max_findings_matches_the_prompt_limits() -> None:
     """One quote per condition plus three items for each of the three listed note fields."""
     expected = len(note_findings.CONDITION_CODES) + 3 * prompt._MAX_LISTED
     assert expected == note_findings.MAX_FINDINGS
+
+
+# --- AC-016.6: Bed 15, a past GI bleed buried in a long history -------------------------------
+
+BED_15_QUOTE = "upper GI bleed from a duodenal ulcer in 2021"
+
+
+def test_ac_016_6_bed_15_looks_routine_to_the_rules() -> None:
+    preset = PRESETS["L"]
+    request = preset.request
+
+    assert preset.bed == "Bed 15"
+    assert request.context.history == []
+    assert request.context.diagnoses == []
+    assert BED_15_QUOTE in request.context.ed_note
+    assert rules_card(request).status is Status.NO_ISSUE
+
+
+def test_ac_016_6_bed_15_warns_once_the_model_finds_the_history() -> None:
+    answer = {
+        **verdict_json(status="NO_ISSUE", conflict_type=None, alternative_drug_id=None),
+        "note_acs_quote": None,
+        "note_history": [{"code": "PAST_GI_BLEED", "quote": BED_15_QUOTE}],
+    }
+
+    card = final_card(PRESETS["L"].request, FakeModelClient([answer]))
+
+    assert card.status is Status.WARNING
+    (rule,) = card.fired_rules
+    assert rule.rule_id == "NSAID_HISTORY_GI_BLEED"
+    assert rule.evidence == [BED_15_QUOTE]
+    assert card.alternative is not None
+    assert card.alternative.drug_id == "paracetamol"
+    assert card.alternative.dose_text == rule_table.DOSE_FALLBACK_TEXT
+
+
+def test_ac_016_6_bed_15_past_bleed_is_not_a_current_bleed() -> None:
+    """Misread as a current bleed, the list item would make the card BLOCKED (AC-016.7)."""
+    answer = {
+        **verdict_json(status="NO_ISSUE", conflict_type=None, alternative_drug_id=None),
+        "note_acs_quote": None,
+        "note_gi_bleed_quote": BED_15_QUOTE,
+    }
+
+    card = final_card(PRESETS["L"].request, FakeModelClient([answer]))
+
+    assert card.status is Status.NO_ISSUE
+
+
+# --- AC-016.7: past-history labels ----------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("note", "code", "quote"),
+    [
+        ("PMH: hypertension, GI bleed in 2019.", "ACTIVE_GI_BLEED", "GI bleed in 2019"),
+        ("Past medical history: asthma, NSTEMI 2020.", "ACS", "NSTEMI 2020"),
+        ("Background: angina, CABG in 2016.", "ACS", "angina"),
+    ],
+)
+def test_ac_016_7_a_past_history_list_item_is_not_a_current_condition(
+    note: str, code: str, quote: str
+) -> None:
+    item = NoteFinding(kind=FindingKind.CONDITION, code=code, quote=quote)
+    assert note_findings.verify([item], context(ed_note=note)) == ()
+
+
+@pytest.mark.parametrize(
+    ("note", "code", "quote"),
+    [
+        ("Background: COPD, heart failure.", "HEART_FAILURE", "heart failure"),
+        ("Background: asthma, 28 weeks pregnant.", "PREGNANCY", "28 weeks pregnant"),
+    ],
+)
+def test_ac_016_7_a_chronic_condition_in_a_history_list_still_counts(
+    note: str, code: str, quote: str
+) -> None:
+    item = NoteFinding(kind=FindingKind.CONDITION, code=code, quote=quote)
+    assert note_findings.verify([item], context(ed_note=note)) == (item,)
+
+
+def test_ac_016_7_the_label_does_not_reach_the_next_sentence() -> None:
+    item = NoteFinding(kind=FindingKind.CONDITION, code="ACTIVE_GI_BLEED", quote="melaena")
+    note = "PMH: hypertension. Today two episodes of melaena."
+    assert note_findings.verify([item], context(ed_note=note)) == (item,)

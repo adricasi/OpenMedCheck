@@ -222,15 +222,16 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
     analgesic) and its demo prescription is verified THE SYSTEM SHALL show a `NO_ISSUE` card with no alternative and no
     modal or blocking element.
   - AC-006.4: All patient data in presets SHALL be synthetic and labelled as such.
-  - AC-006.5: THE SYSTEM SHALL present presets A, B and C as predefined rooms of synthetic ED
+  - AC-006.5: THE SYSTEM SHALL present presets A, B, C and L as predefined rooms of synthetic ED
     patients (bed, sex, age, reason for consult) rather than as preset letters, and selecting a
-    room SHALL show its context as the patient's record (simulated).
+    room SHALL show its context as the patient's record (simulated). (Amended 2026-10-18: L
+    added, AC-016.6.)
   - AC-006.6: THE SYSTEM SHALL offer synthetic template patients: A, B, C, the three below, and
     G (warfarin + ibuprofen → rules `BLOCKED`), H (potassium 5.8 mmol/L + enalapril → rules
     `BLOCKED`) and I (pregnancy only in the note + ibuprofen → rules `NO_ISSUE`, the model's quote
     decides) for the conflict breadth of AC-002.9 to AC-002.13, and J (previous GI bleed in the
     past medical history + ibuprofen → rules `WARNING`) and K (ischaemic heart disease in the
-    past medical history + ibuprofen → rules `WARNING`) for REQ-016. The first six are:
+    past medical history + ibuprofen → rules `WARNING`) for REQ-016, and L (AC-016.6). The first six are:
     each with a deterministic rules conflict and a demo prescription:
     D (coded active GI bleed, ibuprofen → rules `BLOCKED`, alternative paracetamol),
     E (penicillin allergy, amoxicillin-clavulanate → rules `BLOCKED`, no alternative),
@@ -447,6 +448,16 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
     shown as evidence (AC-003.7).
   - AC-016.5: The evaluation set SHALL include cases for coded history, history only in the note,
     denied history and family history, with family and denied history expected to stay silent.
+  - AC-016.6: THE SYSTEM SHALL offer a predefined room (preset L, Bed 15) where today's visit
+    looks routine (a minor injury, normal labs, an empty coded history) and a past GI bleed is
+    one item in a long past-medical-history list in the note, with an NSAID proposed: the rules
+    alone give `NO_ISSUE`, and the final card is `WARNING` with the note's words as evidence once
+    the model's history finding is kept.
+  - AC-016.7: A current ACS or active GI bleed finding SHALL be dropped when a past-history label
+    ("past medical history:", "PMH:", "medical history:", "background:") comes earlier in its
+    sentence: an acute event in a past-history list is not a current one (ADR 0009). Chronic
+    conditions and pregnancy in such a list (heart failure, "Background: 28 weeks pregnant") SHALL
+    still count as current.
 
 ## Non-functional requirements
 | ID | Category | Requirement (measurable) | Verification |

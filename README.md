@@ -60,6 +60,14 @@ written in the note ("Previous GI bleed in 2015, none since") — while "No hist
 bleeding" or "Mother had a GI bleed" stay silent, and an old event never counts as a current one
 ([ADR 0009](docs/adr/0009-patient-history-is-an-input.md)).
 
+Room **Bed 15** shows why this matters. Today's visit is routine: a wrist sprain after a fall,
+normal labs, nothing in the coded history, ibuprofen for the pain. The line these checks look for,
+"upper GI bleed from a duodenal ulcer in 2021", sits between the knee arthroscopy and the
+cataract surgery in a long past-history list: a line that can be missed under time pressure. The
+rules alone say `NO_ISSUE`; when Gemma finds the line and the verifier confirms it word for word,
+the card becomes a `WARNING` that quotes it. (NSAID with an ACE inhibitor, also relevant for this
+patient, is not in the rule table.)
+
 One proposed medication order plus a synthetic patient context goes in; one triage-coded decision
 card comes out: a status (`NO_ISSUE`, `WARNING` or `BLOCKED`), a risk level, a short rationale, a
 renal-adjustment flag and, where the rule table allows one, an alternative drug. `NO_ISSUE` is
@@ -194,8 +202,9 @@ uv sync                     # install the Python environment
 uv run openmedcheck         # serve the app (leave it running)
 ```
 
-Then open <http://127.0.0.1:8000> in a browser. The page shows the disclaimer banner and three
-rooms with synthetic ED patients (Bed 3, Bed 7 and Bed 12, which are presets A, B and C).
+Then open <http://127.0.0.1:8000> in a browser. The page shows the disclaimer banner and four
+rooms with synthetic ED patients (Bed 3, Bed 7, Bed 12 and Bed 15, which are presets A, B, C and
+L).
 
 ## Using the demo
 
@@ -204,12 +213,12 @@ rooms with synthetic ED patients (Bed 3, Bed 7 and Bed 12, which are presets A, 
 3. Press "Verify prescription": the page shows "Verifying the prescription with Gemma…", then
    one card (rules and Gemma combined, or rules only if the model is unavailable).
 
-"Add room" creates a room from one of eleven template patients (A–K; D to K add a coded GI
+"Add room" creates a room from one of twelve template patients (A–L; D to K add a coded GI
 bleed, a penicillin allergy, reduced kidney function, warfarin, high potassium, a pregnancy
 stated only in the note, a previous GI bleed and ischaemic heart disease in the past medical
 history). "Add patient" opens an empty record to
 fill in, including conditions, past medical history, chronic medication and allergies; "Save patient" keeps it. Added
-rooms and patients exist only in the open page: nothing is stored, and a reload shows the three
+rooms and patients exist only in the open page: nothing is stored, and a reload shows the four
 predefined rooms again. "Edit scenario (demo only)" unlocks a record so you can try other cases,
 and "What the record system would send" shows the request body. When the page loads it asks the
 server to warm the model up. A first check right after Ollama starts can take longer than the
@@ -224,6 +233,7 @@ the model ready (the rules column is what `/api/check/rules` returns):
 | A (Bed 3) | `NO_ISSUE` ("No issue found by these checks") | `BLOCKED` after the model reads the note; alternative: Paracetamol 1 g, PO, every 8 hours |
 | B (Bed 7) | `WARNING` with the renal-adjustment flag | `WARNING`, renal flag kept, "Renal adjustment required — consult SmPC", no alternative |
 | C (Bed 12) | `NO_ISSUE` | `NO_ISSUE`, no alternative |
+| L (Bed 15) | `NO_ISSUE`: the past GI bleed is only in the note's past-history list | `WARNING` (NSAID_HISTORY_GI_BLEED; not yet reviewed, so no dose shown) with the note's words once Gemma's history finding is kept; alternative: Paracetamol, "Dose: consult SmPC"; not measured yet (prompt v8) |
 | D (added room) | `BLOCKED`: NSAID with a coded active GI bleed | `BLOCKED`; alternative: Paracetamol 1 g, PO, every 8 hours |
 | E (added room) | `BLOCKED`: recorded penicillin allergy | `BLOCKED`, no alternative |
 | F (added room) | `BLOCKED`: dexketoprofen with estimated CrCl below 60 mL/min, renal flag | `BLOCKED`, renal flag kept; alternative: Paracetamol 1 g, PO, every 8 hours |
@@ -248,7 +258,7 @@ second instance:
 OPENMEDCHECK_OLLAMA_URL=http://127.0.0.1:9 OPENMEDCHECK_PORT=8001 uv run openmedcheck
 ```
 
-The checks are also available over HTTP: `GET /api/presets/{A–K}` returns a request body
+The checks are also available over HTTP: `GET /api/presets/{A–L}` returns a request body
 that you can `POST` as JSON to `/api/check/rules` (rules only) or `/api/check` (final card), and
 `GET /api/model/health` reports `ready`, `warming` or `unavailable`.
 
@@ -284,13 +294,13 @@ model.
 
 ## 🧪 Evaluation set
 
-An open set of **86 synthetic ED cases** ([evals/](evals/README.md)) covers every rule, notes
+An open set of **87 synthetic ED cases** ([evals/](evals/README.md)) covers every rule, notes
 where the conflict is only in free text, negations ("ACS ruled out", "not pregnant", "stopped
 warfarin"), past medical history (recorded, in the note, denied and a relative's), abbreviations,
 typos and clean notes that must stay silent. Each case states the findings the authors expect the
 note to state (not yet reviewed by a clinician), and a test keeps every case consistent with the
 rules. The results below are for prompt v7 on the first 76 cases; prompt v8 (past history in the
-note) and the ten history cases have not been run on the real model yet. Result on the same
+note) and the eleven history cases have not been run on the real model yet. Result on the same
 machine ([comparison](docs/measurements/2026-10-18-model-comparison.md)):
 
 | | Final status matches label | False alarms | Misses | Model step p50 |

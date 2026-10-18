@@ -744,6 +744,13 @@ SPECIALIST_QUESTIONS: tuple[str, ...] = (
     "quote names the event (for example 'GI bleed', 'peptic ulcer', 'MI', 'stent', 'angina'); "
     "it is dropped when the sentence denies it ('no', 'never', 'denies') or names a relative "
     "('father', 'mother', 'family history'). Acceptable, and which cues are missing?",
+    "Preset L (Bed 15, added after your review): (a) is a WARNING right for one endoscopically "
+    "treated duodenal-ulcer bleed in 2021 (the ibuprofen SmPC names recurrent ulcer or "
+    "haemorrhage), and should the card mention gastroprotection? (b) ibuprofen 600 mg every 8 "
+    "hours with enalapril in a 66-year-old with diabetes: does NSAID with an ACE inhibitor need "
+    "its own rule? (c) the patient found paracetamol not enough; is paracetamol still the right "
+    "alternative to offer? (d) acute events (ACS, active GI bleed) in a 'PMH:' or 'Background:' "
+    "list are not read as current; chronic conditions and pregnancy are. Agree?",
 )
 
 RULES_BY_ID: dict[str, RuleEntry] = {

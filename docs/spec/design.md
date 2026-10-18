@@ -57,7 +57,7 @@ flowchart LR
 | `note_findings` | Verifies the model's note findings (code valid for its kind, verbatim quote that names the code, not negated; history findings not denied and not a relative's), adds kept findings to the context and re-runs Layer 1 with quotes as evidence | Pure Python | AC-003.6, AC-003.7, AC-016.4 |
 | `combiner` | Pure escalate-only merge of RulesVerdict + ModelVerdict; text-source selection; flags union | Pure Python | REQ-004 |
 | `check_service` | Orchestrates rules → model (validate, retry once) → combine → alternative re-check → DecisionCard; timing; one log line | Python | REQ-001, REQ-003–005, NFR-007 |
-| `presets` | Synthetic presets A, B, C (rooms) and templates D–K | Python data | REQ-006 |
+| `presets` | Synthetic presets A, B, C, L (rooms) and templates D–K | Python data | REQ-006 |
 | `web` | FastAPI app, routes, Jinja2 template, static CSS/JS, trusted-host and body-size middleware, model health/warm-up | FastAPI, Jinja2, uvicorn | REQ-007–011, REQ-014, NFR-001 |
 | `logging_setup` | JSON log formatter, allowlisted fields only | stdlib `logging` | NFR-002, NFR-007 |
 | `config` | Reads and validates environment variables | stdlib + explicit validation | AC-011.3 |

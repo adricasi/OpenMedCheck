@@ -149,6 +149,15 @@ _RELATIVE = re.compile(
     re.IGNORECASE,
 )
 _FAMILY = re.compile(r"\b(?:family|fhx|fh|f/h)\b", re.IGNORECASE)
+# An acute event in a past-history list ("PMH: hypertension, upper GI bleed in 2021") is not a
+# current one (AC-016.7): the label counts anywhere earlier in the sentence. Only for events:
+# a chronic condition or a pregnancy in such a list ("Background: COPD, heart failure") still
+# holds today.
+_PAST_LIST_EVENT_CODES = frozenset({"ACS", "ACTIVE_GI_BLEED"})
+_PAST_HISTORY_LABEL = re.compile(
+    r"\b(?:past\s+medical\s+history|past\s+history|medical\s+history|pmhx?|background)\s*:",
+    re.IGNORECASE,
+)
 _SENTENCE_END = re.compile(r"[.;!?\n]")
 _RELATIVE_CLAUSE_END = re.compile(r"[,.;!?\n]")
 # Negation is local (safety review): a cue counts only inside the clause of the matched term,
@@ -256,6 +265,11 @@ def _negated(text: str, term: re.Match[str], kind: FindingKind, code: str) -> bo
         or (
             code == "PREGNANCY"
             and bool(_POST_PREGNANCY_TEST_NEGATIVE.search(after) or _NON_PREFIX.search(before))
+        )
+        or (
+            code in _PAST_LIST_EVENT_CODES
+            and kind is FindingKind.CONDITION
+            and bool(_PAST_HISTORY_LABEL.search(_SENTENCE_END.split(before)[-1]))
         )
         # Stopping a drug only negates a medication finding, checked on the raw text before it.
         or (

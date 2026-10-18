@@ -160,11 +160,14 @@ pytest --cov` pass and CI is green, unless stated otherwise.
   - Done when: tests pass with the rules engine at 100% coverage; reviews of the escalate-only
     invariant and the clinical wording find no blocking issue.
 - [~] T-019: Past history read from the note
-  - Requirements: REQ-016 (AC-016.4, AC-016.5), AC-003.6
+  - Requirements: REQ-016 (AC-016.4 to AC-016.7), AC-003.6, AC-006.5
   - Depends on: T-018
   - Scope: `FindingKind.HISTORY`; the `note_history` question and schema (prompt v8); history
     findings kept unless denied or about a relative; evaluation set updated (`gi-past`,
     `acs-past-history` now WARNING; denied and family history silent).
+  - Note (2026-10-18): predefined room Bed 15 (preset L, AC-016.6): a past GI bleed buried in a
+    long past-history list in the note; past-history labels drop current-condition findings
+    (AC-016.7).
   - Done when: tests pass; the model evaluation has run prompt v8 on the real model (human,
     GPU) and the result is recorded in `docs/measurements/`; merge only after that.
 - [x] T-008: Hardening: local exposure, XSS, wording, concurrency
