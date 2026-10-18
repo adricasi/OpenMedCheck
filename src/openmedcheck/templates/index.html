@@ -9,9 +9,14 @@
 </head>
 <body>
   <div class="banner" role="note">Not for clinical use — synthetic patients. Not a medical device.</div>
-  <header class="page-header">
-    <h1>OpenMedCheck</h1>
-    <p>Prescribing check for emergency department orders. Synthetic patients only.</p>
+  <header class="appbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">OM</span>
+      <div>
+        <h1>OpenMedCheck</h1>
+        <p class="brand-sub">Prescribing check for emergency department orders</p>
+      </div>
+    </div>
     <p id="model-status" class="model-status" role="status">Model status: checking…</p>
   </header>
   <main class="layout">
@@ -63,7 +68,7 @@
           <fieldset class="record-fields">
             <legend>Patient</legend>
             <div class="field">
-              <label for="f-age">Age (years, 18–110, required)</label>
+              <label for="f-age">Age <span class="constraint">(years, 18–110, required)</span></label>
               <input id="f-age" aria-required="true" type="number" inputmode="numeric" step="1" data-path="context.age" data-record aria-describedby="e-age">
               <span id="e-age" class="field-error" hidden></span>
             </div>
@@ -77,7 +82,7 @@
               <span id="e-sex" class="field-error" hidden></span>
             </div>
             <div class="field">
-              <label for="f-weight">Weight (kg, 30–250, required)</label>
+              <label for="f-weight">Weight (kg<span class="constraint">, 30–250, required</span>)</label>
               <input id="f-weight" aria-required="true" type="number" inputmode="decimal" step="any" data-path="context.weight_kg" data-record aria-describedby="e-weight">
               <span id="e-weight" class="field-error" hidden></span>
             </div>
@@ -91,12 +96,12 @@
           <fieldset class="record-fields">
             <legend>Labs (latest results)</legend>
             <div class="field">
-              <label for="f-creatinine">Creatinine (mg/dL, 0.1–20)</label>
+              <label for="f-creatinine">Creatinine (mg/dL<span class="constraint">, 0.1–20</span>)</label>
               <input id="f-creatinine" type="number" inputmode="decimal" step="any" data-path="context.labs.creatinine_mg_dl" data-record aria-describedby="e-creatinine">
               <span id="e-creatinine" class="field-error" hidden></span>
             </div>
             <div class="field">
-              <label for="f-egfr">eGFR (mL/min/1.73 m², 0–200)</label>
+              <label for="f-egfr">eGFR (mL/min/1.73 m²<span class="constraint">, 0–200</span>)</label>
               <input id="f-egfr" type="number" inputmode="decimal" step="any" data-path="context.labs.egfr_ml_min_1_73m2" data-record aria-describedby="e-egfr">
               <span id="e-egfr" class="field-error" hidden></span>
             </div>

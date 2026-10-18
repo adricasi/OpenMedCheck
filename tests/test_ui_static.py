@@ -234,3 +234,10 @@ def test_ac_007_6_autofill_says_doses_are_test_input() -> None:
     html = (PACKAGE / "templates" / "index.html").read_text()
 
     assert "the doses are test input, not recommendations" in html
+
+
+def test_ac_003_7_card_shows_note_evidence_as_text() -> None:
+    body = _function_body((PACKAGE / "static" / "app.js").read_text(), "renderWhy")
+
+    assert "rule.evidence" in body
+    assert "From the clinician's note: “${quote}”" in body

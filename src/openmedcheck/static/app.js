@@ -15,9 +15,9 @@ const REQUIRED_TEXT = {
   "order.frequency": "Frequency",
 };
 const STATUS_VIEW = {
-  BLOCKED: { cls: "status-blocked", icon: "⛔", label: "Blocked" },
-  WARNING: { cls: "status-warning", icon: "⚠", label: "Warning" },
-  NO_ISSUE: { cls: "status-ok", icon: "✔", label: "No issue found by these checks" },
+  BLOCKED: { cls: "status-blocked", icon: "✕", label: "Blocked" },
+  WARNING: { cls: "status-warning", icon: "!", label: "Warning" },
+  NO_ISSUE: { cls: "status-ok", icon: "✓", label: "No issue found by these checks" },
 };
 const CONDITION_LABELS = {
   ACS: "acute coronary syndrome",
@@ -435,6 +435,12 @@ function renderWhy(card) {
     }
     section.appendChild(list);
   }
+  // Rules that fired because Gemma found the fact in the note show the doctor's words (AC-003.7).
+  for (const rule of card.fired_rules) {
+    for (const quote of rule.evidence || []) {
+      section.appendChild(el("p", { cls: "note-evidence", text: `From the clinician's note: “${quote}”` }));
+    }
+  }
   if (card.fired_rules.length) {
     section.appendChild(
       el("p", {
@@ -739,11 +745,12 @@ function renderRooms() {
   clear(list);
   for (const room of state.rooms) {
     const pressed = state.activeRoom !== null && state.activeRoom.id === room.id;
-    const button = el("button", {
-      cls: "patient-button",
-      text: roomSummary(room),
-      attrs: { type: "button", "data-room": room.id },
-    });
+    // Bed code and summary as two parts; the accessible name stays "Bed 3 Male, 64 · …".
+    const summary = roomSummary(room).slice(room.name.length).replace(/^ · /, "");
+    const button = el("button", { cls: "patient-button", attrs: { type: "button", "data-room": room.id } }, [
+      el("span", { cls: "room-code", text: room.name }),
+      el("span", { cls: "room-summary", text: ` ${summary}` }),
+    ]);
     if (pressed) button.setAttribute("aria-current", "true");
     button.addEventListener("click", () => selectRoom(room));
     list.appendChild(el("li", {}, [button]));

@@ -187,3 +187,10 @@ the expected result per preset, the warm-up and cold-start behaviour, the rules-
 instance command and the HTTP endpoints; the alternatives and "Dose: consult SmPC" wording in
 "How it works". Not covered: a visual walk through the UI in a browser (checked through the same
 API calls the UI makes) and README screenshots. Servers were stopped by PID and the clone deleted.
+
+## Visual design (2026-10-18 redesign)
+- [x] Headless Chrome screenshots of jsdom-driven states at 1440 px (Bed 3 blocked with note
+  quotes, Bed 7 warning, Bed 12 no issue with the request drawer open, new custom patient) and at
+  520 px (single column, no horizontal overflow); usability review: no blocking issue, contrast fixes applied
+  (edit-mode border, dashed read-only note, scrollable sticky rooms panel)
+- [ ] In a real browser: keyboard pass through the new app bar, rooms and card; zoom to 200 %
