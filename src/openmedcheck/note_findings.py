@@ -77,19 +77,22 @@ _PRE_NEGATION = re.compile(
 # "ACS ruled out", "bleeding resolved": up to two words between, but never a negator ("ACS not
 # ruled out" keeps the finding).
 _POST_NEGATION = re.compile(
-    r"^\W*(?:(?!(?:not|never|cannot|can't|isn't|wasn't)\b)[\w']+\W+){0,2}?"
-    r"(?:ruled\s+out|rules\s+out|excluded|resolved|unlikely)\b",
+    r"^(?P<gap>\W*(?:[\w']+\W+){0,2}?)(?:ruled\s+out|rules\s+out|excluded|resolved|unlikely)\b",
     re.IGNORECASE,
 )
+_NEGATOR = re.compile(r"\b(?:not|never|no|cannot|\w+n't)\b", re.IGNORECASE)
 # "Warfarin stopped", "warfarin was discontinued": right after the drug, so "warfarin not
 # stopped" and "aspirin to be stopped" keep the finding.
 _POST_STOPPED = re.compile(
-    r"^\s*(?:was\s+|is\s+|has\s+been\s+|been\s+)?(?:stopped|discontinued)\b", re.IGNORECASE
+    r"^[ \t]*(?:was[ \t]+|is[ \t]+|has[ \t]+been[ \t]+|been[ \t]+)?(?:stopped|discontinued)\b",
+    re.IGNORECASE,
 )
 # "Stopped", "discontinued" and "off" negate only when right before the term ("stopped taking
 # warfarin", "off warfarin"); elsewhere they are too common ("pain on and off ... angina").
 _ADJACENT_PRE_NEGATION = re.compile(
-    r"(?<!\band\s)(?<!\bon\s)\b(?:stopped|discontinued|off)(?:\s+taking)?\s*$", re.IGNORECASE
+    # Spaces and tabs only: a cue on the previous line never reaches the term.
+    r"(?<!\band[ \t])(?<!\bon[ \t])\b(?:stopped|discontinued|off)(?:[ \t]+taking)?[ \t]*\Z",
+    re.IGNORECASE,
 )
 _CLAUSE_END = re.compile(
     r"[.;:,!?\n]|\b(?:but|except|although|however|and|then|started|onto)\b", re.IGNORECASE
@@ -117,7 +120,14 @@ def _term_in(span: re.Match[str], terms: Sequence[str]) -> re.Match[str] | None:
     return re.compile(pattern, re.IGNORECASE).search(span.string, span.start(), span.end())
 
 
+def _post_negated(clause_after: str) -> bool:
+    """A post-term cue ("ruled out") with no negator between it and the term."""
+    match = _POST_NEGATION.search(clause_after)
+    return match is not None and not _NEGATOR.search(match.group("gap"))
+
+
 def _negated(text: str, term: re.Match[str], kind: FindingKind) -> bool:
+    text = text.replace("\u2019", "'").replace("\u02bc", "'")  # typographic apostrophes
     before = text[: term.start()]
     ends = list(_CLAUSE_END.finditer(before))
     clause_before = before[ends[-1].end() :] if ends else before
@@ -127,7 +137,7 @@ def _negated(text: str, term: re.Match[str], kind: FindingKind) -> bool:
     clause_after = after[: stop.start()] if stop else after
     return bool(
         _PRE_NEGATION.search(window)
-        or _POST_NEGATION.search(clause_after)
+        or _post_negated(clause_after)
         # Stopping a drug only negates a medication finding, checked on the raw text before it.
         or (
             kind is FindingKind.MEDICATION

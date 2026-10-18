@@ -88,6 +88,12 @@ def test_ac_003_6_accepts_a_quote_from_the_reason_for_consult() -> None:
         ("Chest pain on and off typical of angina.", acs("typical of angina")),
         ("Chest pain on and off angina.", acs("angina")),
         ("ACS not ruled out yet.", acs("ACS")),
+        ("ACS hasn\u2019t been ruled out.", acs("ACS")),
+        ("ACS isn't fully excluded.", acs("ACS")),
+        (
+            "Plan reviewed, meds stopped\nWarfarin daily for AF.",
+            finding(FindingKind.MEDICATION, "warfarin", "Warfarin daily"),
+        ),
         ("Warfarin not stopped.", finding(FindingKind.MEDICATION, "warfarin", "Warfarin")),
         ("Aspirin to be stopped tomorrow.", finding(FindingKind.MEDICATION, "aspirin", "Aspirin")),
         (
