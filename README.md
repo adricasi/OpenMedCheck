@@ -40,6 +40,7 @@ locally, can only escalate.
 - [Measurements](#-measurements)
 - [Architecture & deployment](#-architecture--deployment)
 - [Privacy and zero egress](#-privacy-and-zero-egress)
+- [Why open-weights — and who would pay](#-why-open-weights--and-who-would-pay)
 - [Licence and credits](#-licence-and-credits)
 - [Contributing](#-contributing)
 - [Development workflow](#-development-workflow-spec-driven)
@@ -295,6 +296,40 @@ its caveats.
   patient context (note, labs, medications, allergies, demographics) is written to logs, disk or
   caches. Logs carry only allowlisted fields such as request ID, rule IDs fired, statuses and
   timings (NFR-002).
+
+## 💰 Why open-weights — and who would pay
+
+Built for the DEV Hacktoberfest Open-Source AI Challenge, whose Week 2 brief asks for something
+built with open-weight models or open-source AI that someone would actually pay for.
+
+**Why open-weights, specifically:**
+- **Privacy.** Patient context is special-category health data. Because Gemma 4 is open-weights
+  and runs through Ollama, inference stays on the machine that's already running the app — no
+  prompt or patient context goes to a third-party model API (see [Privacy and zero
+  egress](#-privacy-and-zero-egress)).
+- **Cost.** Inference runs on local/self-hosted GPU hardware; there is no per-call model fee.
+- **Auditability.** The safety floor is plain, reviewed code and a cited rule table a pharmacist
+  can read — Gemma can only escalate it, never weaken it (see [How it works](#-how-it-works)).
+  That invariant is checkable because the model is swappable and inspectable, not a black-box
+  API.
+- **No lock-in.** The model tag is one configuration value (`OPENMEDCHECK_MODEL`); fine-tuning
+  on a hospital's own note style is a possible next step, not something a hosted API vendor
+  would need to agree to first.
+
+**Who would pay (a hypothesis, not a claim — this has not been validated with real
+conversations):** not the ED doctor directly, but an organisation that needs an on-premises,
+auditable check next to its existing prescribing system — hospital IT/clinical-informatics
+teams and pharmacy services wanting a self-hosted, reviewable layer on top of a vendor module,
+or EHR/clinical-decision-support vendors wanting an open, escalate-only component they can
+embed and inspect. A plausible model is support, rule-table maintenance and integration around
+the open-source core, not a licence fee for the core itself.
+
+**Regulatory reality, stated plainly:** used on real patients this would involve
+special-category health data under GDPR (Art. 9) and, on this reading, medical-device software
+under the EU MDR (likely class IIa–IIb), needing a conformity assessment and CE marking.
+**OpenMedCheck is none of that.** It has no clinical validation and makes no performance claim
+on real patients. See the [research notes](docs/discovery/research-notes.md) for the
+sourced alert-fatigue figures.
 
 ## 📄 Licence and credits
 
