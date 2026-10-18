@@ -81,7 +81,7 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
 
 ### REQ-003: Layer 2 model assessment with Gemma 4
 - Story: As an ED physician, I want the check to read my free-text note and the whole context,
-  so that it catches conflicts that coded data doesn't show yet (e.g. "sospecha de SCA").
+  so that it catches conflicts that coded data doesn't show yet (e.g. "suspected ACS").
 - Priority: Must
 - Goals: G-1, G-3
 - Acceptance criteria:
@@ -155,7 +155,7 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
 - Goals: G-1, G-4
 - Acceptance criteria:
   - AC-006.1: WHEN preset A is loaded (suspected ACS in the free-text note only, chronic
-    aspirin/Adiro, proposed dexketoprofen/Enantyum) and evaluated THE SYSTEM SHALL show a final
+    aspirin, proposed dexketoprofen) and evaluated THE SYSTEM SHALL show a final
     `BLOCKED` card with paracetamol as the alternative (with the model available).
   - AC-006.2: WHEN preset B is loaded (eGFR < 30 mL/min/1.73 m², creatinine > 2.0 mg/dL,
     proposed ciprofloxacin) and evaluated THE SYSTEM SHALL show a `WARNING` card with the
