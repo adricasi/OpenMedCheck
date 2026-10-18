@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import math
+import re
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
 
@@ -21,6 +22,12 @@ def is_loopback_host(host: str) -> bool:
     return host.strip("[]").lower() in {"localhost", "127.0.0.1", "::1"}
 
 
+_HOSTNAME = re.compile(
+    r"(?=.{1,253}\Z)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*"
+)
+_API_KEY = re.compile(r"[\x21-\x7e]{1,512}")  # printable ASCII, no whitespace (header-safe)
+
+
 @dataclass(frozen=True)
 class Config:
     host: str = "127.0.0.1"
@@ -29,6 +36,14 @@ class Config:
     model: str = "gemma4:e4b"
     model_timeout_s: float = 10.0
     allow_nonlocal: bool = False
+    public_hosts: tuple[str, ...] = ()
+    # Secret (AC-015.2): excluded from repr so it never reaches logs or tracebacks.
+    ollama_api_key: str = field(default="", repr=False)
+
+    @property
+    def hosted(self) -> bool:
+        """Hosted demo profile (AC-015.1): non-local mode plus a non-loopback public host."""
+        return self.allow_nonlocal and any(not is_loopback_host(h) for h in self.public_hosts)
 
     @classmethod
     def from_env(cls, env: Mapping[str, str]) -> Config:
@@ -36,13 +51,15 @@ class Config:
         defaults = cls()
         config = cls(
             host=env.get("OPENMEDCHECK_HOST", defaults.host),
-            port=_parse_port(env.get("OPENMEDCHECK_PORT", str(defaults.port))),
+            port=_parse_port(env.get("OPENMEDCHECK_PORT") or env.get("PORT") or str(defaults.port)),
             ollama_url=env.get("OPENMEDCHECK_OLLAMA_URL", defaults.ollama_url),
             model=env.get("OPENMEDCHECK_MODEL", defaults.model),
             model_timeout_s=_parse_timeout(
                 env.get("OPENMEDCHECK_MODEL_TIMEOUT_S", str(defaults.model_timeout_s))
             ),
             allow_nonlocal=env.get("OPENMEDCHECK_ALLOW_NONLOCAL", "0") == "1",
+            public_hosts=_parse_public_hosts(env.get("OPENMEDCHECK_PUBLIC_HOSTS", "")),
+            ollama_api_key=env.get("OPENMEDCHECK_OLLAMA_API_KEY", "").strip(),
         )
         config.validate()
         return config
@@ -52,6 +69,15 @@ class Config:
         if not self.model:
             raise ConfigError("OPENMEDCHECK_MODEL must not be empty")
         ollama_host = _validated_ollama_host(self.ollama_url)
+        if self.public_hosts and not self.allow_nonlocal:
+            raise ConfigError("OPENMEDCHECK_PUBLIC_HOSTS requires OPENMEDCHECK_ALLOW_NONLOCAL=1")
+        if self.ollama_api_key:
+            if not _API_KEY.fullmatch(self.ollama_api_key):
+                raise ConfigError("OPENMEDCHECK_OLLAMA_API_KEY has an invalid format")
+            if urlsplit(self.ollama_url).scheme != "https" and not is_loopback_host(ollama_host):
+                raise ConfigError(
+                    "OPENMEDCHECK_OLLAMA_API_KEY requires an https:// OPENMEDCHECK_OLLAMA_URL"
+                )
         if self.allow_nonlocal:
             return
         if not is_loopback_host(self.host):
@@ -78,13 +104,21 @@ def _validated_ollama_host(url: str) -> str:
     return host
 
 
+def _parse_public_hosts(raw: str) -> tuple[str, ...]:
+    hosts = tuple(item.strip().lower() for item in raw.split(",") if item.strip())
+    for host in hosts:
+        if not _HOSTNAME.fullmatch(host):
+            raise ConfigError("OPENMEDCHECK_PUBLIC_HOSTS must be comma-separated host names")
+    return hosts
+
+
 def _parse_port(raw: str) -> int:
     try:
         port = int(raw)
     except ValueError:
-        raise ConfigError("OPENMEDCHECK_PORT must be an integer") from None
+        raise ConfigError("OPENMEDCHECK_PORT (or PORT) must be an integer") from None
     if not 1 <= port <= 65535:
-        raise ConfigError("OPENMEDCHECK_PORT must be between 1 and 65535")
+        raise ConfigError("OPENMEDCHECK_PORT (or PORT) must be between 1 and 65535")
     return port
 
 

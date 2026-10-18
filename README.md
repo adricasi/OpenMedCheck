@@ -8,6 +8,22 @@ nothing conflicts (the card then reads "No issue found by these checks"). Gemma 
 > demonstrator built for the DEV Hacktoberfest Open-Source AI Challenge. It works on synthetic
 > patients only, gives no medical advice and must not be used for any real patient.
 
+## Try it
+
+OpenMedCheck is built to **run on-premises inside the hospital**, so patient context never leaves
+the building. The hosted copy below exists only so you can try the demo with synthetic data;
+never enter real patient data there.
+
+- **Hosted demo (synthetic data only):** [HOSTED DEMO URL]
+- **Local with Docker (one command after the model pull):**
+  `docker compose --profile setup run --rm model-pull && docker compose up --build`, then open
+  <http://127.0.0.1:8000>. Details: [docs/deploy/local-docker.md](docs/deploy/local-docker.md).
+- **Local with uv:** see [Quick start](#quick-start) below (unchanged).
+
+Maintainers: the opt-in hosted profile is described in
+[ADR 0007](docs/adr/0007-hosted-demo-profile.md), with guides for
+[Render](docs/deploy/render.md) and [Gemma on a DigitalOcean GPU droplet](docs/deploy/digitalocean-gemma.md).
+
 ## What it does
 
 One proposed medication order plus a synthetic patient context goes in; one triage-coded decision
@@ -120,6 +136,9 @@ All settings are environment variables read at start-up (`src/openmedcheck/confi
 | `OPENMEDCHECK_MODEL` | `gemma4:e4b` | Model tag served by Ollama; must not be empty. |
 | `OPENMEDCHECK_MODEL_TIMEOUT_S` | `10.0` | Total model deadline in seconds across the first attempt and the retry; must be a positive, finite number. |
 | `OPENMEDCHECK_ALLOW_NONLOCAL` | `0` | Set to `1` to allow a non-loopback bind host or Ollama URL. Leave it at `0` for the zero-egress guarantee. |
+| `OPENMEDCHECK_PUBLIC_HOSTS` | empty | Hosted demo only: comma-separated host names accepted in the Host header and shown with the hosted-demo notice. Needs `OPENMEDCHECK_ALLOW_NONLOCAL=1`. |
+| `OPENMEDCHECK_OLLAMA_API_KEY` | empty | Hosted demo only: secret sent as `Authorization: Bearer` to the model host. Needs an `https://` Ollama URL (unless Ollama is on loopback). Never logged or returned. |
+| `PORT` | unset | Platform port, used only when `OPENMEDCHECK_PORT` is unset. |
 
 The app refuses to start with an invalid value.
 
