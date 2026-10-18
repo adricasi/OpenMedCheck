@@ -1,6 +1,11 @@
 # 0007. Add an opt-in hosted demo profile; keep local and on-premises as the product
 
-- Status: Accepted
+- Status: **Superseded by [ADR 0008](0008-drop-opt-in-hosted-demo.md)** (2026-10-18). The
+  hosted demo described below was never deployed; v0.1 ships local-only, with the GCP reference
+  architecture (REQ-013) as the only documented non-local target. The generic non-local opt-in
+  mechanism (`OPENMEDCHECK_ALLOW_NONLOCAL`, trusted public hosts, bearer-key model calls) stays
+  in the code, kept for that GCP plan; only the Render/DigitalOcean guides and blueprint below
+  were removed.
 - Date: 2026-10-18
 - Deciders: adricasi
 

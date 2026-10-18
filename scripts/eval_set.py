@@ -218,8 +218,9 @@ def finding_rows(tally: Tally) -> list[tuple[str, str, str]]:
 def ollama_version(url: str, api_key: str = "") -> str:
     """The Ollama server version for the report, or "unknown".
 
-    Behind the hosted proxy this is "unknown": the proxy forwards only the four calls the app
-    makes (docs/deploy/digitalocean-gemma.md), and /api/version is not one of them.
+    Behind an authenticating proxy in front of a non-local Ollama (OPENMEDCHECK_OLLAMA_API_KEY
+    set) this is typically "unknown": such a proxy forwards only the calls the app itself makes
+    (/api/tags, /api/ps, /api/generate, /api/chat), and /api/version is not one of them.
     """
     headers = {"Authorization": f"Bearer {api_key}"} if api_key else None
     try:

@@ -376,31 +376,36 @@ Acceptance criteria use EARS style: `WHEN <trigger> [WHILE <state>] THE SYSTEM S
   - AC-014.1: WHEN the UI loads THE SYSTEM SHALL send one warm-up request to the model and show
     "Model warming…" until it completes or times out.
 
-### REQ-015: Hosted demo profile (opt-in, synthetic data only)
-- Story: As a challenge judge, I want to try the demo in a browser without installing a model,
-  while the product story stays "runs on-premises in the hospital".
+### REQ-015: Opt-in non-local configuration (no public deployment in v0.1)
+- Story: As the operator of a future on-premises or cloud deployment, I want an explicit,
+  reviewable opt-in before the app binds beyond loopback or reaches a non-local model, so the
+  local, zero-egress default can't be loosened by accident.
 - Priority: Should
-- Goals: G-4
+- Goals: G-3
 - Acceptance criteria:
-  - AC-015.1: THE SYSTEM SHALL keep the local, zero-egress behaviour as the default; the hosted
-    profile is enabled only by explicit environment variables (`OPENMEDCHECK_ALLOW_NONLOCAL=1`
-    plus the public host name).
-  - AC-015.2: WHEN the hosted profile is enabled THE SYSTEM SHALL accept requests only for the
-    configured public host name(s), bind the address and port given by the platform, and reach
-    the model only at the configured HTTPS URL, sending a bearer API key read from the
+  - AC-015.1: THE SYSTEM SHALL keep the local, zero-egress behaviour as the default; the
+    non-local profile is enabled only by explicit environment variables
+    (`OPENMEDCHECK_ALLOW_NONLOCAL=1` plus the public host name).
+  - AC-015.2: WHEN the non-local profile is enabled THE SYSTEM SHALL accept requests only for
+    the configured public host name(s), bind the address and port given by the platform, and
+    reach the model only at the configured HTTPS URL, sending a bearer API key read from the
     environment; the key SHALL never be logged, returned or committed.
-  - AC-015.3: WHEN the hosted profile is enabled THE SYSTEM SHALL show on every page that the
-    demo is hosted for trying it, accepts synthetic data only, and that the product is meant to
-    run on-premises.
+  - AC-015.3: WHEN the non-local profile is enabled THE SYSTEM SHALL show on every page that
+    the instance is hosted for trying it, accepts synthetic data only, and that the product is
+    meant to run on-premises.
   - AC-015.4: THE SYSTEM SHALL provide a container image and a `docker compose` setup that runs
-    the app and Ollama locally with one command, and step-by-step deployment guides for the
-    hosted demo (app on Render, Gemma on a DigitalOcean GPU droplet behind an authenticating
-    HTTPS proxy). Nothing is deployed.
+    the app and Ollama locally with one command. v0.1 provides no public deployment: the GCP
+    reference architecture (REQ-013) is the only documented non-local deployment target, and it
+    is documented only, never deployed.
+  - Amended 2026-10-18 (docs/adr/0008-drop-opt-in-hosted-demo.md): dropped the Render +
+    DigitalOcean hosted-demo guides (the previous AC-015.4) and the "challenge judge" framing
+    (previously Goals: G-4); the non-local opt-in mechanism itself is unchanged in code and is
+    reused by the GCP plan (REQ-013).
 
 ## Non-functional requirements
 | ID | Category | Requirement (measurable) | Verification |
 |---|---|---|---|
-| NFR-001 | Security | The app binds to `127.0.0.1` by default (the opt-in hosted profile, REQ-015, is the only exception). The only outbound connection is to the configured Ollama host (default `http://127.0.0.1:11434`). No telemetry or CDN calls at runtime (UI assets served locally). Request body ≤ 16 KB. `pip-audit` reports no known vulnerabilities with a fix available. Model output is never rendered as HTML (escaped text only). | Test that blocks non-allowlisted sockets during an evaluation; config test; `uv run pip-audit` in CI; XSS test with markup in the note and model output |
+| NFR-001 | Security | The app binds to `127.0.0.1` by default (the opt-in non-local profile, REQ-015, is the only exception; unused in v0.1, ADR 0008). The only outbound connection is to the configured Ollama host (default `http://127.0.0.1:11434`). No telemetry or CDN calls at runtime (UI assets served locally). Request body ≤ 16 KB. `pip-audit` reports no known vulnerabilities with a fix available. Model output is never rendered as HTML (escaped text only). | Test that blocks non-allowlisted sockets during an evaluation; config test; `uv run pip-audit` in CI; XSS test with markup in the note and model output |
 | NFR-002 | Privacy / data classification | Data is synthetic only, but treated as special-category health data: nothing from the PatientContext (note, labs, meds, allergies, demographics) is written to logs, disk or caches. Logs carry only request ID, preset ID (if any), rule IDs fired, statuses, timings, validity outcome. 422 response bodies (which echo input values) and raw model output are never logged. | Log-capture test asserting no context field values appear in logs, incl. for a 422 and an invalid model output; no file writes during evaluation |
 | NFR-003 | Availability / fail-safe | 100% of valid evaluations return a card when Ollama is stopped, slow or returns garbage (rules-only card). | Tests with a fake model: down, timeout, invalid ×2 |
 | NFR-004 | Performance | Local NVIDIA GPU (≥ 8 GB VRAM), `gemma4:e4b`, warm: rules card p95 < 200 ms server-side; final card p95 < 3 s end to end over ≥ 20 calls. Total model deadline 10 s across the first attempt and the retry (configurable), then rules-only card. | REQ-012 measurement script; deadline test with a fake slow model (incl. slow first attempt + retry) |

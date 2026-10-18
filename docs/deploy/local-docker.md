@@ -2,7 +2,10 @@
 
 Runs the app and Ollama in containers. Synthetic patients only; not a medical device. This is
 the on-premises shape of the product: nothing leaves your machine except the one-time image and
-model downloads.
+model downloads, and it is the **only** way OpenMedCheck v0.1 is deployed — there is no hosted
+demo ([ADR 0008](../adr/0008-drop-opt-in-hosted-demo.md)). For how this would run in a
+hospital's own cloud instead, see
+[`gcp-reference-architecture.md`](gcp-reference-architecture.md) (documented, not implemented).
 
 ## Requirements
 - Docker with the Compose plugin (`docker compose version`).
@@ -44,11 +47,49 @@ docker compose exec ollama ollama ps        # PROCESSOR "100% CPU" = no GPU in t
 Alternative to step 1 once the stack is running:
 `docker compose exec ollama ollama pull gemma4:e4b`.
 
+## What gets created
+| Container | Image | Published port | Purpose |
+|---|---|---|---|
+| `app` | built from this repo's `Dockerfile` | `127.0.0.1:8000` only | FastAPI app, rules engine, UI |
+| `ollama` | `ollama/ollama:0.35.1` | none | Serves `gemma4:e4b`; reachable only from `app`, over the Compose network |
+| `model-pull` | `ollama/ollama:0.35.1` | none | One-shot: pulls the model into the `ollama-models` volume, then exits (`--profile setup`) |
+
+One named volume, `ollama-models`, holds the downloaded weights so they survive
+`docker compose down` (but not `docker compose down -v`).
+
+## Verify it is working
+```bash
+docker compose ps                                  # both services "running"/"healthy"
+curl -s http://127.0.0.1:8000/healthz               # {"status":"ok"}
+curl -s http://127.0.0.1:8000/api/model/health      # "ready" once the model has loaded
+```
+In the browser at <http://127.0.0.1:8000>: load preset A ("Bed 3"), click "Auto-fill test
+prescription" then "Verify prescription". The rules card should appear almost instantly,
+followed by the final card. If the final card says "Model check unavailable — rules only",
+see "Symptom: Bed 3 says No issue" below.
+
+## Configuration
+Every setting is an environment variable read by `config.py`; set it before `app:` in
+`docker-compose.yml`, or on the command line (`OPENMEDCHECK_MODEL_TIMEOUT_S=30 docker compose up`).
+
+| Variable | Default | Change it when |
+|---|---|---|
+| `OPENMEDCHECK_MODEL_TIMEOUT_S` | `10` | The model runs on CPU and keeps timing out (see below) |
+| `OPENMEDCHECK_MAX_MODEL_CALLS` | `4` | You want more or fewer concurrent model calls before extra checks get an instant rules-only card |
+| `OPENMEDCHECK_MODEL` | `gemma4:e4b` | You pulled a different Ollama tag (re-run the model evaluation first: the prompt and schema are tuned for `gemma4:e4b`) |
+
+Do **not** set `OPENMEDCHECK_ALLOW_NONLOCAL`, `OPENMEDCHECK_PUBLIC_HOSTS`,
+`OPENMEDCHECK_HOST` or `OPENMEDCHECK_PORT` for a local run: the image already sets the first two
+for the container's own interface, and changing the others, or the port mapping below, is how
+you would accidentally expose the app to your network.
+
 ## What stays local
 - The app is published only as `127.0.0.1:8000`; Ollama has no published port.
 - The container binds `0.0.0.0` internally (`OPENMEDCHECK_ALLOW_NONLOCAL=1`) and accepts only the
-  Host headers `localhost` and `127.0.0.1` (`OPENMEDCHECK_PUBLIC_HOSTS`). The hosted-demo notice
-  is shown only when a non-loopback public host is configured.
+  Host headers `localhost` and `127.0.0.1` (`OPENMEDCHECK_PUBLIC_HOSTS`) — this is the generic
+  non-local opt-in described in REQ-015, used here only to let the container's own loopback-style
+  binding work; it is not a hosted deployment. The "hosted for trying it" notice only appears
+  when a non-loopback public host is configured, which this setup never does.
 - Do not change the port mapping to `8000:8000` or `0.0.0.0:8000:8000`: that exposes the app to
   your network.
 
@@ -57,3 +98,10 @@ Alternative to step 1 once the stack is running:
   (`docker compose exec ollama ollama list`).
 - First check after start is rules only: the model was still loading; wait for "ready".
 - Health: `docker compose ps` shows the health state of each service (`/healthz` for the app).
+
+## Stopping and cleaning up
+```bash
+docker compose down        # stops and removes the containers; keeps the downloaded model
+docker compose down -v     # also deletes the ollama-models volume (re-pull next time)
+docker system df           # check how much disk the images/volumes are using, if reclaiming space
+```

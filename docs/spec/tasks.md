@@ -140,6 +140,11 @@ pytest --cov` pass and CI is green, unless stated otherwise.
   - Scope: Dockerfile, docker-compose (app + Ollama), hosted profile config (public hosts,
     platform port, HTTPS model URL with bearer key), hosted banner, Render blueprint and guide,
     DigitalOcean GPU droplet guide (Ollama behind Caddy with a bearer token), ADR 0007. No deploy.
+  - Amended 2026-10-18 (ADR 0008): removed `render.yaml` and the Render/DigitalOcean guides
+    (`docs/deploy/render.md`, `docs/deploy/digitalocean-gemma.md`); ADR 0007 is superseded.
+    Local Docker Compose (`docs/deploy/local-docker.md`) and the documented-only GCP plan
+    (T-011) are the only deployment paths now. The opt-in non-local config (public hosts,
+    platform port, bearer key, hosted banner) stays in code, unchanged, reused by the GCP plan.
 - [x] T-017: Clinician contribution guide and English-only names
   - Scope: CONTRIBUTING.md (propose a rule with a source, review marks, evaluation set as the
     regression guard, contributing synthetic cases); English for all technical names and text.
@@ -181,6 +186,12 @@ pytest --cov` pass and CI is green, unless stated otherwise.
     mark "Not implemented". No changes under `infra/`.
   - Done when: design.md sections are complete and sourced; Q-1 closed or marked unverified;
     `git diff --stat main -- infra/` is empty.
+  - Amended 2026-10-18 (ADR 0008): this is now the **only** documented non-local deployment
+    target (the Render + DigitalOcean hosted demo in ADR 0007 was dropped). Expanded design.md
+    with a resource inventory, IAM bindings, firewall rules and monitoring tables, a Terraform
+    module file tree, and a command-level step list; added a standalone walkthrough,
+    `docs/deploy/gcp-reference-architecture.md`. Still not implemented; `git diff --stat main --
+    infra/` stays empty.
 - [~] T-012: Demo video and DEV post
   - Requirements: G-4 (supports REQ-006, REQ-010)
   - Depends on: T-010 (T-011 for the architecture section)
@@ -208,6 +219,7 @@ pytest --cov` pass and CI is green, unless stated otherwise.
 | REQ-012 (Should) | T-009 |
 | REQ-013 (Should) | T-011 |
 | REQ-014 (Could) | T-007 (optional) |
+| REQ-015 (Should) | T-016 |
 | NFR-001, NFR-005, NFR-008 | T-008 |
 | NFR-002, NFR-003, NFR-007 | T-005 |
 | NFR-004, NFR-012 | T-001, T-009 |
