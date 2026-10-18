@@ -2,7 +2,9 @@
 
 Throwaway measurement script (REQ-003, NFR-004, NFR-012). Standard library only.
 All contexts are synthetic. Context text is never printed or written; only timings,
-validity outcomes and the verdict labels are reported.
+validity outcomes and the verdict labels are reported. The 2026-10-17 spike
+(docs/measurements/2026-10-17-spike.md) ran with some notes in Spanish; they were translated
+to English on 2026-10-18 (English-only project data), so a re-run is not byte-identical.
 
 Usage: python scripts/spike_ollama.py [--model gemma4:e4b] [--calls 30] [--think]
 """
@@ -46,8 +48,8 @@ Rules:
 
 GUIDANCE = """\
 Clinical conflict guidance:
-- ANTIPLATELET_ACS: the note suggests an acute coronary syndrome (chest pain, suspected ACS or
-  SCA) and the proposed order is an NSAID, or the patient takes an antiplatelet such as aspirin
+- ANTIPLATELET_ACS: the note suggests an acute coronary syndrome (chest pain or suspected ACS)
+  and the proposed order is an NSAID, or the patient takes an antiplatelet such as aspirin
   or clopidogrel. The coded diagnoses may not show it; read the note. Use BLOCKED, tier HIGH.
 - RENAL: eGFR below 30 or high creatinine and the drug needs renal adjustment. Use WARNING and
   set renal_adjustment_required to true.
@@ -75,8 +77,8 @@ CASES: list[Case] = [
         "NO_ISSUE",
         "Synthetic patient, male 67 y, 82 kg, creatinine 1.0 mg/dL, eGFR 78. "
         "Coded diagnoses: hypertension. Home meds: aspirin 100 mg daily. Allergies: none.",
-        "Dolor toracico opresivo desde hace 2 h, irradiado a brazo izquierdo. Sospecha de SCA, "
-        "pendiente de ECG y troponinas.",
+        "Crushing chest pain for 2 hours radiating to the left arm. Suspected ACS, "
+        "ECG and troponin pending.",
     ),
     Case(
         "A2",
@@ -97,8 +99,8 @@ CASES: list[Case] = [
         "NO_ISSUE",
         "Synthetic patient, male 59 y, 90 kg, creatinine 1.1 mg/dL, eGFR 75. "
         "Coded diagnoses: dyslipidaemia. Home meds: aspirin 100 mg daily. Allergies: none.",
-        "Dolor precordial con disnea y sudoracion fria. Sospecha de sindrome coronario agudo "
-        "(SCA).",
+        "Precordial pain with shortness of breath and cold sweats. Suspected acute coronary "
+        "syndrome (ACS).",
     ),
     Case(
         "B1",
@@ -108,7 +110,7 @@ CASES: list[Case] = [
         "WARNING",
         "Synthetic patient, female 78 y, 58 kg, creatinine 2.6 mg/dL, eGFR 22. "
         "Coded diagnoses: chronic kidney disease stage 4. Home meds: furosemide. Allergies: none.",
-        "Disuria y fiebre, sospecha de infeccion urinaria complicada.",
+        "Dysuria and fever, suspected complicated urinary tract infection.",
     ),
     Case(
         "B2",
@@ -128,7 +130,7 @@ CASES: list[Case] = [
         "WARNING",
         "Synthetic patient, female 74 y, 61 kg, creatinine 2.3 mg/dL, eGFR 26. "
         "Coded diagnoses: chronic kidney disease stage 4. Allergies: none.",
-        "Tos productiva y fiebre, sospecha de neumonia.",
+        "Productive cough and fever, suspected pneumonia.",
     ),
     Case(
         "C1",
@@ -158,7 +160,7 @@ CASES: list[Case] = [
         "NO_ISSUE",
         "Synthetic patient, male 45 y, 85 kg, creatinine 1.0 mg/dL, eGFR 95. "
         "Coded diagnoses: none. Home meds: none. Allergies: none.",
-        "Lumbalgia mecanica de 2 dias, sin focalidad neurologica.",
+        "Mechanical low back pain for 2 days, no focal neurological signs.",
     ),
 ]
 

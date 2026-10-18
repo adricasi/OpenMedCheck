@@ -155,6 +155,26 @@ uv run pytest -m ollama                              # real-model tests (local o
 Unit, service and API tests use a fake model client; only the `-m ollama` tests call a real
 model.
 
+## Evaluation set
+
+An open set of **74 synthetic ED cases** ([evals/](evals/README.md)) covers every rule, notes
+where the conflict is only in free text, negations ("ACS ruled out", "not pregnant", "stopped
+warfarin"), past and family history, abbreviations, typos and clean notes that must stay silent.
+Each case states the findings a careful clinician would extract, and a test keeps every case
+consistent with the rules. Result on the same machine
+([comparison](docs/measurements/2026-10-18-model-comparison.md)):
+
+| | Correct | False alarms | Misses | Model step p50 |
+|---|---|---|---|---|
+| Rules only | 74% | 0/34 | 19/40 (48%) | n/a |
+| **Rules + Gemma 4 E4B** | **97%** | **0/34** | **1/40 (2%)** | 1.96 s |
+| Rules + Gemma 4 12B | 84% | 0/34 | 10/40 (timeouts on an 8 GB GPU) | 8.74 s |
+| Rules + Gemma 3 4B | 68% | 12/34 | 11/40 | 5.63 s |
+
+Note findings from Gemma 4 E4B: 100% precision for every type, 100% recall except active GI
+bleed (3/4). Run it yourself: `uv run python scripts/eval_set.py [--model <tag>]`. Synthetic
+notes, temperature 0: this measures coverage of wordings, not clinical validity.
+
 ## Measurements
 
 Measured on one machine (NVIDIA RTX 3000 Ada Laptop GPU, 8188 MiB; Ollama 0.35.1; `gemma4:e4b`,
@@ -226,6 +246,11 @@ model weights are not part of this repository.
 Clinical content in the rule table is a demonstrator and has not been signed off for clinical
 use; see [docs/clinical-review.md](docs/clinical-review.md) for the review status and open
 questions for a specialist.
+
+## Contributing
+
+Clinicians and developers are welcome: propose a rule with its source, review a rule, or add
+synthetic evaluation cases. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Development workflow (spec-driven)
 

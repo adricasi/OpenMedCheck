@@ -578,8 +578,9 @@ SPECIALIST_QUESTIONS: tuple[str, ...] = (
     "confirm or change them.",
     "Allergy matching is exact (ignoring upper or lower case) on the drug ID, the active "
     "ingredient or the class ID (NSAID, PENICILLIN, FLUOROQUINOLONE, "
-    "OPIOID, PYRAZOLONE, ANTIPLATELET, LMWH, BIGUANIDE, ANALGESIC_ANTIPYRETIC). Spanish brand "
-    "or ingredient names ('ibuprofeno', 'Adiro') do not match. Is that acceptable for a demo?",
+    "OPIOID, PYRAZOLONE, ANTIPLATELET, LMWH, BIGUANIDE, ANALGESIC_ANTIPYRETIC). Brand names "
+    "or ingredient names in another language do not match (the drug list uses English generic "
+    "names only). Is that acceptable for a demo?",
     "Allergy cross-reactivity is not modelled: an aspirin allergy does not flag NSAIDs, and "
     "'amoxicillin' alone does not match (only the drug ID, the active ingredient or the class "
     "PENICILLIN does). Which cross-reactions, if any, should the rules cover?",
