@@ -39,6 +39,8 @@ class Config:
     public_hosts: tuple[str, ...] = ()
     # Secret (AC-015.2): excluded from repr so it never reaches logs or tracebacks.
     ollama_api_key: str = field(default="", repr=False)
+    # Concurrent model calls; beyond it a check gets the rules-only card at once (REQ-005).
+    max_model_calls: int = 4
 
     @property
     def hosted(self) -> bool:
@@ -60,6 +62,7 @@ class Config:
             allow_nonlocal=env.get("OPENMEDCHECK_ALLOW_NONLOCAL", "0") == "1",
             public_hosts=_parse_public_hosts(env.get("OPENMEDCHECK_PUBLIC_HOSTS", "")),
             ollama_api_key=env.get("OPENMEDCHECK_OLLAMA_API_KEY", "").strip(),
+            max_model_calls=_parse_max_calls(env.get("OPENMEDCHECK_MAX_MODEL_CALLS", "4")),
         )
         config.validate()
         return config
@@ -78,6 +81,14 @@ class Config:
                 raise ConfigError(
                     "OPENMEDCHECK_OLLAMA_API_KEY requires an https:// OPENMEDCHECK_OLLAMA_URL"
                 )
+        # A public demo must never call a remote model in clear text or without the proxy key.
+        remote_model = self.hosted and not is_loopback_host(ollama_host)
+        insecure = urlsplit(self.ollama_url).scheme != "https" or not self.ollama_api_key
+        if remote_model and insecure:
+            raise ConfigError(
+                "the hosted profile needs an https:// OPENMEDCHECK_OLLAMA_URL and "
+                "OPENMEDCHECK_OLLAMA_API_KEY for a remote model"
+            )
         if self.allow_nonlocal:
             return
         if not is_loopback_host(self.host):
@@ -110,6 +121,16 @@ def _parse_public_hosts(raw: str) -> tuple[str, ...]:
         if not _HOSTNAME.fullmatch(host):
             raise ConfigError("OPENMEDCHECK_PUBLIC_HOSTS must be comma-separated host names")
     return hosts
+
+
+def _parse_max_calls(raw: str) -> int:
+    try:
+        value = int(raw)
+    except ValueError:
+        raise ConfigError("OPENMEDCHECK_MAX_MODEL_CALLS must be an integer") from None
+    if not 1 <= value <= 64:
+        raise ConfigError("OPENMEDCHECK_MAX_MODEL_CALLS must be between 1 and 64")
+    return value
 
 
 def _parse_port(raw: str) -> int:

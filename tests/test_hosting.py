@@ -203,3 +203,75 @@ def test_ac_015_3_hosted_banner_only_in_hosted_mode() -> None:
     assert "synthetic data only" in hosted.lower()
     assert "on-premises" in hosted
     assert "hosted-banner" not in local
+
+
+def test_ac_015_2_hosted_profile_refuses_a_remote_model_without_https_and_key() -> None:
+    from openmedcheck.config import Config, ConfigError
+
+    base = {
+        "OPENMEDCHECK_ALLOW_NONLOCAL": "1",
+        "OPENMEDCHECK_HOST": "0.0.0.0",  # noqa: S104 - the platform bind, exercised in config only
+        "OPENMEDCHECK_PUBLIC_HOSTS": "openmedcheck-demo.onrender.com",
+    }
+    for url, key in (
+        ("http://203.0.113.7:11434", ""),
+        ("https://gemma.example.org", ""),
+    ):
+        env = {**base, "OPENMEDCHECK_OLLAMA_URL": url, "OPENMEDCHECK_OLLAMA_API_KEY": key}
+        with pytest.raises(ConfigError):
+            Config.from_env(env)
+    ok = {
+        **base,
+        "OPENMEDCHECK_OLLAMA_URL": "https://gemma.example.org",
+        "OPENMEDCHECK_OLLAMA_API_KEY": "a" * 64,
+    }
+    assert Config.from_env(ok).hosted
+
+
+def test_ac_015_2_model_calls_over_the_cap_get_the_rules_only_card_at_once() -> None:
+    import threading
+
+    from openmedcheck.check_service import MODEL_UNAVAILABLE_NOTE, final_card
+    from openmedcheck.contracts import Source
+    from openmedcheck.model_client import BoundedModelClient, ModelOutcome
+    from openmedcheck.presets import PRESET_A
+
+    release = threading.Event()
+    entered = threading.Event()
+
+    class SlowClient:
+        def assess(self, _request):  # type: ignore[no-untyped-def]
+            entered.set()
+            release.wait(5)
+            from openmedcheck.model_client import ModelResult
+
+            return ModelResult(
+                outcome=ModelOutcome.UNAVAILABLE, verdict=None, attempts=1, latency_ms=0
+            )
+
+        def health(self):  # type: ignore[no-untyped-def]
+            raise NotImplementedError
+
+        def warm_up(self) -> bool:
+            return True
+
+    bounded = BoundedModelClient(SlowClient(), 1)
+    worker = threading.Thread(target=final_card, args=(PRESET_A.request, bounded))
+    worker.start()
+    assert entered.wait(5)
+
+    card = final_card(PRESET_A.request, bounded)  # the only slot is busy
+
+    release.set()
+    worker.join(5)
+    assert card.source is Source.RULES
+    assert card.model_note == MODEL_UNAVAILABLE_NOTE
+
+
+def test_ac_015_2_max_model_calls_is_validated() -> None:
+    from openmedcheck.config import Config, ConfigError
+
+    assert Config.from_env({"OPENMEDCHECK_MAX_MODEL_CALLS": "2"}).max_model_calls == 2
+    for bad in ("0", "65", "x"):
+        with pytest.raises(ConfigError):
+            Config.from_env({"OPENMEDCHECK_MAX_MODEL_CALLS": bad})

@@ -23,6 +23,10 @@ app. You need from that guide: the HTTPS URL of the model proxy and the bearer A
 | `OPENMEDCHECK_PUBLIC_HOSTS` | the service host name, e.g. `openmedcheck-demo.onrender.com`, plus your custom domain if any (comma-separated, no scheme, no port) | no |
 | `OPENMEDCHECK_OLLAMA_URL` | `https://<your model host>` (must be https when a key is set) | no |
 | `OPENMEDCHECK_OLLAMA_API_KEY` | the bearer token from the model-host guide | **yes** |
+| `OPENMEDCHECK_MAX_MODEL_CALLS` | optional, default `4`: concurrent model calls; extra checks get the rules-only card at once | no |
+
+In the hosted profile the app refuses to start if the model URL is not `https://` or the key is
+missing (a public demo never calls the model in clear text or unauthenticated).
 
 Render injects `PORT` itself; the app uses it when `OPENMEDCHECK_PORT` is unset. Do not set
 `OPENMEDCHECK_PORT`. The exact `*.onrender.com` name is shown on the service page after

@@ -41,6 +41,10 @@ We will implement option 1 as an opt-in profile:
   Nothing is deployed automatically; a human follows the guides in `docs/deploy/`.
 
 ## Consequences
+- The app caps concurrent model calls (`OPENMEDCHECK_MAX_MODEL_CALLS`, default 4) and answers
+  with the rules-only card beyond the cap; in the hosted profile it refuses a non-https or
+  unauthenticated remote model URL; the proxy forwards only the four Ollama calls the app uses
+  (security review).
 - Positive: judges can try the demo in a browser; the local, zero-egress path is unchanged and
   still the default; the same image serves both local Docker and Render.
 - Negative / risks:

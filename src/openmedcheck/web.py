@@ -30,7 +30,7 @@ from openmedcheck.contracts import (
     ProblemDetails,
 )
 from openmedcheck.logging_setup import LOGGER_NAME, log_event
-from openmedcheck.model_client import ModelClient, ModelHealth, OllamaClient
+from openmedcheck.model_client import BoundedModelClient, ModelClient, ModelHealth, OllamaClient
 
 LOGGER = logging.getLogger(f"{LOGGER_NAME}.web")
 PROBLEM_JSON = "application/problem+json"
@@ -138,11 +138,14 @@ def create_app(config: Config | None = None, model_client: ModelClient | None = 
     config = config or Config()
     injected = model_client
     if model_client is None:
-        model_client = OllamaClient(
-            config.ollama_url,
-            config.model,
-            deadline_s=config.model_timeout_s,
-            api_key=config.ollama_api_key,
+        model_client = BoundedModelClient(
+            OllamaClient(
+                config.ollama_url,
+                config.model,
+                deadline_s=config.model_timeout_s,
+                api_key=config.ollama_api_key,
+            ),
+            config.max_model_calls,
         )
     owns_client = injected is None
 
@@ -151,7 +154,7 @@ def create_app(config: Config | None = None, model_client: ModelClient | None = 
         try:
             yield
         finally:
-            if owns_client and isinstance(model_client, OllamaClient):
+            if owns_client and isinstance(model_client, BoundedModelClient | OllamaClient):
                 model_client.close()
 
     app = FastAPI(

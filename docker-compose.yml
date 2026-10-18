@@ -5,6 +5,9 @@ services:
   ollama:
     image: ollama/ollama:0.35.1
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 512
     volumes:
       - ollama-models:/root/.ollama
     # No `ports:` on purpose: only the app container reaches Ollama, over the compose network.
@@ -39,6 +42,8 @@ services:
       - "127.0.0.1:8000:8000"
     read_only: true
     cap_drop: [ALL]
+    pids_limit: 256
+    mem_limit: 1g
     security_opt:
       - no-new-privileges:true
 

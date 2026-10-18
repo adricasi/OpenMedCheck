@@ -19,8 +19,14 @@ each check, which is why this is a demo profile and not the product story.
 
 ## 1. Firewall
 Networking -> Firewalls (check in the console): attach to the droplet inbound rules for only
-TCP 22 (restrict the source to your IP if you can), TCP 443, and TCP 80 (the ACME HTTP challenge
-and the redirect to HTTPS). Do not open 11434.
+TCP 22 restricted to your own IP address, TCP 443, and TCP 80 (the ACME HTTP challenge and the
+redirect to HTTPS). Do not open 11434. Add the same rules on the droplet itself as a second layer:
+```bash
+ufw default deny incoming && ufw default allow outgoing
+ufw allow from <your-ip> to any port 22 proto tcp
+ufw allow 80/tcp && ufw allow 443/tcp
+ufw enable && ufw status verbose
+```
 
 ## 2. Install Ollama and keep it on loopback
 ```bash
@@ -35,7 +41,15 @@ ollama pull gemma4:e4b
 ollama run gemma4:e4b "Say OK"           # quick GPU check, then /bye
 ```
 Ollama binds `127.0.0.1:11434` by default. Do not set `OLLAMA_HOST`. If `ss` shows `0.0.0.0`,
-remove any `OLLAMA_HOST` override (`systemctl edit ollama`).
+remove any `OLLAMA_HOST` override (`systemctl edit ollama`). Keep one request at a time on the
+GPU so a burst cannot queue up behind it (`systemctl edit ollama`):
+```ini
+[Service]
+Environment="OLLAMA_NUM_PARALLEL=1"
+Environment="OLLAMA_MAX_QUEUE=8"
+```
+Then `systemctl daemon-reload && systemctl restart ollama`. The app also caps its own concurrent
+model calls (`OPENMEDCHECK_MAX_MODEL_CALLS`, default 4) and gives the rules-only card beyond it.
 
 ## 3. Generate the API key
 ```bash
@@ -60,10 +74,17 @@ EnvironmentFile=/etc/caddy/caddy.env
 `/etc/caddy/Caddyfile` (replace the host name):
 ```caddyfile
 gemma.example.org {
-	@authorized header Authorization "Bearer {$OLLAMA_API_KEY}"
+	# Only the four calls the app makes, and only with the key. Everything else (pull, delete,
+	# create, copy, push, ...) is refused even with a valid key.
+	@authorized {
+		header Authorization "Bearer {$OLLAMA_API_KEY}"
+		path /api/tags /api/ps /api/generate /api/chat
+	}
 
 	handle @authorized {
 		reverse_proxy 127.0.0.1:11434 {
+			# Ollama on loopback only accepts local Host names; rewrite the Host header.
+			header_up Host {upstream_hostport}
 			transport http {
 				response_header_timeout 60s
 			}
@@ -86,12 +107,18 @@ systemctl status caddy --no-pager        # Caddy obtains the certificate automat
 ```
 Keep the key hex-only (as `openssl rand -hex 32` produces) so no character needs escaping.
 
+If a verification call returns **403 from Ollama**, the Host header is the cause: check the
+`header_up Host {upstream_hostport}` line. **Never "fix" it by setting `OLLAMA_HOST=0.0.0.0`**:
+that would expose the model server directly, with only the cloud firewall in front of it.
+
 ## 5. Verify from your own machine
 ```bash
 curl -i https://gemma.example.org/api/tags                                    # expect 401
 curl -i -H "Authorization: Bearer wrong" https://gemma.example.org/api/tags   # expect 401
 curl -s -H "Authorization: Bearer $OLLAMA_API_KEY" https://gemma.example.org/api/tags
                                                       # expect JSON listing gemma4:e4b
+curl -i -X DELETE -H "Authorization: Bearer $OLLAMA_API_KEY" \
+  -d '{"model":"gemma4:e4b"}' https://gemma.example.org/api/delete    # expect 401 (not proxied)
 nc -vz <droplet-ip> 11434                             # expect refused or timeout
 ```
 Set `OLLAMA_API_KEY` in your shell from the password manager (do not paste it into shared logs
@@ -115,4 +142,6 @@ Rotate immediately if the key was ever pasted somewhere it should not be.
 - A public GPU endpoint can be probed and, if the key leaks, used for free inference. The bearer
   token, the narrow firewall and the power-off plan are the mitigations (ADR 0007).
 - Prompts contain only synthetic data, but the host still sees them; never use real patients.
-- Caddy's request logs go to the journal; request bodies are not logged by default.
+- Caddy writes no access log unless you add a `log` directive (and then it redacts the
+  `Authorization` header). Do not add logging of request bodies or headers: prompts contain the
+  (synthetic) clinical note.
