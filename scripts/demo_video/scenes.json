@@ -11,32 +11,47 @@
     {
       "id": "problem",
       "slide": "problem",
-      "narration": "Emergency orders are written under time pressure. The key fact is often only in free text: a suspicion in today's note, or one line in a long history. Most coded-data checks we looked at don't read it, and clinicians override about half to ninety-six percent of medication alerts."
+      "narration": "Emergency orders are written under time pressure. The key fact is often only in free text: a suspicion in today's note, or one line in a long history. Most coded-data checks we looked at don't read it, and studies report that clinicians override half to ninety-six percent of medication alerts."
     },
     {
       "id": "bed3-open",
-      "clip": ["start", "verify3"],
+      "clip": [
+        "start",
+        "verify3"
+      ],
       "narration": "Bed three: chest pain, and daily aspirin in the record. A suspected acute coronary syndrome is written only in today's note. The doctor orders dexketoprofen, an anti-inflammatory."
     },
     {
       "id": "bed3-verdict",
-      "clip": ["verify3", "alternative"],
-      "narration": "Gemma 4 reads the note and quotes it. Code checks the quote word for word, and a rule written from the drug label decides: blocked, with the doctor's own words as evidence."
+      "clip": [
+        "verify3",
+        "alternative"
+      ],
+      "narration": "Gemma 4 reads the note and quotes it. Code checks the quote word for word, and a specialist-reviewed rule, from the drug label and a cardiology statement, decides: blocked, with the doctor's own words as evidence."
     },
     {
       "id": "bed3-alternative",
-      "clip": ["alternative", "room5"],
+      "clip": [
+        "alternative",
+        "room5"
+      ],
       "narration": "Accepting the suggestion changes the prescription to paracetamol, and the rules check it again: no issue found by these checks."
     },
     {
       "id": "bed5-open",
-      "clip": ["room5", "verify5"],
+      "clip": [
+        "room5",
+        "verify5"
+      ],
       "narration": "Bed five: a wrist sprain and ibuprofen. One line in his long past medical history matters: an upper G I bleed from a duodenal ulcer."
     },
     {
       "id": "bed5-verdict",
-      "clip": ["verify5", "end"],
-      "narration": "Gemma finds that line, code checks it, and a new rule, not yet specialist-reviewed, raises a warning. The prescriber still decides."
+      "clip": [
+        "verify5",
+        "end"
+      ],
+      "narration": "Gemma finds that line, code checks it, and a new rule, not yet specialist-reviewed, raises a warning, so the suggested paracetamol shows no dose. The prescriber still decides."
     },
     {
       "id": "open",
@@ -46,7 +61,7 @@
     {
       "id": "end",
       "slide": "end",
-      "narration": "Open Med Check is a demonstrator on synthetic patients, not a medical device. Next: a clinical pilot. It's open source, on GitHub."
+      "narration": "Open Med Check is a demonstrator on synthetic patients: not for clinical use, and not a medical device. The next step we're looking for is a clinical pilot. It's open source, on GitHub."
     }
   ]
 }
