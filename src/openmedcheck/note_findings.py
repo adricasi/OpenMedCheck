@@ -51,7 +51,7 @@ ALL_CODES: tuple[str, ...] = tuple(
 # A verbatim quote proves the words exist, not that they mean the code, so the quote must also
 # name what it is coded as (safety review, ADR 0006).
 CONDITION_TERMS: dict[str, tuple[str, ...]] = {
-    "ACS": ("acs", "coronary", "stemi", "angina", "myocardial infarction"),
+    "ACS": ("acs", "coronary", "stemi", "nstemi", "angina", "myocardial infarction"),
     "ACTIVE_GI_BLEED": (
         "bleed",
         "melena",
@@ -60,6 +60,8 @@ CONDITION_TERMS: dict[str, tuple[str, ...]] = {
         "hematemesis",
         "haemorrhage",
         "hemorrhage",
+        "coffee-ground",
+        "coffee ground",
     ),
     "HEART_FAILURE": ("heart failure", "cardiac failure", "hfref", "hfpef", "chf", "ccf"),
     "PREGNANCY": ("pregnan", "gestation", "weeks pregnant"),
@@ -69,7 +71,8 @@ CONDITION_TERMS: dict[str, tuple[str, ...]] = {
 # ("ACS ruled out"). Clauses end at punctuation, "but", "except", "although" and "however", so
 # "Suspected ACS, no ST elevation" and "No known allergies except ... ibuprofen" keep the finding.
 _PRE_NEGATION = re.compile(
-    r"\b(?:no|not|denies|denied|negative\s+for|free\s+of|history\s+of|h/o|previous|prior)\b",
+    r"\b(?:no|not|denies|denied|negative\s+for|free\s+of|history\s+of|h/o|previous|prior|"
+    r"stopped|discontinued|off)\b",
     re.IGNORECASE,
 )
 _POST_NEGATION = re.compile(
