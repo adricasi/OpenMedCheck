@@ -157,7 +157,7 @@ model.
 
 ## Evaluation set
 
-An open set of **74 synthetic ED cases** ([evals/](evals/README.md)) covers every rule, notes
+An open set of **76 synthetic ED cases** ([evals/](evals/README.md)) covers every rule, notes
 where the conflict is only in free text, negations ("ACS ruled out", "not pregnant", "stopped
 warfarin"), past and family history, abbreviations, typos and clean notes that must stay silent.
 Each case states the findings the authors expect the note to state (not yet reviewed by a
@@ -167,13 +167,14 @@ consistent with the rules. Result on the same machine
 
 | | Final status matches label | False alarms | Misses | Model step p50 |
 |---|---|---|---|---|
-| Rules only | 74% | 0/34 | 19/40 (48%) | n/a |
-| **Rules + Gemma 4 E4B** | **97%** | **0/34** | **1/40 (2%)** | 1.96 s |
-| Rules + Gemma 4 12B | 84% | 0/34 | 10/40 (timeouts on an 8 GB GPU) | 8.74 s |
-| Rules + Gemma 3 4B | 68% | 12/34 | 11/40 | 5.63 s |
+| Rules only | 72% | 0/34 | 21/42 (50%) | n/a |
+| **Rules + Gemma 4 E4B** | **97%** | **0/34** | **1/42 (2%)** | 1.87 s |
+| Rules + Gemma 3 4B | 78% | 5/34 | 11/42 | 5.59 s |
+| Rules + Gemma 4 12B (prompt v6, 74 cases) | 84% | 0/34 | 10/40 (timeouts on an 8 GB GPU) | 8.74 s |
 
-Note findings from Gemma 4 E4B: 100% precision for every type, 100% recall except active GI
-bleed (3/4). Run it yourself: `uv run python scripts/eval_set.py [--model <tag>]`. Synthetic
+Note findings from Gemma 4 E4B: 100% precision for every type, 100% recall except allergy (5/6)
+and active GI bleed (3/4). The cases, prompt and verifier were developed together, so 97% is a
+development-set figure, not a held-out estimate. Run it yourself: `uv run python scripts/eval_set.py [--model <tag>]`. Synthetic
 notes, temperature 0: this measures coverage of wordings, not clinical validity.
 
 ## Measurements
