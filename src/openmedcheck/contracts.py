@@ -59,6 +59,7 @@ class FindingKind(StrEnum):
     CONDITION = "CONDITION"
     MEDICATION = "MEDICATION"
     ALLERGY = "ALLERGY"
+    HISTORY = "HISTORY"  # a past event for this patient (REQ-016)
 
 
 class Source(StrEnum):

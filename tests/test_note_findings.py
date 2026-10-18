@@ -262,6 +262,12 @@ _findings = st.lists(
             st.sampled_from(note_findings.ALLERGY_CODES),
             st.just("x"),
         ),
+        st.builds(
+            finding,
+            st.just(FindingKind.HISTORY),
+            st.sampled_from(note_findings.HISTORY_CODES),
+            st.just("x"),
+        ),
     ),
     max_size=4,
 )

@@ -24,7 +24,8 @@ from openmedcheck.contracts import (
 )
 from openmedcheck.rule_table import ContextRule
 
-MAX_FINDINGS = 10  # the prompt asks for at most 4 conditions, 3 medications and 3 allergies
+# The prompt asks for at most 4 conditions, 3 medications, 3 allergies and 3 history items.
+MAX_FINDINGS = 13
 MIN_QUOTE_CHARS = 3
 MAX_QUOTE_CHARS = 120
 
@@ -45,6 +46,7 @@ CODES_BY_KIND: dict[FindingKind, tuple[str, ...]] = {
     FindingKind.CONDITION: CONDITION_CODES,
     FindingKind.MEDICATION: MEDICATION_CODES,
     FindingKind.ALLERGY: ALLERGY_CODES,
+    FindingKind.HISTORY: HISTORY_CODES,
 }
 ALL_CODES: tuple[str, ...] = tuple(
     dict.fromkeys(code for codes in CODES_BY_KIND.values() for code in codes)
@@ -68,6 +70,41 @@ CONDITION_TERMS: dict[str, tuple[str, ...]] = {
     "HEART_FAILURE": ("heart failure", "cardiac failure", "hfref", "hfpef", "chf", "ccf"),
     "PREGNANCY": ("pregnan", "gestation"),
 }
+HISTORY_TERMS: dict[str, tuple[str, ...]] = {
+    "PAST_GI_BLEED": (
+        *CONDITION_TERMS["ACTIVE_GI_BLEED"],
+        "ulcer",
+        "perforat",
+    ),
+    "ISCHAEMIC_HEART_DISEASE": (
+        *CONDITION_TERMS["ACS"],
+        "heart attack",
+        "infarct",
+        "mi",
+        "stent",
+        "pci",
+        "cabg",
+        "ihd",
+        "cad",
+    ),
+}
+# Short history terms ("mi", "cad") must be whole words: "mild" is not an MI.
+_SHORT_TERM = 3
+# Past history is evidence, not negation (ADR 0009): for history findings only denials count,
+# and "resolved" says the event happened.
+_PRE_NEGATION_HISTORY = re.compile(
+    r"\b(?:no|not|never|denies|denied|negative\s+for|free\s+of)\b", re.IGNORECASE
+)
+_POST_NEGATION_HISTORY = re.compile(
+    r"^(?P<gap>\W*(?:[\w']+\W+){0,2}?)(?:ruled\s+out|rules\s+out|excluded|unlikely)\b",
+    re.IGNORECASE,
+)
+# A relative's history is not the patient's (AC-016.4): anywhere in the term's clause.
+_RELATIVE = re.compile(
+    r"\b(?:father|mother|dad|mum|mom|brother|sister|sibling|parent|son|daughter|uncle|aunt|"
+    r"cousin|grand\w*|wife|husband|partner|spouse|family|fhx|f/h)\b",
+    re.IGNORECASE,
+)
 # Negation is local (safety review): a cue counts only inside the clause of the matched term,
 # a few words before it ("no GI bleeding", "history of ACS", "not on aspirin") or right after it
 # ("ACS ruled out"). Clauses end at punctuation, "but", "except", "although" and "however", so
@@ -117,6 +154,8 @@ def _words(text: str) -> list[str]:
 def _code_terms(kind: FindingKind, code: str) -> tuple[str, ...]:
     if kind is FindingKind.CONDITION:
         return CONDITION_TERMS[code]
+    if kind is FindingKind.HISTORY:
+        return HISTORY_TERMS[code]
     drug = rule_table.DRUGS_BY_ID.get(code)
     if drug is None:  # an allergy coded as a class ID or an active ingredient
         return tuple(_words(code)) or (code.casefold(),)
@@ -124,15 +163,24 @@ def _code_terms(kind: FindingKind, code: str) -> tuple[str, ...]:
     return tuple({*_words(drug.drug_id), *_words(drug.active_ingredient)})
 
 
-def _term_in(span: re.Match[str], terms: Sequence[str]) -> re.Match[str] | None:
-    """First code term inside the matched quote, at a word start ("sacs" is not ACS)."""
-    pattern = "|".join(rf"(?<![a-z]){re.escape(term)}" for term in terms)
+def _term_in(
+    span: re.Match[str], terms: Sequence[str], *, whole_short: bool = False
+) -> re.Match[str] | None:
+    """First code term inside the matched quote, at a word start ("sacs" is not ACS).
+
+    ``whole_short``: terms of up to three letters must also end a word ("mild" is not MI).
+    """
+    pattern = "|".join(
+        rf"(?<![a-z]){re.escape(term)}"
+        + (r"(?![a-z])" if whole_short and len(term) <= _SHORT_TERM else "")
+        for term in terms
+    )
     return re.compile(pattern, re.IGNORECASE).search(span.string, span.start(), span.end())
 
 
-def _post_negated(clause_after: str) -> bool:
+def _post_negated(clause_after: str, pattern: re.Pattern[str] = _POST_NEGATION) -> bool:
     """A post-term cue ("ruled out") with no negator between it and the term."""
-    match = _POST_NEGATION.search(clause_after)
+    match = pattern.search(clause_after)
     return match is not None and not _NEGATOR.search(match.group("gap"))
 
 
@@ -149,6 +197,13 @@ def _negated(text: str, term: re.Match[str], kind: FindingKind, code: str) -> bo
     after = text[word_end:]
     stop = _CLAUSE_END.search(after)
     clause_after = after[: stop.start()] if stop else after
+    if kind is FindingKind.HISTORY:
+        return bool(
+            _PRE_NEGATION_HISTORY.search(window)
+            or _post_negated(clause_after, _POST_NEGATION_HISTORY)
+            or _RELATIVE.search(clause_before)
+            or _RELATIVE.search(clause_after)
+        )
     return bool(
         _PRE_NEGATION.search(window)
         or _post_negated(clause_after)
@@ -183,7 +238,11 @@ def _verified(finding: NoteFinding, context: PatientContext) -> NoteFinding | No
         span = match.group()
         if not MIN_QUOTE_CHARS <= len(span) <= MAX_QUOTE_CHARS:
             return None
-        term = _term_in(match, _code_terms(finding.kind, finding.code))
+        term = _term_in(
+            match,
+            _code_terms(finding.kind, finding.code),
+            whole_short=finding.kind is FindingKind.HISTORY,
+        )
         if term is None or _negated(match.string, term, finding.kind, finding.code):
             return None
         # Show the note's own words, not the model's copy of them.
@@ -222,6 +281,7 @@ def augment(context: PatientContext, findings: Sequence[NoteFinding]) -> Patient
                 context.chronic_medications, codes(FindingKind.MEDICATION)
             ),
             "allergies": _union(context.allergies, codes(FindingKind.ALLERGY)),
+            "history": _union(context.history, codes(FindingKind.HISTORY)),
         }
     )
 
@@ -243,6 +303,13 @@ def _context_quotes(rule: ContextRule, findings: Sequence[NoteFinding]) -> list[
         if rule.diagnosis is not None
         and finding.kind is FindingKind.CONDITION
         and finding.code == rule.diagnosis
+    ]
+    quotes += [
+        finding.quote
+        for finding in findings
+        if rule.history is not None
+        and finding.kind is FindingKind.HISTORY
+        and finding.code == rule.history
     ]
     if rule.chronic_class is not None:
         quotes += [

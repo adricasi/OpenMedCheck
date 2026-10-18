@@ -21,7 +21,7 @@ from openmedcheck.contracts import (
     RulesVerdict,
     Status,
 )
-from openmedcheck.note_findings import ALLERGY_CODES, MAX_QUOTE_CHARS
+from openmedcheck.note_findings import ALLERGY_CODES, HISTORY_CODES, MAX_QUOTE_CHARS
 from openmedcheck.rule_table import CLASS_IDS, DRUG_IDS, DRUGS_BY_ID
 
 PROMPT_VERSION = "8"
@@ -50,7 +50,8 @@ Rules:
 - Note questions. Deterministic rules check your answers, and every quote must be the exact
   words of the reason for consult or the ED note (a short phrase, at most 120 characters).
   Never paraphrase or invent. Most notes answer null or [] to most questions. Answer null or
-  leave the item out when the note denies it, rules it out or gives only past history.
+  leave the item out when the note denies it, rules it out or gives only past history; report a
+  past event in note_history instead.
   Clinical shorthand: "?X", "query X", "possible X" and "r/o X" (X still to be ruled out) state a
   suspected X; only "X ruled out" or "X excluded" is a rule-out.
   - note_acs_quote: the phrase that states a suspected or confirmed acute coronary syndrome,
@@ -62,6 +63,10 @@ Rules:
     each with its quote; [] if none.
   - note_allergies: allergies the note records, as a known drug ID or class ID, each with its
     quote; [] if none.
+  - note_history: past events the note states for this patient (never a relative's), as
+    PAST_GI_BLEED (previous gastrointestinal bleeding, peptic ulcer or perforation) or
+    ISCHAEMIC_HEART_DISEASE (previous ACS or myocardial infarction, coronary stent or angina),
+    each with its quote; [] if none.
 """
 
 # Whether the order is an NSAID is a fact from the drug list, so only the matching
@@ -108,6 +113,7 @@ NOTE_FIELDS = (
     "note_pregnancy_quote",
     "note_medications",
     "note_allergies",
+    "note_history",
 )
 _MAX_LISTED = 3
 
@@ -150,6 +156,7 @@ def build_schema(allowed_alternatives: Sequence[str]) -> dict[str, Any]:
             "note_pregnancy_quote": _nullable_quote(),
             "note_medications": _quoted_list("drug_id", DRUG_IDS),
             "note_allergies": _quoted_list("code", ALLERGY_CODES),
+            "note_history": _quoted_list("code", HISTORY_CODES),
         },
         "required": [
             "status",
