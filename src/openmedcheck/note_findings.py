@@ -29,6 +29,8 @@ MIN_QUOTE_CHARS = 3
 MAX_QUOTE_CHARS = 120
 
 CONDITION_CODES: tuple[str, ...] = ("ACS", "ACTIVE_GI_BLEED", "HEART_FAILURE", "PREGNANCY")
+# Past medical history (REQ-016): past events, kept apart from the current conditions.
+HISTORY_CODES: tuple[str, ...] = ("PAST_GI_BLEED", "ISCHAEMIC_HEART_DISEASE")
 MEDICATION_CODES: tuple[str, ...] = rule_table.DRUG_IDS
 ALLERGY_CODES: tuple[str, ...] = tuple(
     dict.fromkeys(

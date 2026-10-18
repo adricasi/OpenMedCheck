@@ -267,10 +267,11 @@ _findings = st.lists(
 )
 _orders = st.sampled_from(note_findings.MEDICATION_CODES)
 _contexts = st.builds(
-    lambda diagnoses, chronic, allergies, creatinine, egfr, age, weight, potassium, platelets: (
+    lambda diagnoses, chronic, allergies, creatinine, egfr, age, weight, potassium, platelets, history: (  # noqa: E501
         PRESET_A.request.context.model_copy(
             update={
                 "diagnoses": diagnoses,
+                "history": history,
                 "chronic_medications": chronic,
                 "allergies": allergies,
                 "age": age,
@@ -295,6 +296,7 @@ _contexts = st.builds(
     st.floats(min_value=35, max_value=150),
     st.one_of(st.none(), st.floats(min_value=1.5, max_value=9)),
     st.one_of(st.none(), st.floats(min_value=1_000, max_value=2_000_000)),
+    st.lists(st.sampled_from(note_findings.HISTORY_CODES), unique=True),
 )
 
 

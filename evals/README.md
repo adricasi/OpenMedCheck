@@ -30,7 +30,9 @@ how often it stays silent. **All patients are invented.** Contributions are welc
 ```
 
 - `context` and `order` are the same request the app sends to `/api/check` (synthetic
-  `patient_id` starting with `SYN-`; drug IDs from the drug list).
+  `patient_id` starting with `SYN-`; drug IDs from the drug list). `context.history` is the
+  coded past medical history (`PAST_GI_BLEED`, `ISCHAEMIC_HEART_DISEASE`; REQ-016), empty if
+  absent.
 - `expected.findings`: what the note or reason for consult **states**, as `KIND:CODE`.
   Kinds and codes: `CONDITION:ACS`, `CONDITION:ACTIVE_GI_BLEED`, `CONDITION:HEART_FAILURE`,
   `CONDITION:PREGNANCY`, `MEDICATION:<drug ID>`, `ALLERGY:<drug ID, active ingredient or class
@@ -46,7 +48,8 @@ rules, and checks that every rule fires in at least one case.
 
 ## Tags
 
-`note_only` (the fact is only in free text), `coded`, `negation`, `past_history`,
+`note_only` (the fact is only in free text), `coded`, `history` (coded past medical history,
+REQ-016), `negation`, `past_history`,
 `family_history`, `abbreviation`, `wording` (typos, unusual phrasing), `clean` (should stay
 silent), `non_nsaid`, `missing_lab`, `boundary`, `known_limit`, plus the topic (`acs`,
 `gi_bleed`, `allergy`, `anticoagulant`, `potassium`, `heart_failure`, `platelets`, `pregnancy`,

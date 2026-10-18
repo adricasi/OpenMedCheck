@@ -47,6 +47,7 @@ def _context_rules(context: PatientContext, order: Order) -> list[rule_table.Con
         for rule in rule_table.CONTEXT_RULES
         if rule.applies_to_class == drug_class
         and (rule.diagnosis is None or rule.diagnosis in context.diagnoses)
+        and (rule.history is None or rule.history in context.history)
         and (rule.chronic_class is None or rule.chronic_class in chronic_classes)
     ]
 

@@ -259,6 +259,58 @@ PRESET_I = Preset(
     ),
 )
 
+PRESET_J = Preset(
+    preset_id="J",
+    title="Previous GI bleed in the past medical history; ibuprofen proposed",
+    bed=None,
+    expected_rules_status=Status.WARNING,
+    request=CheckRequest(
+        context=PatientContext(
+            patient_id="SYN-J",
+            age=61,
+            sex="F",
+            weight_kg=70,
+            reason_for_consult="Low back pain",
+            ed_note=(
+                "61-year-old woman with low back pain after lifting a box yesterday. No "
+                "neurological signs. Haemodynamically stable."
+            ),
+            diagnoses=[],
+            history=["PAST_GI_BLEED"],
+            chronic_medications=[],
+            allergies=[],
+            labs=Labs(creatinine_mg_dl=0.8, egfr_ml_min_1_73m2=79),
+        ),
+        order=Order(drug_id="ibuprofen", dose_text="600 mg", route="PO", frequency="every 8 hours"),
+    ),
+)
+
+PRESET_K = Preset(
+    preset_id="K",
+    title="Previous myocardial infarction in the past medical history; diclofenac proposed",
+    bed=None,
+    expected_rules_status=Status.WARNING,
+    request=CheckRequest(
+        context=PatientContext(
+            patient_id="SYN-K",
+            age=67,
+            sex="M",
+            weight_kg=84,
+            reason_for_consult="Knee pain",
+            ed_note=(
+                "67-year-old man with right knee pain and swelling after a fall at home. No chest "
+                "pain today. Walks with pain."
+            ),
+            diagnoses=[],
+            history=["ISCHAEMIC_HEART_DISEASE"],
+            chronic_medications=["aspirin"],
+            allergies=[],
+            labs=Labs(creatinine_mg_dl=1.0, egfr_ml_min_1_73m2=77),
+        ),
+        order=Order(drug_id="diclofenac", dose_text="50 mg", route="PO", frequency="every 8 hours"),
+    ),
+)
+
 PRESETS: dict[str, Preset] = {
     p.preset_id: p
     for p in (
@@ -271,6 +323,8 @@ PRESETS: dict[str, Preset] = {
         PRESET_G,
         PRESET_H,
         PRESET_I,
+        PRESET_J,
+        PRESET_K,
     )
 }
 

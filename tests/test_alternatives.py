@@ -320,26 +320,35 @@ _labs = st.fixed_dictionaries(
 )
 
 requests = st.builds(
-    lambda drug, age, sex, weight, diagnoses, chronic, allergies, labs: CheckRequest.model_validate(
-        {
-            "context": {
-                "patient_id": "SYN-P",
-                "age": age,
-                "sex": sex,
-                "weight_kg": weight,
-                "diagnoses": diagnoses,
-                "chronic_medications": chronic,
-                "allergies": allergies,
-                "labs": labs,
-            },
-            "order": {"drug_id": drug, "dose_text": "1 dose", "route": "PO", "frequency": "daily"},
-        }
+    lambda drug, age, sex, weight, diagnoses, history, chronic, allergies, labs: (
+        CheckRequest.model_validate(
+            {
+                "context": {
+                    "patient_id": "SYN-P",
+                    "age": age,
+                    "sex": sex,
+                    "weight_kg": weight,
+                    "diagnoses": diagnoses,
+                    "history": history,
+                    "chronic_medications": chronic,
+                    "allergies": allergies,
+                    "labs": labs,
+                },
+                "order": {
+                    "drug_id": drug,
+                    "dose_text": "1 dose",
+                    "route": "PO",
+                    "frequency": "daily",
+                },
+            }
+        )
     ),
     drug=st.sampled_from(DRUG_IDS),
     age=st.integers(18, 110),
     sex=st.sampled_from(["M", "F"]),
     weight=st.floats(30, 250),
     diagnoses=st.lists(st.sampled_from(note_findings.CONDITION_CODES), max_size=4, unique=True),
+    history=st.lists(st.sampled_from(note_findings.HISTORY_CODES), unique=True),
     chronic=st.lists(st.sampled_from(DRUG_IDS), max_size=3, unique=True),
     allergies=st.lists(st.sampled_from([*DRUG_IDS, *CLASS_IDS]), max_size=2, unique=True),
     labs=_labs,

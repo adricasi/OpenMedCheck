@@ -115,17 +115,39 @@ SOURCE_CHECK_ROWS: tuple[tuple[str, str, str], ...] = (
 )
 
 
-def _status_line() -> str:
-    entries = [
+def _all_entries() -> list[RuleEntry | rule_table.AllowedAlternative]:
+    return [
         *rule_table.RULES_BY_ID.values(),
         *(alt for alts in rule_table.ALLOWED_ALTERNATIVES.values() for alt in alts),
     ]
-    if all(rule_table.is_reviewed(entry) for entry in entries):
+
+
+def _unreviewed_rule_ids() -> list[str]:
+    return [
+        rule_id
+        for rule_id, rule in rule_table.RULES_BY_ID.items()
+        if not rule_table.is_reviewed(rule)
+    ]
+
+
+def _status_line() -> str:
+    entries = _all_entries()
+    reviewed = [entry for entry in entries if rule_table.is_reviewed(entry)]
+    if len(reviewed) == len(entries):
         return (
             f"**Status: REVIEWED** by {rule_table.SPECIALIST_REVIEWER} on "
             f"{rule_table.SPECIALIST_REVIEW_DATE}. Every rule and alternative below was confirmed "
             "as it stands. The project is a concept demonstrator, not a medical device. Every "
             "patient is synthetic."
+        )
+    if reviewed:
+        pending = ", ".join(_unreviewed_rule_ids()) or "alternatives only"
+        return (
+            f"**Status: NOT FULLY REVIEWED.** {rule_table.SPECIALIST_REVIEWER} confirmed "
+            f"{len(reviewed)} of {len(entries)} rules and alternatives on "
+            f"{rule_table.SPECIALIST_REVIEW_DATE}. Entries marked *not reviewed* were added or "
+            f"changed later and have not been checked by a clinical specialist ({pending}). The "
+            "project is a concept demonstrator, not a medical device. Every patient is synthetic."
         )
     return (
         "**Status: NOT FULLY REVIEWED.** Entries marked *not reviewed* have not been checked by a "
@@ -374,21 +396,29 @@ def _question_section() -> str:
 
 
 def _signoff_section() -> str:
-    if all(rule_table.is_reviewed(rule) for rule in rule_table.RULES_BY_ID.values()):
-        return (
-            "## Sign-off\n\n"
-            f"Reviewed by: {rule_table.SPECIALIST_REVIEWER}. Date: "
-            f"{rule_table.SPECIALIST_REVIEW_DATE}. Outcome: confirmed without corrections; Q-5 "
-            'answered ("consult SmPC", no numeric renal dose).\n\n'
-            "Later corrections are applied in the rule table; a new or changed "
-            "entry is unreviewed until the specialist signs it off."
-        )
-    return (
-        "## Sign-off\n\n"
+    pending = _unreviewed_rule_ids()
+    blank = (
         "Reviewer name and role: ____________________  Date: ____________\n\n"
         "Corrections are applied in the rule table; the reviewer name and date "
         "are then recorded on each confirmed entry."
     )
+    earlier = (
+        f"Reviewed by: {rule_table.SPECIALIST_REVIEWER}. Date: "
+        f"{rule_table.SPECIALIST_REVIEW_DATE}. Outcome: confirmed without corrections; Q-5 "
+        'answered ("consult SmPC", no numeric renal dose).'
+    )
+    if not pending:
+        return (
+            f"## Sign-off\n\n{earlier}\n\n"
+            "Later corrections are applied in the rule table; a new or changed "
+            "entry is unreviewed until the specialist signs it off."
+        )
+    if len(pending) < len(rule_table.RULES_BY_ID):
+        return (
+            f"## Sign-off\n\n{earlier} That review covered every entry that carries a review "
+            f"date.\n\nAwaiting sign-off: {', '.join(pending)}.\n\n{blank}"
+        )
+    return f"## Sign-off\n\n{blank}"
 
 
 def render() -> str:

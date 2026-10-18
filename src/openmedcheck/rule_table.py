@@ -75,14 +75,16 @@ class AllergyRule(RuleEntry):
 
 @dataclass(frozen=True)
 class ContextRule(RuleEntry):
-    """Class conflict given a coded diagnosis and/or a home medication class.
+    """Class conflict given a coded diagnosis, past history and/or a home medication class.
 
     ``diagnosis`` set: requires that coded diagnosis (AC-002.3, AC-002.4, AC-002.11, AC-002.13).
+    ``history`` set: requires that past-history code (AC-016.2).
     ``chronic_class`` set: also requires a chronic medication of that class (AC-002.9).
     """
 
     applies_to_class: str = ""
     diagnosis: str | None = None
+    history: str | None = None
     chronic_class: str | None = None
 
 
@@ -314,6 +316,39 @@ CONTEXT_RULES: tuple[ContextRule, ...] = (
         "to be avoided in the first and second unless clearly necessary)",
         applies_to_class="NSAID",
         diagnosis="PREGNANCY",
+    ),
+    # Past medical history (REQ-016, ADR 0009). Not reviewed yet: no review mark until the
+    # specialist confirms them (AC-016.3, NFR-011). WARNING because labels differ on how far the
+    # contraindication goes; whether either should be BLOCKED is a specialist question.
+    ContextRule(
+        rule_id="NSAID_HISTORY_GI_BLEED",
+        status=Status.WARNING,
+        risk_level=RiskLevel.HIGH,
+        conflict_type=ConflictType.GI_BLEED,
+        reason="NSAID with a recorded history of gastrointestinal bleeding, ulceration or "
+        "perforation.",
+        source=f"{CIMA}: ibuprofen SmPC, section 4.3 (history of gastrointestinal bleeding or "
+        "perforation related to previous NSAID therapy, and active or history of recurrent peptic "
+        "ulcer or haemorrhage, are contraindications) and section 4.4 (higher risk with a history "
+        f"of ulcer); {_NSAID_SMPC}, sections 4.3 and 4.4 (some labels contraindicate any history "
+        "of gastrointestinal bleeding, ulceration or perforation)",
+        applies_to_class="NSAID",
+        history="PAST_GI_BLEED",
+    ),
+    ContextRule(
+        rule_id="NSAID_HISTORY_ISCHAEMIC_HEART_DISEASE",
+        status=Status.WARNING,
+        risk_level=RiskLevel.HIGH,
+        conflict_type=ConflictType.ANTIPLATELET_ACS,
+        reason="NSAID with a recorded history of ischaemic heart disease (previous ACS or "
+        "infarction, stent or angina).",
+        source=f"{_NSAID_SMPC}, section 4.4 (cardiovascular thrombotic risk); European Medicines "
+        "Agency, diclofenac-containing medicines referral, 2013 (diclofenac contraindicated in "
+        "established ischaemic heart disease); Antman EM et al., Use of nonsteroidal "
+        "antiinflammatory drugs: an update for clinicians, AHA scientific statement, Circulation "
+        "2007;115:1634-1642",
+        applies_to_class="NSAID",
+        history="ISCHAEMIC_HEART_DISEASE",
     ),
 )
 
@@ -687,6 +722,15 @@ SPECIALIST_QUESTIONS: tuple[str, ...] = (
     "4.5). Should the card add a monitoring note, or should no alternative be offered there?",
     "Missing renal lab gives WARNING 'renal function unknown' (design choice A-5, not SmPC). "
     "Is a warning right, or should some drugs (e.g. metformin) be stricter?",
+    "Past medical history (REQ-016, added after your review, not reviewed yet): (a) "
+    "NSAID_HISTORY_GI_BLEED is a WARNING for any recorded history of GI bleeding, ulcer or "
+    "perforation. Ibuprofen labels contraindicate a history related to previous NSAID therapy "
+    "or recurrent ulcer/haemorrhage; some dexketoprofen labels contraindicate any history. "
+    "Should it be BLOCKED, and should the record distinguish NSAID-related or recurrent events? "
+    "(b) NSAID_HISTORY_ISCHAEMIC_HEART_DISEASE is a WARNING for every NSAID; EMA contraindicates "
+    "diclofenac in established ischaemic heart disease. Should diclofenac be BLOCKED? (c) Past "
+    "history read from the note keeps 'history of', 'previous', 'prior' and 'h/o' and drops "
+    "denials and relatives (father, mother, sibling, family). Acceptable?",
 )
 
 RULES_BY_ID: dict[str, RuleEntry] = {

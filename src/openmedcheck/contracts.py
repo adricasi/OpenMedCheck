@@ -87,6 +87,10 @@ class PatientContext(_Strict):
     diagnoses: list[Literal["ACS", "ACTIVE_GI_BLEED", "HEART_FAILURE", "PREGNANCY"]] = Field(
         default_factory=list, max_length=10
     )
+    # Past medical history (REQ-016, ADR 0009): past events, never current conditions.
+    history: list[Literal["PAST_GI_BLEED", "ISCHAEMIC_HEART_DISEASE"]] = Field(
+        default_factory=list, max_length=10
+    )
     chronic_medications: list[IdText] = Field(default_factory=list, max_length=50)
     allergies: list[IdText] = Field(default_factory=list, max_length=50)
     labs: Labs = Field(default_factory=Labs)

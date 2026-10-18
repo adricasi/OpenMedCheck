@@ -6,7 +6,7 @@ from openmedcheck.presets import PRESETS, SYNTHETIC_LABEL
 
 
 def test_ac_006_4_every_preset_is_labelled_synthetic() -> None:
-    assert set(PRESETS) == set("ABCDEFGHI")
+    assert set(PRESETS) == set("ABCDEFGHIJK")
     for preset in PRESETS.values():
         assert preset.synthetic_label == SYNTHETIC_LABEL
         assert preset.request.context.patient_id.startswith("SYN-")

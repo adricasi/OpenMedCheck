@@ -19,7 +19,7 @@ def test_ac_006_4_presets_endpoint_lists_a_b_c_labelled_synthetic(client: TestCl
 
     assert response.status_code == 200
     presets = response.json()
-    assert [preset["preset_id"] for preset in presets] == list("ABCDEFGHI")
+    assert [preset["preset_id"] for preset in presets] == list("ABCDEFGHIJK")
     assert all("Synthetic" in preset["synthetic_label"] for preset in presets)
 
 

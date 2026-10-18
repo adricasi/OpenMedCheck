@@ -24,7 +24,7 @@ from openmedcheck.contracts import (
 from openmedcheck.note_findings import ALLERGY_CODES, MAX_QUOTE_CHARS
 from openmedcheck.rule_table import CLASS_IDS, DRUG_IDS, DRUGS_BY_ID
 
-PROMPT_VERSION = "7"
+PROMPT_VERSION = "8"
 
 NOTE_OPEN_TAG = "<untrusted_note>"
 NOTE_CLOSE_TAG = "</untrusted_note>"
@@ -234,6 +234,7 @@ def _user_message(
         f"Synthetic patient, {sex} {context.age} y, {context.weight_kg:g} kg. "
         f"Labs: {', '.join(lab_parts) or 'none'}. "
         f"Coded diagnoses: {', '.join(context.diagnoses) or 'none'}. "
+        f"Past medical history: {', '.join(context.history) or 'none recorded'}. "
         f"Home meds: {', '.join(context.chronic_medications) or 'none'}.\n\n"
         f"Proposed order: {order.drug_id} ({order.route}), class {drug_class}\n"
         f"Rules verdict: {rules_verdict.status.value}, risk {rules_verdict.risk_level.value}, "

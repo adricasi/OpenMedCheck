@@ -27,6 +27,10 @@ const CONDITION_LABELS = {
   HEART_FAILURE: "heart failure",
   PREGNANCY: "pregnancy",
 };
+const HISTORY_LABELS = {
+  PAST_GI_BLEED: "previous gastrointestinal bleeding, ulcer or perforation",
+  ISCHAEMIC_HEART_DISEASE: "ischaemic heart disease",
+};
 const NO_MODEL_NOTE = "Model check unavailable — rules only";
 const VERIFYING_TEXT = "Verifying the prescription with Gemma…";
 // AC-005.3: same fixed text as the server's fallback; the note was not read, so no green card.
@@ -53,7 +57,7 @@ const state = {
   rooms: [],
   activeRoom: null,
   roomCounter: 0,
-  hidden: { patient_id: "", diagnoses: [], chronic_medications: [], allergies: [] },
+  hidden: { patient_id: "", diagnoses: [], history: [], chronic_medications: [], allergies: [] },
 };
 
 const $ = (id) => document.getElementById(id);
@@ -166,6 +170,7 @@ function fillContext(context) {
   state.hidden = {
     patient_id: context.patient_id,
     diagnoses: [...context.diagnoses],
+    history: [...(context.history || [])],
     chronic_medications: [...context.chronic_medications],
     allergies: [...context.allergies],
   };
@@ -180,12 +185,16 @@ function fillOrder(order) {
 }
 
 function showHistory() {
-  const { diagnoses, chronic_medications: chronic, allergies } = state.hidden;
+  const { diagnoses, history, chronic_medications: chronic, allergies } = state.hidden;
   $("ro-conditions").textContent = listText(diagnoses, (code) => CONDITION_LABELS[code] || code);
+  $("ro-history").textContent = listText(history, (code) => HISTORY_LABELS[code] || code);
   $("ro-chronic").textContent = listText(chronic, drugName);
   $("ro-allergies").textContent = listText(allergies);
   for (const box of document.querySelectorAll(".conditions input")) {
     box.checked = diagnoses.includes(box.value);
+  }
+  for (const box of document.querySelectorAll(".past-history input")) {
+    box.checked = history.includes(box.value);
   }
   for (const box of $("f-chronic").querySelectorAll("input")) box.checked = chronic.includes(box.value);
   $("f-allergies").value = allergies.join(", ");
@@ -194,6 +203,9 @@ function showHistory() {
 function readHistory() {
   // History editors write into state.hidden, which buildRequest sends (AC-007.5).
   state.hidden.diagnoses = Array.from(document.querySelectorAll(".conditions input"))
+    .filter((box) => box.checked)
+    .map((box) => box.value);
+  state.hidden.history = Array.from(document.querySelectorAll(".past-history input"))
     .filter((box) => box.checked)
     .map((box) => box.value);
   state.hidden.chronic_medications = Array.from($("f-chronic").querySelectorAll("input"))
@@ -219,6 +231,7 @@ function buildRequest() {
       reason_for_consult: $("f-reason").value,
       ed_note: $("f-note").value,
       diagnoses: state.hidden.diagnoses,
+      history: state.hidden.history,
       chronic_medications: state.hidden.chronic_medications,
       allergies: state.hidden.allergies,
       labs: {
@@ -853,6 +866,7 @@ function customRoom() {
       reason_for_consult: "",
       ed_note: "",
       diagnoses: [],
+      history: [],
       chronic_medications: [],
       allergies: [],
       labs: {
