@@ -74,15 +74,22 @@ _PRE_NEGATION = re.compile(
     r"\b(?:no|not|denies|denied|negative\s+for|free\s+of|history\s+of|h/o|previous|prior)\b",
     re.IGNORECASE,
 )
+# "ACS ruled out", "bleeding resolved": up to two words between, but never a negator ("ACS not
+# ruled out" keeps the finding).
 _POST_NEGATION = re.compile(
-    r"^\W*(?:\w+\W+){0,2}?(?:ruled\s+out|rules\s+out|excluded|resolved|unlikely|stopped|"
-    r"discontinued)\b",
+    r"^\W*(?:(?!(?:not|never|cannot|can't|isn't|wasn't)\b)[\w']+\W+){0,2}?"
+    r"(?:ruled\s+out|rules\s+out|excluded|resolved|unlikely)\b",
     re.IGNORECASE,
+)
+# "Warfarin stopped", "warfarin was discontinued": right after the drug, so "warfarin not
+# stopped" and "aspirin to be stopped" keep the finding.
+_POST_STOPPED = re.compile(
+    r"^\s*(?:was\s+|is\s+|has\s+been\s+|been\s+)?(?:stopped|discontinued)\b", re.IGNORECASE
 )
 # "Stopped", "discontinued" and "off" negate only when right before the term ("stopped taking
 # warfarin", "off warfarin"); elsewhere they are too common ("pain on and off ... angina").
 _ADJACENT_PRE_NEGATION = re.compile(
-    r"\b(?:stopped|discontinued|off)(?:\s+taking)?\s*$", re.IGNORECASE
+    r"(?<!\band\s)(?<!\bon\s)\b(?:stopped|discontinued|off)(?:\s+taking)?\s*$", re.IGNORECASE
 )
 _CLAUSE_END = re.compile(
     r"[.;:,!?\n]|\b(?:but|except|although|however|and|then|started|onto)\b", re.IGNORECASE
@@ -110,7 +117,7 @@ def _term_in(span: re.Match[str], terms: Sequence[str]) -> re.Match[str] | None:
     return re.compile(pattern, re.IGNORECASE).search(span.string, span.start(), span.end())
 
 
-def _negated(text: str, term: re.Match[str]) -> bool:
+def _negated(text: str, term: re.Match[str], kind: FindingKind) -> bool:
     before = text[: term.start()]
     ends = list(_CLAUSE_END.finditer(before))
     clause_before = before[ends[-1].end() :] if ends else before
@@ -120,8 +127,12 @@ def _negated(text: str, term: re.Match[str]) -> bool:
     clause_after = after[: stop.start()] if stop else after
     return bool(
         _PRE_NEGATION.search(window)
-        or _ADJACENT_PRE_NEGATION.search(clause_before)
         or _POST_NEGATION.search(clause_after)
+        # Stopping a drug only negates a medication finding, checked on the raw text before it.
+        or (
+            kind is FindingKind.MEDICATION
+            and (_ADJACENT_PRE_NEGATION.search(before) or _POST_STOPPED.search(after))
+        )
     )
 
 
@@ -145,7 +156,7 @@ def _verified(finding: NoteFinding, context: PatientContext) -> NoteFinding | No
         if not MIN_QUOTE_CHARS <= len(span) <= MAX_QUOTE_CHARS:
             return None
         term = _term_in(match, _code_terms(finding.kind, finding.code))
-        if term is None or _negated(match.string, term):
+        if term is None or _negated(match.string, term, finding.kind):
             return None
         # Show the note's own words, not the model's copy of them.
         return finding.model_copy(update={"quote": span})

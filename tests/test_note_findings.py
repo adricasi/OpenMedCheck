@@ -86,6 +86,10 @@ def test_ac_003_6_accepts_a_quote_from_the_reason_for_consult() -> None:
             finding(FindingKind.MEDICATION, "warfarin", "started warfarin"),
         ),
         ("Chest pain on and off typical of angina.", acs("typical of angina")),
+        ("Chest pain on and off angina.", acs("angina")),
+        ("ACS not ruled out yet.", acs("ACS")),
+        ("Warfarin not stopped.", finding(FindingKind.MEDICATION, "warfarin", "Warfarin")),
+        ("Aspirin to be stopped tomorrow.", finding(FindingKind.MEDICATION, "aspirin", "Aspirin")),
         (
             "Coffee-ground vomiting this morning.",
             finding(FindingKind.CONDITION, "ACTIVE_GI_BLEED", "Coffee-ground vomiting"),
@@ -126,6 +130,7 @@ def test_ac_003_6_negation_is_local_to_the_term(note: str, item: NoteFinding) ->
         ),
         ("Off warfarin since surgery.", finding(FindingKind.MEDICATION, "warfarin", "warfarin")),
         ("Warfarin stopped last month.", finding(FindingKind.MEDICATION, "warfarin", "Warfarin")),
+        ("Warfarin was discontinued.", finding(FindingKind.MEDICATION, "warfarin", "Warfarin")),
         ("Takes something daily.", finding(FindingKind.MEDICATION, "aspirin", "Takes something")),
     ],
 )
