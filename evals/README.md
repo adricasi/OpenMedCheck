@@ -34,7 +34,9 @@ how often it stays silent. **All patients are invented.** Contributions are welc
 - `expected.findings`: what the note or reason for consult **states**, as `KIND:CODE`.
   Kinds and codes: `CONDITION:ACS`, `CONDITION:ACTIVE_GI_BLEED`, `CONDITION:HEART_FAILURE`,
   `CONDITION:PREGNANCY`, `MEDICATION:<drug ID>`, `ALLERGY:<drug ID, active ingredient or class
-  ID>`. A denied, ruled-out or past-history mention is **not** a finding.
+  ID>`. A denied, ruled-out or past-history mention is **not** a finding. Clinical shorthand
+  for a suspicion counts: `?ACS`, `query ACS`, `possible ACS` and `r/o ACS` (still to be ruled
+  out) state a suspected ACS; only `ACS ruled out` or `ACS excluded` is a rule-out.
 - `expected.rules_status`: the rules on the coded record alone.
 - `expected.final_status`: the rules on the coded record **plus** the expected findings, which
   is what the full check should return.

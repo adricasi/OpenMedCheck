@@ -90,7 +90,7 @@ def _rule_section() -> str:
     for rule in rule_table.CONTEXT_RULES:
         parts = []
         if rule.diagnosis:
-            parts.append(f"Coded diagnosis {rule.diagnosis}, or a quoted note finding")
+            parts.append(f"Coded diagnosis {rule.diagnosis} (coded or a quoted note finding)")
         if rule.chronic_class:
             parts.append(f"a chronic medication of class {rule.chronic_class}")
         condition = ", and ".join(parts)
@@ -138,7 +138,8 @@ def _rule_section() -> str:
             [
                 lab.rule_id,
                 "Classes " + ", ".join(lab.applies_to_classes),
-                f"{lab.lab} {sign} {lab.threshold:g} (strictest rule on this lab shown)",
+                f"{_LAB_NAMES.get(lab.lab, lab.lab)} {sign} {lab.threshold:,.1f} "
+                "(strictest rule on this lab shown)",
                 f"{lab.status} / {lab.risk_level}",
                 lab.conflict_type,
                 lab.reason,
@@ -151,7 +152,7 @@ def _rule_section() -> str:
             [
                 missing.rule_id,
                 "Classes " + ", ".join(missing.applies_to_classes),
-                f"{missing.lab} is missing",
+                f"{_LAB_NAMES.get(missing.lab, missing.lab)} is missing",
                 f"{missing.status} / {missing.risk_level}",
                 missing.conflict_type,
                 missing.reason,
@@ -203,6 +204,12 @@ def _alternative_section() -> str:
         ],
         rows,
     )
+
+
+_LAB_NAMES = {
+    "potassium_mmol_l": "Potassium (mmol/L)",
+    "platelets_per_ul": "Platelets (per µL)",
+}
 
 
 def _alternative_text(card: DecisionCard) -> str:

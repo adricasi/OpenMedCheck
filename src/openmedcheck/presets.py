@@ -1,4 +1,4 @@
-"""Synthetic template patients A-F (REQ-006). All data is invented; no real patient (AC-006.4).
+"""Synthetic template patients A-I (REQ-006). All data is invented; no real patient (AC-006.4).
 
 A, B and C are the predefined rooms (``bed`` set); D to I are only offered as templates when a
 room is added (AC-006.6, AC-006.7). G, H and I show the conflict breadth of T-014; in I the

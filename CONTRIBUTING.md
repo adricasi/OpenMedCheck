@@ -66,7 +66,8 @@ for that entry. Your name is recorded only if you agree to it.
 
 [`evals/cases.jsonl`](evals/cases.jsonl) holds synthetic emergency-department cases (one JSON
 object per line, see [`evals/README.md`](evals/README.md)). Each case has the note, the coded
-record, the order, the **note findings a careful clinician would extract**, and the expected
+record, the order, the **note findings the authors expect the note to state** (not yet reviewed by a
+clinician), and the expected
 status. It is the regression guard for every change:
 
 - `uv run pytest tests/test_eval_set.py` (no model, runs in CI) checks that every case is valid,

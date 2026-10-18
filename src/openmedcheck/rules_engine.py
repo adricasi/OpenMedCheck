@@ -60,11 +60,12 @@ def _beyond(rule: LabRule, value: float) -> bool:
 def _lab_rules(context: PatientContext, order: Order) -> list[RuleEntry]:
     """Strictest firing lab rule per lab, or the unknown-lab rule (AC-002.10, AC-002.12)."""
     drug_class = rule_table.DRUGS_BY_ID[order.drug_id].drug_class
-    fired: dict[str, list[LabRule]] = {}
+    # Grouped by lab and conflict type, so a rule of another kind on the same lab is never hidden.
+    fired: dict[tuple[str, str], list[LabRule]] = {}
     for rule in rule_table.LAB_RULES:
         value = getattr(context.labs, rule.lab)
         if drug_class in rule.applies_to_classes and value is not None and _beyond(rule, value):
-            fired.setdefault(rule.lab, []).append(rule)
+            fired.setdefault((rule.lab, rule.conflict_type), []).append(rule)
     entries: list[RuleEntry] = [
         max(rules, key=lambda r: (_STATUS_RANK[r.status], _RISK_RANK[r.risk_level]))
         for rules in fired.values()

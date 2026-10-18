@@ -266,7 +266,7 @@ _findings = st.lists(
 )
 _orders = st.sampled_from(note_findings.MEDICATION_CODES)
 _contexts = st.builds(
-    lambda diagnoses, chronic, allergies, creatinine, egfr, age, weight: (
+    lambda diagnoses, chronic, allergies, creatinine, egfr, age, weight, potassium, platelets: (
         PRESET_A.request.context.model_copy(
             update={
                 "diagnoses": diagnoses,
@@ -275,7 +275,12 @@ _contexts = st.builds(
                 "age": age,
                 "weight_kg": weight,
                 "labs": PRESET_A.request.context.labs.model_copy(
-                    update={"creatinine_mg_dl": creatinine, "egfr_ml_min_1_73m2": egfr}
+                    update={
+                        "creatinine_mg_dl": creatinine,
+                        "egfr_ml_min_1_73m2": egfr,
+                        "potassium_mmol_l": potassium,
+                        "platelets_per_ul": platelets,
+                    }
                 ),
             }
         )
@@ -287,6 +292,8 @@ _contexts = st.builds(
     st.one_of(st.none(), st.floats(min_value=5, max_value=120)),
     st.integers(min_value=18, max_value=100),
     st.floats(min_value=35, max_value=150),
+    st.one_of(st.none(), st.floats(min_value=1.5, max_value=9)),
+    st.one_of(st.none(), st.floats(min_value=1_000, max_value=2_000_000)),
 )
 
 
@@ -468,3 +475,110 @@ def test_ac_003_8_model_only_escalation_of_another_kind_reaches_the_card() -> No
     assert card.status is Status.BLOCKED
     assert card.source is Source.RULES_MODEL
     assert card.headline == "Order needs review now"
+
+
+_GATE_CASES = {
+    # conflict type: (request where no rule of that type fires, request where one does)
+    "ANTIPLATELET_ACS": (
+        PRESET_A.request,
+        CheckRequest(
+            context=PRESET_A.request.context.model_copy(update={"diagnoses": ["ACS"]}),
+            order=PRESET_A.request.order,
+        ),
+    ),
+    "GI_BLEED": (
+        PRESET_C.request.model_copy(
+            update={"order": Order(drug_id="ibuprofen", dose_text="x", route="PO", frequency="x")}
+        ),
+        CheckRequest(
+            context=PRESET_C.request.context.model_copy(update={"diagnoses": ["ACTIVE_GI_BLEED"]}),
+            order=Order(drug_id="ibuprofen", dose_text="x", route="PO", frequency="x"),
+        ),
+    ),
+    "ALLERGY": (
+        PRESET_C.request,
+        CheckRequest(
+            context=PRESET_C.request.context.model_copy(update={"allergies": ["paracetamol"]}),
+            order=PRESET_C.request.order,
+        ),
+    ),
+    "BLEEDING": (
+        PRESET_C.request.model_copy(
+            update={"order": Order(drug_id="ibuprofen", dose_text="x", route="PO", frequency="x")}
+        ),
+        CheckRequest(
+            context=PRESET_C.request.context.model_copy(
+                update={"chronic_medications": ["warfarin"]}
+            ),
+            order=Order(drug_id="ibuprofen", dose_text="x", route="PO", frequency="x"),
+        ),
+    ),
+    "HYPERKALAEMIA": (
+        CheckRequest(
+            context=PRESET_C.request.context.model_copy(
+                update={
+                    "labs": PRESET_C.request.context.labs.model_copy(
+                        update={"potassium_mmol_l": 4.2}
+                    )
+                }
+            ),
+            order=Order(drug_id="enalapril", dose_text="x", route="PO", frequency="x"),
+        ),
+        CheckRequest(
+            context=PRESET_C.request.context.model_copy(
+                update={
+                    "labs": PRESET_C.request.context.labs.model_copy(
+                        update={"potassium_mmol_l": 5.8}
+                    )
+                }
+            ),
+            order=Order(drug_id="enalapril", dose_text="x", route="PO", frequency="x"),
+        ),
+    ),
+    "HEART_FAILURE": (
+        PRESET_C.request.model_copy(
+            update={"order": Order(drug_id="naproxen", dose_text="x", route="PO", frequency="x")}
+        ),
+        CheckRequest(
+            context=PRESET_C.request.context.model_copy(update={"diagnoses": ["HEART_FAILURE"]}),
+            order=Order(drug_id="naproxen", dose_text="x", route="PO", frequency="x"),
+        ),
+    ),
+    "PREGNANCY": (
+        PRESET_C.request,
+        CheckRequest(
+            context=PRESET_C.request.context.model_copy(update={"diagnoses": ["PREGNANCY"]}),
+            order=Order(drug_id="ibuprofen", dose_text="x", route="PO", frequency="x"),
+        ),
+    ),
+}
+
+
+def _escalation(conflict: str) -> dict[str, Any]:
+    data = {**NO_ISSUE_WITH, "status": "BLOCKED", "risk_level": "HIGH", "conflict_type": conflict}
+    return data | {"headline": "Conflict found", "rationale": "The note raises a conflict."}
+
+
+def test_ac_003_8_gate_cases_cover_every_rule_decided_conflict() -> None:
+    from openmedcheck.check_service import RULE_DECIDED_CONFLICTS
+
+    assert {c.value for c in RULE_DECIDED_CONFLICTS} == set(_GATE_CASES)
+
+
+@pytest.mark.parametrize("conflict", sorted(_GATE_CASES))
+def test_ac_003_8_unconfirmed_escalation_is_set_aside_for_each_type(conflict: str) -> None:
+    unconfirmed, _ = _GATE_CASES[conflict]
+    coded = rules_engine.evaluate(unconfirmed.context, unconfirmed.order)
+
+    card = run(unconfirmed, model_json(**_escalation(conflict)))
+
+    assert card.status is coded.status
+
+
+@pytest.mark.parametrize("conflict", sorted(_GATE_CASES))
+def test_ac_003_8_escalation_confirmed_by_a_rule_is_kept_for_each_type(conflict: str) -> None:
+    _, confirmed = _GATE_CASES[conflict]
+
+    card = run(confirmed, model_json(**_escalation(conflict)))
+
+    assert card.status is Status.BLOCKED

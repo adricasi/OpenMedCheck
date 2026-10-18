@@ -246,7 +246,7 @@ CONTEXT_RULES: tuple[ContextRule, ...] = (
         conflict_type=ConflictType.BLEEDING,
         reason="NSAID with an oral anticoagulant (acenocoumarol or warfarin): bleeding risk.",
         source=f"{CIMA}: acenocoumarol and warfarin SmPCs, section 4.5 (NSAIDs increase the "
-        f"anticoagulant effect and the bleeding risk); {_NSAID_SMPC}, section 4.5",
+        "anticoagulant effect and the bleeding risk), and the dexketoprofen SmPC, section 4.5",
         applies_to_class="NSAID",
         chronic_class="ANTICOAGULANT",
     ),
@@ -288,7 +288,8 @@ CONTEXT_RULES: tuple[ContextRule, ...] = (
         status=Status.WARNING,
         risk_level=RiskLevel.HIGH,
         conflict_type=ConflictType.PREGNANCY,
-        reason="NSAID in pregnancy recorded or stated by the clinician (trimester not known).",
+        reason="NSAID in pregnancy recorded or stated by the clinician; this rule does not use "
+        "gestational age.",
         source=f"{_NSAID_SMPC}, sections 4.3 and 4.6 (contraindicated in the third trimester; "
         "to be avoided in the first and second unless clearly necessary)",
         applies_to_class="NSAID",
@@ -299,7 +300,7 @@ CONTEXT_RULES: tuple[ContextRule, ...] = (
 _RAAS_CLASSES = ("ACE_INHIBITOR", "POTASSIUM_SPARING")
 _PLATELET_POLICY = (
     "Project policy aligned with the anticoagulation threshold in "
-    f"{ISTH_PLATELETS}; NSAID SmPCs, section 4.4 (caution in bleeding disorders). The NSAID "
+    f"{ISTH_PLATELETS}; {_NSAID_SMPC}, section 4.4 (caution in bleeding disorders). The NSAID "
     "threshold is a design choice, not SmPC text"
 )
 
@@ -311,7 +312,8 @@ LAB_RULES: tuple[LabRule, ...] = (
         conflict_type=ConflictType.HYPERKALAEMIA,
         reason="ACE inhibitor or potassium-sparing drug with potassium above 5.5 mmol/L.",
         source=f"{ESC_HF_2021} (potassium above 5.5 mmol/L: reduce or stop); {CIMA}: enalapril, "
-        "ramipril and spironolactone SmPCs, sections 4.3 to 4.5 (hyperkalaemia)",
+        "ramipril and spironolactone SmPCs, sections 4.3 to 4.5 (hyperkalaemia). Applied "
+        "outside heart failure by project policy",
         applies_to_classes=_RAAS_CLASSES,
         lab="potassium_mmol_l",
         comparison=LabComparison.ABOVE,
@@ -324,7 +326,8 @@ LAB_RULES: tuple[LabRule, ...] = (
         conflict_type=ConflictType.HYPERKALAEMIA,
         reason="ACE inhibitor or potassium-sparing drug with potassium above 5.0 mmol/L.",
         source=f"{ESC_HF_2021} (start only with potassium of 5.0 mmol/L or less); {CIMA}: "
-        "enalapril, ramipril and spironolactone SmPCs, section 4.4 (monitor potassium)",
+        "enalapril, ramipril and spironolactone SmPCs, section 4.4 (monitor potassium). Applied "
+        "outside heart failure by project policy",
         applies_to_classes=_RAAS_CLASSES,
         lab="potassium_mmol_l",
         comparison=LabComparison.ABOVE,
@@ -337,7 +340,8 @@ LAB_RULES: tuple[LabRule, ...] = (
         conflict_type=ConflictType.BLEEDING,
         reason="Anticoagulant with platelets below 50,000 per µL.",
         source=f"{ISTH_PLATELETS} (full-dose anticoagulation with platelets of 50,000 per µL "
-        f"or more); {CIMA}: enoxaparin, acenocoumarol and warfarin SmPCs, section 4.4",
+        f"or more); {CIMA}: enoxaparin, acenocoumarol and warfarin SmPCs, section 4.4. Applied "
+        "to every anticoagulant order regardless of dose or indication by project policy",
         applies_to_classes=("ANTICOAGULANT", "LMWH"),
         lab="platelets_per_ul",
         comparison=LabComparison.BELOW,
@@ -541,13 +545,14 @@ ALLOWED_ALTERNATIVES: dict[tuple[str, ConflictType], tuple[AllowedAlternative, .
 SPECIALIST_QUESTIONS: tuple[str, ...] = (
     "Citations: confirm each SmPC section and product named in the table. They were written "
     "without access to the live CIMA documents and none links to a specific document.",
-    "Drug list: is this the right set of about 15 drugs for the demo (Q-5)? Anything to add "
+    "Drug list: is this the right set of 20 drugs for the demo (Q-5)? Anything to add "
     "or remove, e.g. a second alternative analgesic?",
     "Renal thresholds: confirm each threshold, its basis (CrCl by Cockcroft-Gault or eGFR) and "
     "its status. In particular dexketoprofen BLOCKED below CrCl 60 (the SmPC says 59 or lower) "
     "and metformin BLOCKED below eGFR 30.",
     "Renal gaps: no renal rule exists for ibuprofen, naproxen, diclofenac, morphine, "
-    "metamizole, aspirin, clopidogrel or paracetamol because no threshold was available to "
+    "metamizole, aspirin, clopidogrel, paracetamol, enalapril, ramipril, spironolactone, "
+    "warfarin or acenocoumarol because no threshold was available to "
     "cite. Which of these need one, and at what value?",
     "Cockcroft-Gault uses actual body weight, creatinine in mg/dL, a 0.85 factor for women, "
     "and compares the unrounded value with the threshold (the card shows one decimal). Is "
@@ -571,14 +576,16 @@ SPECIALIST_QUESTIONS: tuple[str, ...] = (
     "stricter one is shown. Acceptable?",
     "NSAID with antiplatelet and coded ACS: is BLOCKED / CRITICAL the right verdict, and is "
     "the AHA 2007 statement plus SmPC 4.5 an adequate source? Should a P2Y12 inhibitor or "
-    "an anticoagulant also count as an antiplatelet agent (only aspirin and clopidogrel do now)?",
+    "another P2Y12 inhibitor also count as an antiplatelet agent (only aspirin and clopidogrel "
+    "do now; oral anticoagulants are covered by NSAID_ORAL_ANTICOAGULANT)?",
     "NSAID with active GI bleed: is BLOCKED / CRITICAL right? Should aspirin and clopidogrel "
     "(class ANTIPLATELET, not NSAID here) also be flagged with an active GI bleed?",
     "Risk tiers (CRITICAL, HIGH, MODERATE) are the authors' judgment, not from a source. Please "
     "confirm or change them.",
     "Allergy matching is exact (ignoring upper or lower case) on the drug ID, the active "
     "ingredient or the class ID (NSAID, PENICILLIN, FLUOROQUINOLONE, "
-    "OPIOID, PYRAZOLONE, ANTIPLATELET, LMWH, BIGUANIDE, ANALGESIC_ANTIPYRETIC). Brand names "
+    "OPIOID, PYRAZOLONE, ANTIPLATELET, LMWH, BIGUANIDE, ANALGESIC_ANTIPYRETIC, ANTICOAGULANT, "
+    "ACE_INHIBITOR, POTASSIUM_SPARING). Brand names "
     "or ingredient names in another language do not match (the drug list uses English generic "
     "names only). Is that acceptable for a demo?",
     "Allergy cross-reactivity is not modelled: an aspirin allergy does not flag NSAIDs, and "
@@ -596,10 +603,11 @@ SPECIALIST_QUESTIONS: tuple[str, ...] = (
     "65 or over add its own dexketoprofen warning?",
     "Demo order text (test input, not recommendations): ibuprofen 600 mg PO every 8 hours (D), "
     "amoxicillin-clavulanate 875/125 mg PO every 8 hours (E), dexketoprofen 50 mg IV every 12 "
-    "hours (F), ibuprofen 400 mg PO every 8 hours (custom-patient sample). Do any read as "
+    "hours (F), ibuprofen 600 mg PO every 8 hours (G), enalapril 5 mg PO once daily (H), "
+    "ibuprofen 400 mg PO every 8 hours (I and the custom-patient sample). Do any read as "
     "implausible for an ED order?",
-    "The paracetamol alternative now appears for presets A (ANTIPLATELET_ACS), D (GI_BLEED) and "
-    "F (RENAL). Please confirm one dose that applies to all three.",
+    "The paracetamol alternative now appears for presets A (ANTIPLATELET_ACS), D (GI_BLEED), "
+    "F (RENAL), G (BLEEDING) and I (PREGNANCY). Please confirm one dose that applies to all.",
     "Note findings (ADR 0006): should a suspected ACS taken from the clinician's note give the "
     "same BLOCKED / CRITICAL as a coded ACS, or WARNING?",
     "Note findings: should 'suspected' or 'recent' GI bleeding written in the note count as "
@@ -625,6 +633,9 @@ SPECIALIST_QUESTIONS: tuple[str, ...] = (
     "T-014 pregnancy: ACE inhibitors and oral anticoagulants BLOCKED, NSAIDs WARNING / HIGH "
     "because the trimester is not recorded. Should the record carry gestational age so the "
     "NSAID rule can block from 20 weeks?",
+    "T-014 alternatives: paracetamol is offered for NSAIDs under BLEEDING, HEART_FAILURE and "
+    "PREGNANCY. With acenocoumarol or warfarin, regular paracetamol can raise the INR (SmPC "
+    "4.5). Should the card add a monitoring note, or should no alternative be offered there?",
     "Missing renal lab gives WARNING 'renal function unknown' (design choice A-5, not SmPC). "
     "Is a warning right, or should some drugs (e.g. metformin) be stricter?",
 )

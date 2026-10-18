@@ -213,3 +213,21 @@ def test_ac_002_14_note_medication_from_the_new_list_needs_no_prompt_change() ->
 
     assert [rule.rule_id for rule in verdict.fired_rules] == ["NSAID_ORAL_ANTICOAGULANT"]
     assert verdict.fired_rules[0].evidence == ["Takes warfarin"]
+
+
+def test_ac_002_14_pregnancy_test_negative_is_not_a_finding() -> None:
+    ctx = context(ed_note="Abdominal pain; pregnancy test negative.")
+    found = (NoteFinding(kind=FindingKind.CONDITION, code="PREGNANCY", quote="pregnancy"),)
+
+    assert note_findings.verify(found, ctx) == ()
+
+
+def test_ac_002_14_lab_rule_groups_never_put_a_higher_status_on_a_lower_tier() -> None:
+    groups: dict[tuple[str, str], list[rule_table.LabRule]] = {}
+    for rule in rule_table.LAB_RULES:
+        groups.setdefault((rule.lab, rule.conflict_type), []).append(rule)
+    for rules in groups.values():
+        for a in rules:
+            for b in rules:
+                if a.status.rank > b.status.rank:
+                    assert a.risk_level.rank >= b.risk_level.rank, (a.rule_id, b.rule_id)

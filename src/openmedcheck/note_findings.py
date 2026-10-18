@@ -77,7 +77,8 @@ _PRE_NEGATION = re.compile(
 # "ACS ruled out", "bleeding resolved": up to two words between, but never a negator ("ACS not
 # ruled out" keeps the finding).
 _POST_NEGATION = re.compile(
-    r"^(?P<gap>\W*(?:[\w']+\W+){0,2}?)(?:ruled\s+out|rules\s+out|excluded|resolved|unlikely)\b",
+    r"^(?P<gap>\W*(?:[\w']+\W+){0,2}?)"
+    r"(?:ruled\s+out|rules\s+out|excluded|resolved|unlikely|test\s+(?:was\s+|is\s+)?negative)\b",
     re.IGNORECASE,
 )
 _NEGATOR = re.compile(r"\b(?:not|never|no|cannot|\w+n't)\b", re.IGNORECASE)

@@ -160,11 +160,12 @@ model.
 An open set of **74 synthetic ED cases** ([evals/](evals/README.md)) covers every rule, notes
 where the conflict is only in free text, negations ("ACS ruled out", "not pregnant", "stopped
 warfarin"), past and family history, abbreviations, typos and clean notes that must stay silent.
-Each case states the findings a careful clinician would extract, and a test keeps every case
+Each case states the findings the authors expect the note to state (not yet reviewed by a
+clinician), and a test keeps every case
 consistent with the rules. Result on the same machine
 ([comparison](docs/measurements/2026-10-18-model-comparison.md)):
 
-| | Correct | False alarms | Misses | Model step p50 |
+| | Final status matches label | False alarms | Misses | Model step p50 |
 |---|---|---|---|---|
 | Rules only | 74% | 0/34 | 19/40 (48%) | n/a |
 | **Rules + Gemma 4 E4B** | **97%** | **0/34** | **1/40 (2%)** | 1.96 s |
@@ -193,7 +194,7 @@ Measured on one machine (NVIDIA RTX 3000 Ada Laptop GPU, 8188 MiB; Ollama 0.35.1
   15/15, preset A re-checked with paracetamol `NO_ISSUE` 15/15, B `WARNING` with the renal flag,
   C `NO_ISSUE`; model-step p95 at most 1.50 s.
 
-- [English presets and prompt v4](docs/measurements/2026-10-18-prompt-v4.md) (current): after
+- [English presets and prompt v4](docs/measurements/2026-10-18-prompt-v4.md): after
   the presets were translated to English, prompt v3 blocked the paracetamol re-check 15/15. v4
   sends the ANTIPLATELET_ACS guidance only when the order is an NSAID (a fact from the drug
   list). Then 60/60 valid on the first try; preset A `BLOCKED` 15/15, paracetamol re-check
