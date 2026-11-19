@@ -13,6 +13,7 @@ locally, can only escalate.
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)](pyproject.toml)
 [![Status](https://img.shields.io/badge/status-not%20a%20medical%20device-critical)](#-disclaimer)
 
+[Video Demo](https://www.youtube.com/watch?v=gxfHvlgUy8Y) ·
 [Quick start](#-quick-start) ·
 [How it works](#-how-it-works) ·
 [Configuration](#-configuration) ·
